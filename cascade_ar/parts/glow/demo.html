@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>THE FOLD · glow demo</title>
+<style>
+:root{--ground:#0a0d10;--panel:rgba(12,16,20,.82);--line:#24302a;--text:#e8f3e4;--dim:#8fa796;--gold:#c9a84c;--green:#5fd37a;--mono:ui-monospace,"SF Mono",Menlo,"DejaVu Sans Mono",monospace}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--ground);color:var(--text);font:13px/1.4 var(--mono);overflow:hidden}
+#room{position:fixed;inset:0;width:100%;height:100%;display:none;filter:saturate(.75) brightness(.8)}
+#c{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+#ui{position:fixed;left:0;right:0;bottom:0;padding:8px;display:flex;flex-wrap:wrap;gap:6px;background:linear-gradient(rgba(10,13,16,0),rgba(10,13,16,.9));pointer-events:none}
+#ui>*{pointer-events:auto}
+button{font:600 12px var(--mono);letter-spacing:.08em;color:var(--text);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:9px 12px;cursor:pointer}
+button[aria-pressed="true"]{border-color:var(--green);color:var(--green)}
+#report{position:fixed;top:8px;left:8px;right:8px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 10px;white-space:pre-wrap;max-height:40vh;overflow:auto;font-size:12px;pointer-events:none}
+#report b{color:var(--green)} #report i{color:#ff7b7b;font-style:normal} #report span{color:var(--dim)}
+</style>
+</head>
+<body>
+<canvas id="room"></canvas>
+<canvas id="c"></canvas>
+<div id="report">loading…</div>
+<div id="ui"></div>
+<script src="../../vendor/three.min.js"></script>
+<script src="../shaders/fx.js"></script>
+<script src="glow.js"></script>
+<script>
+(function () {
+  'use strict';
+  // THE FOLD · glow demo: the shader demo's sky (its lens lit, so the eye's ring stands at the left), 48 Airy halos, the rain on a made-up
+  // tape, the floor's twelve spokes and SEED's gold, all drawn through FOLD_GLOW; ?gl1 forces WebGL1. The report says whether every pass
+  // compiled, the half-float targets, the budget's arithmetic at this size, and the fps
+  const T = window.THREE, FX = window.FOLD_FX, GL = window.FOLD_GLOW, $ = id => document.getElementById(id);
+  const errs = [], ce = console.error.bind(console); console.error = function () { errs.push(Array.from(arguments).map(String).join(' ')); ce.apply(console, arguments); };
+  const canvas = $('c'); const gl1 = /gl1/.test(location.search) ? canvas.getContext('webgl', { alpha: true, antialias: false, premultipliedAlpha: true, powerPreference: 'low-power' }) : undefined;
+  const renderer = new T.WebGLRenderer({ canvas, context: gl1, antialias: false, alpha: true, powerPreference: 'low-power' });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5)); renderer.setClearColor(0x000000, 0);
+  const scene = new T.Scene(), camera = new T.PerspectiveCamera(70, 1, 0.05, 80); scene.add(camera);
+  // the sky with its lens: the eye at azimuth 101.25°, elevation −34° (ar.js place(137)), θE 8.36°, the ring lit
+  const EYE = new T.Vector3(Math.sin(101.25 * Math.PI / 180) * Math.cos(-34 * Math.PI / 180), Math.sin(-34 * Math.PI / 180), -Math.cos(101.25 * Math.PI / 180) * Math.cos(-34 * Math.PI / 180));
+  const skySpec = FX.sky({ lens: true, lensDir: EYE.toArray() }); skySpec.uniforms.lensE.value = 8.36 * Math.PI / 180; skySpec.uniforms.lensA.value = 1; const sky = FX.quad(T, skySpec); scene.add(sky);
+  // the halos, as the shader demo has them
+  const haloFrag = `precision mediump float; uniform vec3 col; uniform float scale; uniform float lift; varying vec2 vQ;
+` + FX.halo() + `
+void main(){ float r = length(vQ) * scale; float h = airyGlow(r, lift); float core = airy(r); vec3 rgb = col * h + vec3(1.0) * core * 0.5; float a = clamp(h * 1.1, 0.0, 1.0); if (a < 0.01) discard; gl_FragColor = vec4(rgb, a); }`;
+  const haloVert = `varying vec2 vQ; void main(){ vQ = uv * 2.0 - 1.0; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;
+  const halos = new T.Group(); scene.add(halos);
+  const rayRGB = r => { const c = new T.Color().setHSL(0.78 - r * 0.78 / 11, 0.9, 0.6); return [c.r, c.g, c.b]; };
+  for (let k = 0; k < 48; k++) {
+    const az = k / 48 * Math.PI * 2, el = (-20 + (k % 12) * 5) * Math.PI / 180, R = 6;
+    const m = new T.ShaderMaterial({ vertexShader: haloVert, fragmentShader: haloFrag, uniforms: { col: { value: rayRGB(k % 12) }, scale: { value: 2.655 }, lift: { value: 0.45 } }, transparent: true, depthWrite: false, depthTest: false });
+    const q = new T.Mesh(new T.PlaneBufferGeometry(0.9, 0.9), m); q.position.set(Math.sin(az) * Math.cos(el) * R, Math.sin(el) * R, -Math.cos(az) * Math.cos(el) * R); q.lookAt(0, 0, 0); halos.add(q);
+  }
+  // the floor: the 210-gon, the twelve spokes in the rays' colours (ar.js), SEED's gold is the sky's own; and the rain on a made-up tape
+  const RAY = []; for (let r = 0; r < 12; r++) RAY.push(rayRGB(r));
+  const spk = [], spc = []; for (let r = 0; r < 12; r++) { const a = r / 12 * Math.PI * 2; spk.push(new T.Vector3(0, -2.4, 0), new T.Vector3(Math.sin(a) * 3, -2.4, -Math.cos(a) * 3)); const c = RAY[r]; spc.push(c[0], c[1], c[2], c[0], c[1], c[2]); }
+  const sg = new T.BufferGeometry().setFromPoints(spk); sg.setAttribute('color', new T.Float32BufferAttribute(spc, 3)); scene.add(new T.LineSegments(sg, new T.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.5 })));
+  const ring = []; for (let k = 0; k <= 210; k++) { const a = k / 210 * Math.PI * 2; ring.push(new T.Vector3(Math.sin(a) * 3, -2.4, -Math.cos(a) * 3)); } scene.add(new T.Line(new T.BufferGeometry().setFromPoints(ring), new T.LineBasicMaterial({ color: 0x3f8a52, transparent: true, opacity: 0.85 })));
+  const dots = []; for (let i = 0; i < 1500; i++) { const a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * 2.8; dots.push(new T.Vector3(Math.sin(a) * r, -2.4 + 0.1 * Math.sin(r * 4), -Math.cos(a) * r)); }   // a stand-in for the relief's points
+  const dg = new T.BufferGeometry().setFromPoints(dots); const dc = []; for (let i = 0; i < 1500; i++) { const c = RAY[i % 12]; dc.push(c[0], c[1], c[2]); } dg.setAttribute('color', new T.Float32BufferAttribute(dc, 3));
+  scene.add(new T.Points(dg, new T.PointsMaterial({ size: 0.03, vertexColors: true, sizeAttenuation: true, transparent: true, opacity: 0.9, depthWrite: false })));
+  const rainSpec = FX.rain(), rgeo = new T.InstancedBufferGeometry(), rbase = new T.PlaneBufferGeometry(1, 1, 1, 13); rgeo.setAttribute('position', rbase.getAttribute('position')); rgeo.setIndex(rbase.getIndex());
+  const rcol = new Float32Array(1024), rst = new Float32Array(1024); rgeo.setAttribute('iCol', new T.InstancedBufferAttribute(rcol, 4)); rgeo.setAttribute('iState', new T.InstancedBufferAttribute(rst, 4));
+  const rbytes = new Uint8Array(256 * 78); for (let k = 0; k < rbytes.length; k++) rbytes[k] = (k * 7919 + (k >> 5) * 31) % 10;
+  const rtex = new T.DataTexture(rbytes, 256, 78, T.LuminanceFormat, T.UnsignedByteType); rtex.minFilter = rtex.magFilter = T.NearestFilter; rtex.generateMipmaps = false; rtex.needsUpdate = true;
+  const ratl = new T.CanvasTexture(FX.rainAtlas(Array.from('Φ∂φ∞⊟⊗♯⅗εδΩΓQΣψ𝟙'))); ratl.minFilter = ratl.magFilter = T.LinearFilter; ratl.generateMipmaps = false;
+  Object.assign(rainSpec.uniforms, { tape: { value: rtex }, atlas: { value: ratl } });
+  for (let c = 0; c < 256; c++) { rcol.set([0.37, 0.83, 0.48, c], c * 4); rst.set([9 + 9 * ((c * 0.414) % 1), 10, (c * 0.618034) % 1, 0.13], c * 4); } rgeo.instanceCount = 256;
+  const rain = new T.Mesh(rgeo, new T.ShaderMaterial({ vertexShader: rainSpec.vertexShader, fragmentShader: rainSpec.fragmentShader, uniforms: rainSpec.uniforms, transparent: true, depthWrite: false })); rain.frustumCulled = false; rain.renderOrder = -5; scene.add(rain);
+  // the CRT, in a scene of its own after the glow, as index.html draws it
+  const over = new T.Scene(), crtSpec = FX.crt(), crt = FX.quad(T, crtSpec); over.add(crt); FX.resize(crtSpec.uniforms, renderer);
+  // the glow
+  const glow = GL.mount(T, renderer, { tier: 'full', FX, scene });
+  const state = { on: true, tier: 'full', calm: false, room: false, bloom: GL.K.bloom, rays: GL.K.rays, glitter: GL.K.glitter, grade: true };
+  // ── looking: drag; the eye is at yaw −101.25°, pitch −30° ──
+  let yaw = -101.25 * Math.PI / 180, pitch = -0.45, drag = null;
+  canvas.addEventListener('pointerdown', e => { drag = { x: e.clientX, y: e.clientY, yaw, pitch }; canvas.setPointerCapture(e.pointerId); });
+  canvas.addEventListener('pointermove', e => { if (!drag) return; yaw = drag.yaw + (e.clientX - drag.x) * 0.0035; pitch = Math.max(-1.5, Math.min(1.5, drag.pitch + (e.clientY - drag.y) * 0.0035)); });
+  canvas.addEventListener('pointerup', () => drag = null);
+  function resize() { renderer.setSize(innerWidth, innerHeight, false); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); FX.resize(crtSpec.uniforms, renderer); }
+  window.addEventListener('resize', resize); resize();
+  // ── the buttons ──
+  const ui = $('ui'), btn = (label, f, pressed) => { const b = document.createElement('button'); b.textContent = label; if (pressed != null) b.setAttribute('aria-pressed', pressed); b.onclick = () => f(b); ui.appendChild(b); return b; };
+  btn('GLOW', b => { state.on = !state.on; glow.setTier(state.on ? state.tier : 'off'); b.setAttribute('aria-pressed', state.on); }, true);
+  btn('TIER full / bloom', b => { state.tier = state.tier === 'full' ? 'bloom' : 'full'; if (state.on) glow.setTier(state.tier); b.textContent = 'TIER ' + state.tier; });
+  btn('BLOOM ×', b => { state.bloom = state.bloom > 0.8 ? 0 : state.bloom + 0.2; glow.u.bloomK.value = state.bloom; b.textContent = 'BLOOM ' + state.bloom.toFixed(1); });
+  btn('RAYS ×', b => { state.rays = state.rays > 1.6 ? 0 : state.rays + 0.3; glow.u.rayK.value = state.rays; b.textContent = 'RAYS ' + state.rays.toFixed(1); });
+  btn('GLITTER ×', b => { state.glitter = state.glitter > 1.0 ? 0 : state.glitter + 0.3; glow.u.glitK.value = state.glitter; b.textContent = 'GLITTER ' + state.glitter.toFixed(1); });
+  btn('GRADE', b => { state.grade = !state.grade; glow.u.sat.value = state.grade ? GL.K.sat : 1; glow.u.crush.value = state.grade ? GL.K.crush : 0; b.setAttribute('aria-pressed', state.grade); }, true);
+  btn('CRT', b => { crt.visible = !crt.visible; b.setAttribute('aria-pressed', crt.visible); }, true);
+  btn('CALM', b => { state.calm = !state.calm; FX.calm(state.calm); b.setAttribute('aria-pressed', state.calm); }, false);
+  btn('ROOM', b => { state.room = !state.room; const r = $('room'); r.style.display = state.room ? 'block' : 'none'; sky.visible = !state.room; if (state.room) { r.width = innerWidth; r.height = innerHeight; const g = r.getContext('2d'); g.fillStyle = '#2a3340'; g.fillRect(0, 0, r.width, r.height); g.fillStyle = '#6b8fb0'; g.fillRect(r.width * 0.1, r.height * 0.15, r.width * 0.25, r.height * 0.3); g.fillStyle = 'rgba(255,255,255,0.7)'; g.font = '600 64px ui-monospace, Menlo, monospace'; g.fillText('ROOM', r.width * 0.42, r.height * 0.5); } b.setAttribute('aria-pressed', state.room); }, false);
+  btn('LOOK: EYE / FLOOR', b => { const f = b._f = !b._f; pitch = f ? -1.3 : -0.45; });
+  // ── the lights: the eye's ring and the floor's centre on the screen, as index.html reads them ──
+  const GS = { eye: [0, 0], eyeA: 0, floor: [0, 0], floorA: 0, spokes: new Float32Array(24), spokeCol: new Float32Array(36), room: false, calm: false }, v = new T.Vector3(), SEED = new T.Vector3(0, -2.4, 0);
+  for (let r = 0; r < 12; r++) GS.spokeCol.set(RAY[r], r * 3);
+  const edge = s => 1 - Math.min(1, Math.max(0, (Math.max(Math.abs(s.x), Math.abs(s.y)) - 1) / 0.4));
+  const screen = p => { v.copy(p).project(camera); return { x: v.x, y: v.y, front: v.z < 1 }; };
+  function lights() {
+    const e = screen(EYE.clone().multiplyScalar(6)); GS.eye[0] = (e.x + 1) / 2; GS.eye[1] = (e.y + 1) / 2; GS.eyeA = e.front ? edge(e) : 0;
+    const f = screen(SEED); GS.floor[0] = (f.x + 1) / 2; GS.floor[1] = (f.y + 1) / 2; GS.floorA = f.front ? edge(f) : 0;
+    if (GS.floorA > 0) for (let r = 0; r < 12; r++) { const a = r / 12 * Math.PI * 2, s = screen(new T.Vector3(Math.sin(a) * 3, -2.4, -Math.cos(a) * 3)); let dx = (s.x - f.x) * camera.aspect, dy = s.y - f.y; const l = Math.hypot(dx, dy) || 1; GS.spokes[2 * r] = dx / l; GS.spokes[2 * r + 1] = dy / l; }
+    GS.room = state.room; GS.calm = state.calm; return GS;
+  }
+  // ── the report: the GPU, the compile of every pass, the targets, the budget ──
+  function report() {
+    const gl = renderer.getContext(), dbg = gl.getExtension('WEBGL_debug_renderer_info'), gpu = dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER);
+    const pf = (sh, p) => { const f = gl.getShaderPrecisionFormat(sh, p); return f ? f.precision + ' bits' : '?'; };
+    const lines = ['<b>THE FOLD · glow</b> three r' + T.REVISION + ' · ' + (renderer.capabilities.isWebGL2 ? 'WebGL2' : 'WebGL1') + ' · ' + gpu + ' · fragment mediump ' + pf(gl.FRAGMENT_SHADER, gl.MEDIUM_FLOAT) + ', highp ' + pf(gl.FRAGMENT_SHADER, gl.HIGH_FLOAT)];
+    renderer.compile(scene, camera); renderer.compile(over, camera);
+    // every pass's program: a render of each through the glow compiles them; a second frame is the measure
+    const bad = errs.filter(e => /shader|program|glsl/i.test(e));
+    const rt = glow.rt, bud = GL.budget(rt.w, rt.h, 'full', glow.scale);
+    lines.push(bad.length ? '<i>shader errors: ' + bad.length + '</i>\n' + bad.map(e => e.slice(0, 1200)).join('\n') : '<b>compiled</b>: sky (lens), halo ×48, rain, crt, glow bright + blur H + blur V + rays + composite — no shader errors from three.js');
+    lines.push('<span>scene target ' + rt.hw + '×' + rt.hh + ' bytes · quarter targets ' + rt.qw + '×' + rt.qh + ' ' + (glow.hdr ? 'half float' : 'bytes') + ' · budget at ' + rt.w + '×' + rt.h + ': ' + (bud.fetches / 1e6).toFixed(1) + ' M fetches, ' + (bud.ops / 1e6).toFixed(0) + ' M ops, ~' + bud.ms + ' ms on a mid phone; the sky saves ' + (bud.skyOps / 1e6).toFixed(0) + ' M ops at half res</span>');
+    lines.push('<span>drag to look · buttons below; FPS at the end of this line: </span><b id="fps">—</b>');
+    $('report').innerHTML = lines.join('\n');
+  }
+  // ── the loop ──
+  const t0 = performance.now(); let frames = 0, ft = performance.now();
+  renderer.setAnimationLoop(() => {
+    const t = (performance.now() - t0) / 1000; skySpec.uniforms.time.value = t; rainSpec.uniforms.clock.value = state.calm ? 0 : t; crtSpec.uniforms.time.value = t;
+    camera.rotation.set(pitch, yaw, 0, 'YXZ'); camera.updateMatrixWorld();
+    const g = glow.tier !== 'off'; if (g) glow.begin(); renderer.render(scene, camera); if (g) glow.end(lights());
+    renderer.autoClear = false; renderer.render(over, camera); renderer.autoClear = true;
+    frames++; if (performance.now() - ft > 1000) { const f = $('fps'); if (f) f.textContent = frames + ' fps'; frames = 0; ft = performance.now(); }
+  });
+  setTimeout(report, 400);
+})();
+</script>
+</body>
+</html>

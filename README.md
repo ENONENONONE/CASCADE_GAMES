@@ -6,8 +6,8 @@ You do not move; the field does. The 258 points, GF(257) and ∞, stand round yo
 emerald tablet's words, and six moves (×g, ÷g, FOLD, INV, ×i, Γ) permute the whole sky to bring a target to you. Each day reads 64
 levels in eight chapters off the π tape, the rule of a level the digit under its head; the sky is that tape as rain, the eye (137,
 Γ's pole) is a black hole bending the stars and cells round it, a loss is THE BARDO with a second life from 80 REBIRTH, and the
-Twelve Rays draw the field flat as an inset, the TUBE and each chapter's ledger. Phones turn it with the gyro over the camera;
-desktops and Raspbian drag it.
+Twelve Rays draw the field flat as an inset, the TUBE and each chapter's ledger. GLOW: bloom, golden god rays, glitter and a
+cyberpunk grade over the same palette. Phones turn it with the gyro over the camera; desktops and Raspbian drag it.
 
 | Path | What it is |
 | --- | --- |
@@ -41,6 +41,11 @@ binary (each column's glyph pair and its dlog in gold bits), the level's window 
 ![The eye as a black hole](docs/screenshots/eye.png)
 
 Level 56, THE EYE: 137's shadow in its gold photon ring at full lens tier, the sky, the rain and the cells bent round it.
+
+![The glow](docs/screenshots/glow.png)
+
+GLOW on THE EYE: the ring's golden shafts over the field, every cell blooming in its ray's colour, the rain in phosphor green, the
+brightest points glittering — one post pass over the half-res scene (bloom, god rays, glitter, a grade), the palette unchanged.
 
 ![The bardo card](docs/screenshots/bardo.png)
 

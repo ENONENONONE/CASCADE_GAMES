@@ -41,15 +41,20 @@ the Atbash mirror and the Heisenberg joining of words. One page, no build step, 
   each column, its cell's glyph pair and its dlog in eight gold bits, among the digits; the day's 260 stay π. A tape level reads out
   of the rain as it opens, its start and target digits flying to their cells, and a close turns its start digits into the cell's
   glyphs; the seal counts the windows decoded. Tap the ribbon to read the level's line; VIEW (or v) hides the rain.
+- GLOW: the field through one post pass — bloom in each source's own colour (cells in their rays, the rain in phosphor green, the ring
+  and the quarter turns in gold), golden god rays from the eye's ring and the floor's twelve spokes in their colours, slow glitter on
+  the brightest points, a 1–2 px colour split at the edges and a grade that deepens the blacks and lifts the saturation a fifth, the
+  palette kept. Full on desktops and phones, bloom alone on a low-end GPU, off on a Pi and in the room; GLOW (or b) toggles it, kept
+  in fold.prefs. Under reduced motion the shafts and the glitter are stills.
 
 ## Where it runs
 
 - Phones: device orientation turns the view (iOS asks on ENTER), the back camera shows the room; a PWA that plays offline after the
   first load over https. Android Chrome with WebXR gets an AR button for the room itself.
 - Raspbian, an RK3588 board and desktops: drag or arrow keys to look; keys g G f i q r are the moves, u undoes, v the rain, m the rays
-  inset, t the TUBE. The sky
+  inset, t the TUBE, b the glow. The sky
   shader scales down by GPU (none on VideoCore/llvmpipe, half on Mali); the rain keeps only its state columns, heads only, on a Pi
-  or SwiftShader, and is off on llvmpipe.
+  or SwiftShader, and is off on llvmpipe; the glow is bloom alone on Mali and off on a Pi.
 - Nothing is sent anywhere; the day's progress stays in the browser.
 
 ## Files
@@ -58,5 +63,5 @@ the Atbash mirror and the Heisenberg joining of words. One page, no build step, 
 `data.js` the tablet's words and the π tape · `parts/levels` the day's plan (`node parts/levels/test.js`) · `parts/story` the
 chapters and voices (`node parts/story/check.js`) · `parts/sound` Web Audio · `parts/shaders` sky, Airy halo, CRT, Γ warp, the tape's rain ·
 `parts/relief` the conics relief · `parts/well` the eye's lens (`node parts/well/check.js`) · `parts/void` THE BARDO
-(`demo.html`) · `parts/rays` the Twelve Rays, the TUBE and the ledger (`node parts/rays/check.js`) · `parts/corpus` numbers from the corpus (`node parts/corpus/check.js`) · `vendor/three.min.js`
+(`demo.html`) · `parts/rays` the Twelve Rays, the TUBE and the ledger (`node parts/rays/check.js`) · `parts/glow` bloom, god rays, glitter and the grade (`node parts/glow/check.js`, `demo.html`) · `parts/corpus` numbers from the corpus (`node parts/corpus/check.js`) · `vendor/three.min.js`
 r128 · `sw.js` (bump CACHE on every change) and the manifest. The data generators are kept beside this folder, not in it.
