@@ -1,0 +1,16 @@
+{
+  "name": "THE FOLD · the field GF(257)",
+  "short_name": "THE FOLD",
+  "description": "The field GF(257) stood round you as an augmented-reality game: six moves, the π tape for the day, the emerald tablet's words.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0a0d10",
+  "theme_color": "#0a0d10",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
