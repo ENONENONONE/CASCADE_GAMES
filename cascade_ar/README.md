@@ -16,6 +16,8 @@ the Atbash mirror and the Heisenberg joining of words. One page, no build step, 
   move · STORE par + 1 still closes · FOLD free · JUMP Γ free · SYNC one over loses · HALT thirty seconds). The doors (30–32) walk
   4176, 8352, 8532 to 6174; the ladders (36, 40) climb your cell's halvings; the mirrors (44, 48) go to a word's Atbash cell; the eye
   (56) runs 137 → ∞ → 1. Par is the fewest moves; par closes with three stars. A gold day (day ≡ 0 mod 128) frees ×i.
+  HINT shows the road from where you stand as chips: the first HINT of a level is free, each one after caps the level at ★★. A tapped
+  cell's panel gives the road to it, but to the target only after a HINT.
 - Each chapter sets a quest: find a cell by its words, by tapping it. Each target's word joins your line; the seal at night reads the
   line's cell and its mirror.
 - FREE WALK: no target; walk and read, with the eye as the quest. THE DOORS: type four figures and walk their Kaprekar chain.
