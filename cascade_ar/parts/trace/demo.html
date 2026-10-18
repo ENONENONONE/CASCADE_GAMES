@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>THE FOLD · trace demo</title>
+<style>
+:root{--ground:#0a0d10;--panel:rgba(12,16,20,.85);--line:#24302a;--text:#e8f3e4;--dim:#8fa796;--gold:#c9a84c;--green:#5fd37a;--tube:#050805;--mono:ui-monospace,"SF Mono",Menlo,"DejaVu Sans Mono",monospace}
+html,body{margin:0;background:var(--ground);color:var(--text);font:13px/1.4 system-ui,sans-serif}
+#ui{margin:10px;max-width:980px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+#ui h1{font:600 14px var(--mono);margin:0 0 6px;color:var(--gold)}
+.row{display:flex;flex-wrap:wrap;gap:4px;margin:4px 0;align-items:center}
+.row span.k{color:var(--dim);font:11px var(--mono);margin-right:4px;min-width:52px}
+button{font:12px var(--mono);color:var(--text);background:transparent;border:1px solid var(--line);border-radius:4px;padding:3px 7px;cursor:pointer;min-height:24px}
+button[aria-pressed="true"]{background:var(--gold);color:#111;border-color:var(--gold)}
+#read{font:11px var(--mono);color:var(--dim);margin-top:6px;white-space:pre-wrap}
+.stage{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start;margin:10px}
+.stage figure{margin:0;font:11px var(--mono);color:var(--dim);text-align:center}
+canvas{display:block;background:var(--tube);border:1px solid var(--line);border-radius:6px;image-rendering:pixelated}
+#tile{width:64px;height:64px} #big{width:256px;height:256px} #raw{width:256px;height:256px} #dirs{width:256px;height:256px}
+</style>
+</head>
+<body>
+<div id="ui">
+  <h1>THE FOLD · parts/trace · a ray tracer in GF(257)</h1>
+  <div class="row"><span class="k">move</span><button data-op="g">×g g</button><button data-op="ig">÷g G</button><button data-op="fold">FOLD f</button><button data-op="inv">INV i</button><button data-op="i">×i q</button><button data-op="gam">Γ r</button><span class="k">cell</span><input id="cell" type="number" min="0" max="256" value="62" style="width:64px;font:12px var(--mono);background:transparent;color:var(--text);border:1px solid var(--line);border-radius:4px;padding:2px 4px"></div>
+  <div class="row"><span class="k">sheet</span><span id="sheets"></span><span class="k">target</span><input id="target" type="number" min="0" max="256" value="200" style="width:64px;font:12px var(--mono);background:transparent;color:var(--text);border:1px solid var(--line);border-radius:4px;padding:2px 4px"></div>
+  <div class="row"><span class="k">law</span><span id="laws"></span></div>
+  <div class="row"><span class="k">view</span><button id="calm" aria-pressed="false">CALM</button><button id="cycle">CYCLE (x)</button></div>
+  <div id="read"></div>
+</div>
+<div class="stage">
+  <figure><canvas id="tile"></canvas><figcaption>the tile, 64 px</figcaption></figure>
+  <figure><canvas id="big"></canvas><figcaption>the tile at 4×</figcaption></figure>
+  <figure><canvas id="raw"></canvas><figcaption>the 16 × 16 light, p = c + 16r</figcaption></figure>
+  <figure><canvas id="dirs"></canvas><figcaption>the 256 directions, the hue the step</figcaption></figure>
+</div>
+<script src="../../field.js"></script>
+<script src="../relief/relief.js"></script>
+<script src="trace.js"></script>
+<script>
+(function () {
+  'use strict';
+  const F = window.FIELD, TR = window.FOLD_TRACE, $ = id => document.getElementById(id);
+  let calm = false; const isCalm = () => calm;
+  const S = { current: 62, target: 200, home: 92, sheet: 'product' }, modes = Object.assign({}, TR.DEFAULT);
+  const tile = TR.Tile($('tile'), { size: 64, dpr: Math.min(2, devicePixelRatio || 1), calm: isCalm }), big = TR.Tile($('big'), { size: 256, beam: 256, dpr: 1, calm: isCalm });
+  // the law buttons: one group a mapping, as the Tile's cycle steps them
+  for (const [k, vs] of Object.entries(TR.MODES)) { const sp = document.createElement('span'); sp.className = 'row'; sp.style.margin = '0 8px 0 0'; sp.innerHTML = '<span class="k">' + k + '</span>' + vs.map(v => '<button data-law="' + k + '" data-v="' + v + '" aria-pressed="' + (modes[k] === v) + '">' + v + '</button>').join(''); $('laws').appendChild(sp); }
+  $('sheets').innerHTML = Object.keys(TR.FORMS).map(k => '<button data-sheet="' + k + '" aria-pressed="' + (k === S.sheet) + '">' + k + '</button>').join('');
+  const g16 = $('raw').getContext('2d'), gd = $('dirs').getContext('2d'); $('raw').width = $('raw').height = 16; $('dirs').width = $('dirs').height = 256;
+  // the small tile keeps its own law (the game's cycle); the big one and the raw picture take the buttons' laws
+  function paint() {
+    const sc = TR.scene(S), origin = S.current === F.INF ? null : [S.current, 0];
+    const R = big.set(sc, origin, modes), L = TR.lightAt(R), st = R.stats;
+    const raw = g16.createImageData(16, 16); TR.toRGBA(R.light, raw.data, tile.o.gain); g16.putImageData(raw, 0, 0);
+    tile.set(sc, origin);
+    const D = TR.dirs(modes.dirs); gd.fillStyle = '#050805'; gd.fillRect(0, 0, 256, 256); for (let k = 0; k < 256; k++) { const c = window.FOLD_RELIEF.hue(k / 256), l = R.light[k * 3] + R.light[k * 3 + 1] + R.light[k * 3 + 2]; gd.fillStyle = 'rgba(' + Math.round(c[0] * 255) + ',' + Math.round(c[1] * 255) + ',' + Math.round(c[2] * 255) + ',' + (0.25 + 0.75 * Math.min(1, l)) + ')'; gd.fillRect(D.X[k] - 1, 255 - D.Y[k] - 1, 3, 3); }
+    $('read').textContent = 'the eye at (' + (origin ? origin.join(', ') : '∞') + ') · ' + sc.surfaces.map(s => s.name + ' ' + s.form + ' ≡ ' + s.r + ' n ' + s.n + ' Z ' + (s.Z === 257 ? '∞' : s.Z) + ' Γ ' + (TR.gamma(s.Z) === 257 ? '∞' : TR.gamma(s.Z))).join(' · ')
+      + '\nhit ' + st.hit + ' of 256 · bounces ' + st.bounces + ' · reflect ' + st.reflect + ' refract ' + st.refract + ' absorbed ' + st.absorbed + ' · depth ' + st.depth + ' · energy ' + st.energy.toFixed(1) + ' · coherence ' + st.coherence.toFixed(3)
+      + '\nlightAt: azimuth ' + (L.angle * 180 / Math.PI).toFixed(1) + '° · cell ' + L.cell + ' · rgb ' + L.rgb.map(x => x.toFixed(2)).join(' ') + '\nrender ' + st.ms.toFixed(2) + ' ms · the tile ' + tile.ms.toFixed(2) + ' ms (render + beam) · the tile\'s law: ' + tile.modeName;
+  }
+  function move(id) { S.current = F.OP[id].f(S.current); $('cell').value = S.current === F.INF ? '' : S.current; paint(); }
+  for (const b of document.querySelectorAll('[data-op]')) b.onclick = () => move(b.dataset.op);
+  $('cell').oninput = () => { const v = +$('cell').value; if (v >= 0 && v <= 256) { S.current = v; paint(); } };
+  $('target').oninput = () => { const v = +$('target').value; if (v >= 0 && v <= 256) { S.target = v; paint(); } };
+  $('sheets').onclick = e => { const b = e.target.closest('[data-sheet]'); if (!b) return; S.sheet = b.dataset.sheet; for (const x of $('sheets').children) x.setAttribute('aria-pressed', x === b); paint(); };
+  $('laws').onclick = e => { const b = e.target.closest('[data-law]'); if (!b) return; modes[b.dataset.law] = b.dataset.v; for (const x of $('laws').querySelectorAll('[data-law="' + b.dataset.law + '"]')) x.setAttribute('aria-pressed', x === b); paint(); };
+  $('calm').onclick = () => { calm = !calm; $('calm').setAttribute('aria-pressed', calm); };
+  $('cycle').onclick = () => { tile.cycle(); paint(); };
+  const KEY = { g: 'g', G: 'ig', f: 'fold', i: 'inv', q: 'i', r: 'gam' };
+  window.addEventListener('keydown', e => { if (e.target.tagName === 'INPUT') return; if (KEY[e.key]) move(KEY[e.key]); if (e.key === 'x') $('cycle').onclick(); });
+  paint();
+  const loop = now => { tile.frame(now); big.frame(now); requestAnimationFrame(loop); }; requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

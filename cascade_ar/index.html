@@ -98,13 +98,17 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 #quest[hidden]{display:none} #quest.done{color:var(--green);border-color:var(--green)}
 #rays{position:absolute;left:10px;bottom:178px;width:132px;height:132px;border-radius:50%;background:var(--tube);border:1px solid var(--line);cursor:pointer;touch-action:none}
 #rays[hidden],#tube[hidden]{display:none}
+#trace{position:absolute;left:150px;bottom:166px;width:64px;font:9px/12px var(--mono);color:var(--dim);text-align:center;white-space:nowrap}
+#trace[hidden]{display:none}
+#trace canvas{display:block;width:64px;height:64px;border-radius:6px;background:var(--tube);border:1px solid var(--line);cursor:pointer}
+#trace canvas:focus-visible{outline:2px solid var(--blue)}
 #tube{position:absolute;inset:0;background:var(--ground)} #hud.tubing{background:none}
 #tubec{position:absolute;border-radius:12px;background:var(--tube);touch-action:none;box-shadow:0 20px 40px rgba(0,0,0,.45);outline:none}
 #tubec:focus-visible{box-shadow:0 0 0 2px var(--blue)}
 .tubebtns{position:absolute;display:flex;gap:6px} .tubebtns button{padding:4px 10px;min-height:24px;font-size:11px;color:var(--dim)} .tubebtns button[aria-pressed="true"]{color:var(--blue);border-color:var(--blue)}
 .ledger{display:block;width:100%;max-width:394px;margin:8px 0 4px;border-radius:10px;background:var(--tube)}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
-@media (max-width:420px){#ops button{font-size:13px;padding:12px 2px}.stand .g{font-size:24px}.stand .n{font-size:18px}#quest{bottom:196px}#rays{bottom:196px}}
+@media (max-width:420px){#ops button{font-size:13px;padding:12px 2px}.stand .g{font-size:24px}.stand .n{font-size:18px}#quest{bottom:196px}#rays{bottom:196px}#trace{left:10px;bottom:336px}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 html.calm *{transition:none!important;animation:none!important}
 </style>
@@ -143,6 +147,7 @@ html.calm *{transition:none!important;animation:none!important}
   </div>
   <div id="quest" hidden></div>
   <canvas id="rays" role="img" tabindex="0" aria-label="the twelve rays" title="the twelve rays: tap (or t) for the TUBE" hidden></canvas>
+  <div id="trace" hidden><canvas id="tracec" role="img" tabindex="0" aria-label="the trace"></canvas><span id="tracecap"></span></div>
   <div id="cross" hidden></div>
   <div class="arrow" id="arr-cur" hidden><i></i></div>
   <div class="arrow tg" id="arr-tg" hidden><i></i></div>
@@ -168,6 +173,7 @@ html.calm *{transition:none!important;animation:none!important}
 <script src="parts/well/well.js"></script>
 <script src="parts/void/void.js"></script>
 <script src="parts/rays/rays.js"></script>
+<script src="parts/trace/trace.js"></script>
 <script src="parts/glow/glow.js"></script>
 <script>
 (function () {
@@ -293,7 +299,7 @@ html.calm *{transition:none!important;animation:none!important}
     if (on) { el.hidden = false; const W = raysFit(); if (!RAYS.big) RAYS.big = RY.Chart($('tubec'), { size: W, dpr: dpr2, header: true, bars: true, labels: true, face: PREFS.face === 'table' ? 'table' : 'rays', calm: () => calm }); else RAYS.big.resize(W); $('tubeface').setAttribute('aria-pressed', RAYS.big.o.face === 'table'); RAYS.focus = G.S.current; RAYS.big.focus(RAYS.focus); paint(); $('tubec').focus(); }
     else { if (ok) el.hidden = true; $('quest').style.left = $('quest').style.right = ''; }
     RAYS.fade = ok ? null : { t0: performance.now(), to: on ? 1 : 0 }; el.style.opacity = ok ? '' : on ? '0' : '1';
-    $('hud').classList.toggle('tubing', on); $('cross').hidden = on || $('hud').hidden; for (const id of ['arr-cur', 'arr-tg', 'arr-eye']) if (on) $(id).hidden = true; raysShow();
+    $('hud').classList.toggle('tubing', on); $('cross').hidden = on || $('hud').hidden; for (const id of ['arr-cur', 'arr-tg', 'arr-eye']) if (on) $(id).hidden = true; raysShow(); traceShow();
     toast(on ? 'the TUBE: the day in 2D · hold for a lens, let go on a cell to read it · the arrows walk the rays · t or Esc for the field' : 'the field', 2600);
   }
   function raysFade(now) { const f = RAYS.fade; if (!f) return; const x = Math.min(1, (now - f.t0) / 600), el = $('tube'); el.style.opacity = String(f.to ? x : 1 - x); if (x >= 1) { RAYS.fade = null; el.style.opacity = ''; if (!f.to) el.hidden = true; } }
@@ -326,6 +332,31 @@ html.calm *{transition:none!important;animation:none!important}
     if (e.key === 'Escape') { if (!$('panel').hidden) $('panel').hidden = true; else raysTube(false); return true; }
     return false;
   }
+  // ── the trace: the field ray tracer's picture (parts/trace) as a 64 px tile beside the rays inset, A8's 16 × 16 through the Airy beam: 256 rays
+  // from your cell at (x, y) = (cell, 0) through the chapter's sheet at the target's level and four more, four bounces by Γ, rendered anew on
+  // each move and at a level's opening (through paint(), by a key of the cell, the level, the target and the law, so a hint or a quest renders
+  // nothing anew), kept by the P22 persistence and still under CALM. TRACE or z toggles it, kept in fold.prefs; a tap on it, Enter on it or x
+  // cycles the law it carries. Its 4096 px² are under the gate's 2.8 %, so no change of it is a large flash; one onset a move ──
+  const TRC = window.FOLD_TRACE || null, TRACE = { on: PREFS.trace !== 'off', tile: null, key: '' };
+  if (TRC) { try { TRACE.tile = TRC.Tile($('tracec'), { size: 64, dpr: dpr2, calm: () => calm, cycle: PREFS.traceMode | 0 }); } catch (e) { console.warn('trace', e); } }
+  const bTrace = TRC && TRACE.tile ? aux('TRACE', () => traceToggle(), 'the field ray tracer: 256 rays from your cell through the chapter\'s sheets, bounced by Γ (key z); tap the tile, or x, for another law') : null;
+  if (bTrace) { bTrace.setAttribute('aria-pressed', TRACE.on); bTrace.style.gridColumn = 'span 1'; if (bRays) bRays.style.gridColumn = 'span 1'; }   // the two share RAYS's slot, so the moves keep their rows
+  function traceToggle() { TRACE.on = !TRACE.on; PREFS.trace = TRACE.on ? 'on' : 'off'; LS.set('fold.prefs', JSON.stringify(PREFS)); if (bTrace) bTrace.setAttribute('aria-pressed', TRACE.on); traceShow(); if (TRACE.on) traceSet(G.S, true); toast(TRACE.on ? 'the trace: 256 rays from your cell, the sheets as mirrors, Γ the reflection · tap it for another law' : 'trace off'); }
+  function traceShow() { $('trace').hidden = !TRACE.tile || !TRACE.on || RAYS.tube || $('hud').hidden; }
+  function traceSet(S, force) {
+    const t = TRACE.tile; if (!t || !TRACE.on || !S || !S.road) return; const key = [S.current, S.level, S.target, S.spec && S.spec.sheet, t.cycleIndex].join(':'); if (key === TRACE.key && !force) return; TRACE.key = key;
+    const st = t.set(TRC.scene({ sheet: S.spec && S.spec.sheet, target: S.target, current: S.current, home: S.home }), S.current === F.INF ? null : [S.current, 0]).stats, c = st.coherence.toFixed(2);
+    $('tracecap').textContent = st.hit + '·' + st.bounces + '·' + c.slice(1);
+    $('tracec').setAttribute('aria-label', 'the trace from ' + (S.current === F.INF ? '∞, dark' : 'cell ' + S.current) + ': ' + st.hit + ' of 256 rays hit, ' + st.bounces + ' bounces, coherence ' + c + ' · ' + t.modeName);
+    $('trace').title = 'TRACE · ' + st.hit + ' of 256 rays hit · ' + st.bounces + ' bounces · coherence ' + c + ' · ' + t.modeName + ' · ' + t.ms.toFixed(1) + ' ms · tap for another law (x)';
+  }
+  function traceCycle() { const t = TRACE.tile; if (!t) return; const c = t.cycle(); PREFS.traceMode = t.cycleIndex; LS.set('fold.prefs', JSON.stringify(PREFS)); traceSet(G.S, true); toast('the trace: ' + c.name, 2400); }
+  function traceFrame() { if (TRACE.tile && !$('trace').hidden) TRACE.tile.frame(performance.now()); }
+  function traceKey(e) {
+    if (!TRACE.tile || $('hud').hidden || document.activeElement === $('name') || e.ctrlKey || e.metaKey || e.altKey || !$('chap').hidden || !$('won').hidden) return false;
+    if (e.key === 'z') { traceToggle(); return true; } if (e.key === 'x' || ((e.key === 'Enter' || e.key === ' ') && document.activeElement === $('tracec'))) { e.preventDefault(); traceCycle(); return true; } return false;
+  }
+  $('tracec').addEventListener('click', traceCycle);
   // the ray ledger (T4): at a chapter's close the won card replays its eight roads as chords over 4 s, then the bars from your own
   // arrivals, home's ray outlined and the line's cell's ray ticked; under CALM the last frame only. The seal draws the day's bars
   function ledger(ch) {
@@ -396,7 +427,7 @@ html.calm *{transition:none!important;animation:none!important}
     effort(S);
     const q = S.quest; $('quest').hidden = !q; if (q) { const done = G.answered(q); $('quest').className = done ? 'done' : ''; $('quest').textContent = (done ? '✓ ' : '? ') + q.ask; }
     A.paint({ current: S.current, target: S.target, home: S.home, visited: S.visited, reach: G.reach(), road: S.road, ops: S.opsList, rule: S.digit, moves: S.moves, chapter: S.mode === 'daily' ? chapterOf(S.level) + 1 : 8, strip: S.head, spec: S.spec, eye: S.kind === 'eye', ghost: S.ghost }); A.tape(D.pi, S.offset, S.spec);
-    raysSet(S); raysShow();
+    raysSet(S); raysShow(); traceSet(S); traceShow();
   }
   // ── the effort bar (H2): par + slack segments and one dim 2★; a counted move fills one by what it did to the solver's distance:
   // closer blue and full, kept grey and half height, further orange and notched below the line; whitened by the move's heat, the
@@ -585,7 +616,7 @@ html.calm *{transition:none!important;animation:none!important}
   canvas.addEventListener('pointerdown', e => { if (!e.isPrimary) return; XS.look = null; drag = { x: e.clientX, y: e.clientY, yaw: A.A.yaw, pitch: A.A.pitch, ty: A.A.touchYaw }; moved = false; canvas.setPointerCapture(e.pointerId); });
   canvas.addEventListener('pointermove', e => { if (!drag) return; const dx = e.clientX - drag.x, dy = e.clientY - drag.y; if (Math.abs(dx) + Math.abs(dy) > 4) moved = true; const k = 0.0035; if (A.A.deviceQ) A.A.touchYaw = drag.ty + dx * k; else { A.A.yaw = drag.yaw + dx * k; A.A.pitch = Math.max(-1.4, Math.min(1.4, drag.pitch + dy * k)); } });
   canvas.addEventListener('pointerup', e => { const d = drag; drag = null; if (!d || moved || $('start').hidden === false) return; if (slow && skip()) return; if (bard && bard.skip()) return; if (A.readEnd && A.readEnd()) return; const r = canvas.getBoundingClientRect(); const nx = (e.clientX - r.left) / r.width * 2 - 1, ny = -((e.clientY - r.top) / r.height * 2 - 1); if (A.pickTape && A.pickTape(nx, ny)) return type(G.S.spec && G.S.spec.text || G.S.rule.tell); const n = A.pick(nx, ny); if (n != null) showCell(n); });
-  window.addEventListener('keydown', e => { if (slow && (e.key === ' ' || e.key === 'Escape') && skip()) return; if (bard && (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') && bard.skip()) { e.preventDefault(); return; } if ((e.key === ' ' || e.key === 'Escape') && A.readEnd && A.readEnd()) return; if (raysKey(e)) return; if (e.key === 'v' && !$('hud').hidden && document.activeElement !== $('name')) view(); if (e.key === 'b' && !$('hud').hidden && document.activeElement !== $('name')) glowToggle(); const k = 0.08; if (e.key === 'ArrowLeft') A.A.yaw += k; if (e.key === 'ArrowRight') A.A.yaw -= k; if (e.key === 'ArrowUp') A.A.pitch = Math.min(1.4, A.A.pitch + k); if (e.key === 'ArrowDown') A.A.pitch = Math.max(-1.4, A.A.pitch - k); const m = { g: 'g', G: 'ig', f: 'fold', i: 'inv', q: 'i', r: 'gam' }[e.key]; if (m && !$('hud').hidden && $('chap').hidden && $('won').hidden && document.activeElement !== $('name')) move(m); if (e.key === 'u' && !busy && !$('hud').hidden && $('chap').hidden) { const was = G.S.current, id = G.undo(); if (id) { paint(); monStep(G.S); if (G.S.kind === 'eye') cross('undo', G.S.current, was, 600); } } });
+  window.addEventListener('keydown', e => { if (slow && (e.key === ' ' || e.key === 'Escape') && skip()) return; if (bard && (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') && bard.skip()) { e.preventDefault(); return; } if ((e.key === ' ' || e.key === 'Escape') && A.readEnd && A.readEnd()) return; if (raysKey(e) || traceKey(e)) return; if (e.key === 'v' && !$('hud').hidden && document.activeElement !== $('name')) view(); if (e.key === 'b' && !$('hud').hidden && document.activeElement !== $('name')) glowToggle(); const k = 0.08; if (e.key === 'ArrowLeft') A.A.yaw += k; if (e.key === 'ArrowRight') A.A.yaw -= k; if (e.key === 'ArrowUp') A.A.pitch = Math.min(1.4, A.A.pitch + k); if (e.key === 'ArrowDown') A.A.pitch = Math.max(-1.4, A.A.pitch - k); const m = { g: 'g', G: 'ig', f: 'fold', i: 'inv', q: 'i', r: 'gam' }[e.key]; if (m && !$('hud').hidden && $('chap').hidden && $('won').hidden && document.activeElement !== $('name')) move(m); if (e.key === 'u' && !busy && !$('hud').hidden && $('chap').hidden) { const was = G.S.current, id = G.undo(); if (id) { paint(); monStep(G.S); if (G.S.kind === 'eye') cross('undo', G.S.current, was, 600); } } });
   async function sensors() { try { if (window.DeviceOrientationEvent && typeof DeviceOrientationEvent.requestPermission === 'function') { const r = await DeviceOrientationEvent.requestPermission(); if (r !== 'granted') return false; } } catch (e) { return false; } window.addEventListener('deviceorientation', A.onOrientation, true); return true; }
   async function cameraOn() { if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return false; try { const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 } }, audio: false }); const v = $('video'); v.srcObject = s; v.style.display = 'block'; await v.play().catch(() => {}); A.A.stars.visible = false; A.A.rainAlpha = 0.35; if (A.A.sky) A.A.sky.visible = false; return true; } catch (e) { return false; } }
   // ── the compass arrows and the clock ──
@@ -619,7 +650,7 @@ html.calm *{transition:none!important;animation:none!important}
     if (mode === 'doors') { const d = ($('digits').value || '').replace(/\D/g, '').padStart(4, '0').slice(-4); if (!LV || !LV.doors) return toast('the doors need the level designer\'s module'); plan = LV.doors(d); if (!plan || !plan.length) return toast(d + ' reaches no door: four figures not all the same'); }
     if (mode === 'free') plan = [LV && LV.free ? LV.free(name) : { n: 1, kind: 'free', start: F.letterSum(name) % 257, target: null, rule: 0, free: [] }];
     snd.init(); G.start(name, mode, plan); snd.home(G.S.home); if (A.rainDay) A.rainDay(G.S.head); if (A.decode && G.S.plan && G.S.decoded.length) A.decode(G.S.plan.filter(sp => sp && G.S.decoded.includes(sp.window || sp.n)));
-    $('start').hidden = true; $('hud').hidden = false; $('ops').hidden = false; $('cross').hidden = false; raysShow();
+    $('start').hidden = true; $('hud').hidden = false; $('ops').hidden = false; $('cross').hidden = false; raysShow(); traceShow();
     paint(); A.bloom(3.2); snd.bloom(3.2);
     const t0 = performance.now(); const gyro = await sensors(); const cam = await cameraOn();
     toast((gyro ? 'turn to look' : 'drag to look') + (cam ? ' · the room is behind the field' : '') + ' · tap a cell to read it', 3000);
@@ -653,8 +684,8 @@ html.calm *{transition:none!important;animation:none!important}
     if (!xr && crtQ && crtQ.visible) { const r = A.A.renderer; r.autoClear = false; r.render(over, A.A.camera); r.autoClear = true; }
   }
   // ── the loop ──
-  A.A.renderer.setAnimationLoop(() => { const t = (performance.now() - A.A.t0) / 1000; if (A.A.sky && A.A.sky.material.uniforms.time) A.A.sky.material.uniforms.time.value = t; if (crtU) crtU.time.value = t; if (warpU) { warpU.time.value = t; warpQ.visible = warpU.t.value > 0 && !A.A.renderer.xr.isPresenting; } if (WELL) WELL.step(G.S, { cam: $('video').style.display === 'block' }); crossStep(performance.now()); const xr = A.A.renderer.xr.isPresenting; if (!RAYS.tube || xr) frame3d(xr); arrows(); clockStep(); raysFrame(xr); });   // the TUBE skips the 3D frame, never in the room
-  window.FOLD_DEBUG = { paint, openLevel, move, monFloor, monApply, monStep, MON, showCell, endDay, bardo, reborn, G, A, RAYS, raysTube, frame3d, glowToggle, glowState, get glow() { return glow; } };  // for a console or a test, not for play
+  A.A.renderer.setAnimationLoop(() => { const t = (performance.now() - A.A.t0) / 1000; if (A.A.sky && A.A.sky.material.uniforms.time) A.A.sky.material.uniforms.time.value = t; if (crtU) crtU.time.value = t; if (warpU) { warpU.time.value = t; warpQ.visible = warpU.t.value > 0 && !A.A.renderer.xr.isPresenting; } if (WELL) WELL.step(G.S, { cam: $('video').style.display === 'block' }); crossStep(performance.now()); const xr = A.A.renderer.xr.isPresenting; if (!RAYS.tube || xr) frame3d(xr); arrows(); clockStep(); raysFrame(xr); traceFrame(); });   // the TUBE skips the 3D frame, never in the room
+  window.FOLD_DEBUG = { paint, openLevel, move, monFloor, monApply, monStep, MON, showCell, endDay, bardo, reborn, G, A, RAYS, raysTube, frame3d, glowToggle, glowState, get glow() { return glow; }, TRACE, traceCycle };  // for a console or a test, not for play
   document.addEventListener('visibilitychange', () => { if (!document.hidden && ac && ac.state === 'suspended') ac.resume(); });
   if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
 })();
