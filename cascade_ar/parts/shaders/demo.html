@@ -71,6 +71,17 @@ void main(){ float r = length(vQ) * scale; float h = airyGlow(r, lift); float co
   // the CRT overlay and the warp
   const crtSpec = FX.crt(); const crt = FX.quad(T, crtSpec); crt.visible = false; scene.add(crt); FX.resize(crtSpec.uniforms, renderer);
   const warpSpec = FX.warp(); const warp = FX.quad(T, warpSpec); warp.visible = false; warpScene.add(warp);
+  // the tape's rain (M1): 256 columns at radius 9 on a made-up tape (the game reads π from data.js); FULL runs every column with drops
+  // and trails, SPARSE 42 columns with heads only (the `tiny` tier), a lit window of eight digits at column 120, row 75 (M2)
+  const rainSpec = FX.rain(), rgeo = new T.InstancedBufferGeometry(), rbase = new T.PlaneBufferGeometry(1, 1, 1, 13); rgeo.setAttribute('position', rbase.getAttribute('position')); rgeo.setIndex(rbase.getIndex());
+  const rcol = new Float32Array(1024), rst = new Float32Array(1024); rgeo.setAttribute('iCol', new T.InstancedBufferAttribute(rcol, 4)); rgeo.setAttribute('iState', new T.InstancedBufferAttribute(rst, 4));
+  const rbytes = new Uint8Array(256 * 78); for (let k = 0; k < rbytes.length; k++) rbytes[k] = (k * 7919 + (k >> 5) * 31) % 10;
+  const rtex = new T.DataTexture(rbytes, 256, 78, T.LuminanceFormat, T.UnsignedByteType); rtex.minFilter = rtex.magFilter = T.NearestFilter; rtex.generateMipmaps = false; rtex.needsUpdate = true;
+  const ratl = new T.CanvasTexture(FX.rainAtlas(Array.from('Φ∂φ∞⊟⊗♯⅗εδΩΓQΣψ𝟙'))); ratl.minFilter = ratl.magFilter = T.LinearFilter; ratl.generateMipmaps = false;
+  Object.assign(rainSpec.uniforms, { tape: { value: rtex }, atlas: { value: ratl } }); rainSpec.uniforms.win.value = [120, 75, 1, 0]; rainSpec.uniforms.span.value = [0, 4, 4, 8]; rainSpec.uniforms.strip.value = [120, 75, 260, 0.9];
+  const rain = new T.Mesh(rgeo, new T.ShaderMaterial({ vertexShader: rainSpec.vertexShader, fragmentShader: rainSpec.fragmentShader, uniforms: rainSpec.uniforms, transparent: true, depthWrite: false })); rain.frustumCulled = false; rain.renderOrder = -5; scene.add(rain);
+  function rainFill(sparse) { let i = 0; for (let c = 0; c < 256; c++) { if (sparse && c % 6 && (c < 120 || c > 124)) continue; const h = (c * 0.618034) % 1; rcol.set([0.37, 0.83, 0.48, c], i * 4); rst.set([9 + 9 * ((c * 0.414) % 1), sparse ? 0.01 : 10, h, sparse ? 0 : 0.13], i * 4); i++; } rgeo.instanceCount = i; rgeo.getAttribute('iCol').needsUpdate = rgeo.getAttribute('iState').needsUpdate = true; return i; }
+  rainFill(false);
   // ── looking: drag ──
   let yaw = 0, pitch = 0, drag = null;
   canvas.addEventListener('pointerdown', e => { drag = { x: e.clientX, y: e.clientY, yaw, pitch }; canvas.setPointerCapture(e.pointerId); });
@@ -90,6 +101,8 @@ void main(){ float r = length(vQ) * scale; float h = airyGlow(r, lift); float co
   btn('WARP + GRAB', () => { state.grab = true; warp.visible = true; FX.warpRun(warpSpec.uniforms, 0.4, 1100); setTimeout(() => { state.grab = false; warpSpec.uniforms.useMap.value = 0; }, 1200); });
   for (const id of ['g', 'ig', 'fold', 'inv', 'i', 'gam']) btn(id.toUpperCase(), () => { FX.cssApply($('room'), id, 700); sky.visible = false; setTimeout(() => sky.visible = state.sky, 900); }, null, 'op');
   btn('CSS RESET', () => { const r = $('room'); r.style.filter = FX.cssReset.filter; r.style.transform = FX.cssReset.transform; });
+  btn('RAIN', b => { rain.visible = !rain.visible; b.setAttribute('aria-pressed', rain.visible); }, true);
+  btn('RAIN FULL / SPARSE', b => { const sp = !b._sp; b._sp = sp; b.textContent = 'RAIN ' + (sp ? 'SPARSE ' : 'FULL ') + rainFill(sp); rain.visible = true; });
   btn('STARS 23 / 13 / 0', b => { const n = { 23: 13, 13: 0, 0: 23 }[skySpec.uniforms._samples || 23]; const s = FX.sky({ samples: n }); sky.material.fragmentShader = s.fragmentShader; sky.material.needsUpdate = true; skySpec.uniforms._samples = n; b.textContent = 'STARS ' + n + ' samples'; });
   // ── the plot of airy(r): the first dark ring at r = 1, the next at 1.831 and 2.655 ──
   function plot() {
@@ -106,7 +119,7 @@ void main(){ float r = length(vQ) * scale; float h = airyGlow(r, lift); float co
       '<span>fragment mediump float ' + pf(gl.FRAGMENT_SHADER, gl.MEDIUM_FLOAT) + ' · highp ' + pf(gl.FRAGMENT_SHADER, gl.HIGH_FLOAT) + ' · buffer ' + renderer.getDrawingBufferSize(new T.Vector2()).x + '×' + renderer.getDrawingBufferSize(new T.Vector2()).y + '</span>'];
     renderer.compile(scene, camera); renderer.compile(warpScene, camera);
     const bad = errs.filter(e => /shader|program|glsl/i.test(e));
-    lines.push(bad.length ? '<i>shader errors: ' + bad.length + '</i>\n' + bad.map(e => e.slice(0, 1200)).join('\n') : '<b>compiled</b>: sky, halo ×49, crt, warp — no shader errors from three.js');
+    lines.push(bad.length ? '<i>shader errors: ' + bad.length + '</i>\n' + bad.map(e => e.slice(0, 1200)).join('\n') : '<b>compiled</b>: sky, halo ×49, crt, warp, rain — no shader errors from three.js');
     const w = warns.filter(e => /shader|program|glsl/i.test(e)); if (w.length) lines.push('warnings: ' + w.join(' | ').slice(0, 600));
     lines.push('<span>drag to look · buttons below; FPS at the end of this line: </span><b id="fps">—</b>');
     $('report').innerHTML = lines.join('\n');
@@ -114,7 +127,7 @@ void main(){ float r = length(vQ) * scale; float h = airyGlow(r, lift); float co
   // ── the loop ──
   const t0 = performance.now(); let frames = 0, ft = performance.now();
   renderer.setAnimationLoop(() => {
-    const t = (performance.now() - t0) / 1000; skySpec.uniforms.time.value = t; crtSpec.uniforms.time.value = t; warpSpec.uniforms.time.value = t;
+    const t = (performance.now() - t0) / 1000; skySpec.uniforms.time.value = t; rainSpec.uniforms.clock.value = t; crtSpec.uniforms.time.value = t; warpSpec.uniforms.time.value = t;
     camera.rotation.set(pitch, yaw, 0, 'YXZ');
     renderer.render(scene, camera);
     if (warp.visible) {
