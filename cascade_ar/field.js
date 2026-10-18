@@ -58,5 +58,9 @@ window.FIELD = (function () {
   const dayNumber = d => Math.floor((Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) - EPOCH) / 86400000);
   const fourFigures = x => parseInt(String(x).slice(0, 4), 10);
   function kaprekar(x) { const a = String(x).padStart(4, '0').split('').sort(); const hi = +a.slice().reverse().join(''), lo = +a.join(''); return hi - lo; }
-  return { P, INF, DLOG, POW, G16, OPCODES, OPS, OP, FLIP, flip69, inv, mul, fold, gamma, gammaInv, glyphs, ray, dlog, walkCell, character, solve, cost, letterSum, letterCount, atbash, dayNumber, fourFigures, kaprekar };
+  // work: a cheap deterministic 32-bit hash of (seed, cell, step) and its trailing zero bits, Twelve_Rays.html:381–391 as the sketch has
+  // them; Math.imul is exact on every engine, so every device agrees. A cell's work bits on a level are zeros(hash32(day, cell, offset))
+  function hash32(a, b, c) { let h = (a ^ 0x9E3779B9) >>> 0; h = Math.imul(h ^ b, 0x85EBCA6B) >>> 0; h ^= h >>> 13; h = Math.imul(h ^ c, 0xC2B2AE35) >>> 0; h ^= h >>> 16; h = Math.imul(h, 0x27D4EB2F) >>> 0; h ^= h >>> 15; return h >>> 0; }
+  function zeros(h) { if (h === 0) return 32; let n = 0; while ((h & 1) === 0) { h >>>= 1; n++; } return n; }
+  return { P, INF, DLOG, POW, G16, OPCODES, OPS, OP, FLIP, flip69, inv, mul, fold, gamma, gammaInv, glyphs, ray, dlog, walkCell, character, solve, cost, letterSum, letterCount, atbash, dayNumber, fourFigures, kaprekar, hash32, zeros };
 })();

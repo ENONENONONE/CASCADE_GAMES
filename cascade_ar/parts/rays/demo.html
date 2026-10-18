@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>THE FOLD · rays demo</title>
+<style>
+:root{--ground:#0a0d10;--panel:rgba(12,16,20,.85);--line:#24302a;--text:#e8f3e4;--dim:#8fa796;--gold:#c9a84c;--green:#5fd37a;--tube:#050805;--mono:ui-monospace,"SF Mono",Menlo,"DejaVu Sans Mono",monospace}
+html,body{margin:0;background:var(--ground);color:var(--text);font:13px/1.4 system-ui,sans-serif}
+#ui{margin:10px;max-width:980px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+#ui h1{font:600 14px var(--mono);margin:0 0 6px;color:var(--gold)}
+.row{display:flex;flex-wrap:wrap;gap:4px;margin:4px 0;align-items:center}
+.row span.k{color:var(--dim);font:11px var(--mono);margin-right:4px;min-width:52px}
+button{font:12px var(--mono);color:var(--text);background:transparent;border:1px solid var(--line);border-radius:4px;padding:3px 7px;cursor:pointer;min-height:24px}
+button[aria-pressed="true"]{background:var(--gold);color:#111;border-color:var(--gold)}
+#read{font:11px var(--mono);color:var(--dim);margin-top:6px;white-space:pre-wrap}
+.stage{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start;margin:10px}
+#inset{border-radius:50%;background:var(--tube);border:1px solid var(--line)}
+#tube,#ledger{border-radius:12px;background:var(--tube);touch-action:none}
+</style>
+</head>
+<body>
+<div id="ui">
+  <h1>THE FOLD · parts/rays · Twelve Rays as the chart</h1>
+  <div class="row"><span class="k">move</span><button data-op="g">×g g</button><button data-op="ig">÷g G</button><button data-op="fold">FOLD f</button><button data-op="inv">INV i</button><button data-op="i">×i q</button><button data-op="gam">Γ r</button><button id="undo">UNDO u</button><button id="tgt">NEW TARGET</button></div>
+  <div class="row"><span class="k">view</span><button id="face" aria-pressed="false">TABLE</button><button id="calm" aria-pressed="false">CALM</button><button id="fall">FALL</button><button id="replay">REPLAY 8 ROADS (T4)</button></div>
+  <div id="read"></div>
+</div>
+<div class="stage"><canvas id="inset"></canvas><canvas id="tube"></canvas><canvas id="ledger"></canvas></div>
+<script src="../../field.js"></script>
+<script src="rays.js"></script>
+<script>
+(function () {
+  'use strict';
+  const F = window.FIELD, RY = window.FOLD_RAYS, $ = id => document.getElementById(id);
+  let calm = false; const isCalm = () => calm;
+  const inset = RY.Chart($('inset'), { size: 132, dpr: Math.min(2, devicePixelRatio || 1), calm: isCalm });
+  const tube = RY.Chart($('tube'), { size: 480, dpr: Math.min(2, devicePixelRatio || 1), header: true, bars: true, labels: true, calm: isCalm });
+  const ledger = RY.Chart($('ledger'), { size: 304, dpr: Math.min(2, devicePixelRatio || 1), header: true, bars: true, colour: 'phos', marks: false, calm: isCalm });
+  // a level of the demo's own: from 1 to a target, the road kept, the day's numbers by tally() over the closed roads
+  const S = { current: 1, target: 200, home: 92, road: [1], ops: [], closed: [], day: 9422, offset: 9443 };
+  const roads = () => S.closed.concat([{ start: S.road[0], ops: S.ops, salt: [S.day, S.offset] }]);
+  function paint() {
+    const t = RY.tally(roads()), st = { current: S.current, target: S.target, home: S.home, road: S.road, ops: S.ops, salt: [S.day, S.offset], rays: t.rays, bits: t.bits, homeRay: F.ray(S.home), info: ['M:' + S.ops.length, 'ARR:' + t.n + '  BEST:' + Math.max(...t.bits)] };
+    inset.set(st); tube.set(st);
+    const k = S.ops.length ? RY.kind(S.ops[S.ops.length - 1], S.road[S.road.length - 2]) : null;
+    $('read').textContent = 'you ' + S.current + ' (ray ' + F.ray(S.current) + ', ring ' + (S.current && S.current < 257 ? Math.floor(F.dlog(S.current) / 12) : '—') + ') · target ' + S.target + ' · road ' + S.road.join(' ') + (k ? '\nthe last move on the chart: ' + k.k + ' (ray +' + k.dRay + ', ring ' + (k.dRing >= 0 ? '+' : '') + k.dRing + ')' : '') + '\nchart ms: inset ' + inset.ms.toFixed(2) + ', tube ' + tube.ms.toFixed(2) + ' · hold on the tube for the 4× lens';
+  }
+  function move(id) { const u = S.current, v = F.OP[id].f(u); S.current = v; S.road.push(v); S.ops.push(id); inset.flow(id, 0.8); tube.flow(id, 0.8); const k = RY.kind(id, u); if (k.k === 'rim' || k.k === 'seam') { inset.fall(calm); tube.fall(calm); }
+    if (v === S.target) { S.closed.push({ start: S.road[0], ops: S.ops.slice(), salt: [S.day, S.offset] }); S.offset += 4; S.road = [v]; S.ops = []; S.target = 1 + (Math.imul(v, 2654435761) >>> 0) % 256; } paint(); }
+  for (const b of document.querySelectorAll('[data-op]')) b.onclick = () => move(b.dataset.op);
+  $('undo').onclick = () => { if (!S.ops.length) return; S.ops.pop(); S.road.pop(); S.current = S.road[S.road.length - 1]; paint(); };
+  $('tgt').onclick = () => { S.target = 1 + Math.floor(Math.random() * 256); paint(); };
+  $('face').onclick = () => { const f = tube.o.face === 'table' ? 'rays' : 'table'; tube.resize(null, f); $('face').setAttribute('aria-pressed', f === 'table'); };
+  $('calm').onclick = () => { calm = !calm; $('calm').setAttribute('aria-pressed', calm); };
+  $('fall').onclick = () => { inset.fall(calm); tube.fall(calm); };
+  // T4: eight roads of the field's own solver from cells of the hash, replayed as chords over 4 s, then the bars
+  $('replay').onclick = () => { const rs = []; for (let k = 0; k < 8; k++) { const s = 1 + F.hash32(S.day, k, 1) % 256, t = 1 + F.hash32(S.day, k, 2) % 256; rs.push({ start: s, ops: F.solve(s, t) || [], salt: [S.day, 9435 + 4 * k] }); } const t = RY.tally(rs); ledger.replay(rs, { dur: 4, rays: t.rays, bits: t.bits, home: F.ray(S.home), tick: 3, info: ['CH:1  ROADS:8', 'ARR:' + t.n + '  BEST:' + Math.max(...t.bits)] }); };
+  const KEY = { g: 'g', G: 'ig', f: 'fold', i: 'inv', q: 'i', r: 'gam' };
+  window.addEventListener('keydown', e => { if (KEY[e.key]) move(KEY[e.key]); if (e.key === 'u') $('undo').onclick(); });
+  { const tc = $('tube'); let hold = false; const xy = e => { const r = tc.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+    tc.addEventListener('pointerdown', e => { hold = true; tc.setPointerCapture(e.pointerId); tube.lens(...xy(e)); });
+    tc.addEventListener('pointermove', e => { if (hold) tube.lens(...xy(e)); });
+    tc.addEventListener('pointerup', e => { hold = false; const n = tube.lens(...xy(e)); tube.lens(null); tube.focus(n); if (n != null) $('read').textContent = 'picked ' + n + (n > 0 && n < 257 ? ' · ray ' + F.ray(n) + ', ring ' + Math.floor(F.dlog(n) / 12) : ''); }); }
+  paint(); $('replay').onclick();
+  const loop = now => { inset.frame(now); tube.frame(now); ledger.frame(now); requestAnimationFrame(loop); }; requestAnimationFrame(loop);
+  setInterval(paint, 1000);
+})();
+</script>
+</body>
+</html>
