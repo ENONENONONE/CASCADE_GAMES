@@ -243,10 +243,11 @@ the one word not at its own sum, displaced by 13) → 73 WALLET (6) → 89 VIRUS
 ORIGINAL SIN (11) → 170, the tablet's fifteen-letter word there (call it the extension component in any voice line) → 235
 BINOMIAL DISTRIBUTION (20) → 48 JAMES (5) → 87; the 2-cycle TRUTH 87 ↔ JAMES 48 sits inside. — `corpus/mi25_readout.md`
 1860–1870 (LEDGER 8); LEDGER 13.
-→ *Chapter "THE MIRROR"*: ten levels whose targets are the chain in order; the line's letter sum closes the loop at 87.
+→ *Chapter "THE MIRROR"*: ten levels whose targets are the chain in order; the tenth mirror closes the loop at 87 (the line's letter
+sum does not: the ten words add to 1053 ≡ 25).
 
 **B8 · The tunnel chain.** Π → ×140 (T) → fold (χ) → ×2 (𝟙𝟙) → ×87 (W): 1 → 140 → 117 → 234 → 55; the composite is ×55 from any
-start; glyphs Φ∂ εQ ⅗⊗ ψΩ δQ. — review "The tunnel chain"; LEDGER 75.
+start; glyphs Φ∂ εQ ⅗⊗ ψΩ ∞⅗, the cells' own (`FIELD.glyphs`; δQ is 156). — review "The tunnel chain"; LEDGER 75.
 → *A scripted level*: four fixed moves granted once (×140, FOLD, ×2, ×87) and the target 55 × start; the carrier's sound at the end.
 
 **B9 · The transfer matrix on π.** T(d) = [[2 − k², −1], [1, 0]] with k² = (2d + 1) × 180; M(n) = T(π[0])…T(π[n]): M(83) trace
@@ -291,7 +292,8 @@ field 120. — LEDGER 74.
 
 **B17 · The 6 ↔ 9 flip.** 83 cells hold a 6 or a 9, 82 flips stay inside the field (256 → 259 leaves); the flip equals Γ at one
 cell only, 36 → 39; Γ alone never crosses its two sides, flip and Γ together reach all 258 points from any start. — LEDGER 42.
-→ *A seventh move FLIP*, allowed only on a cell showing a 6 or a 9: the one way across Γ's sides.
+→ *A seventh move FLIP*, allowed only on a cell showing a 6 or a 9. Γ never crosses its two sides; the flip crosses for 36 of the 82
+cells it moves (×g and ÷g cross for 130 of 252 moves clear of 46 and 92, FOLD and INV for 128, ×i for 112).
 
 **B18 · Γ's two orbits.** Two orbits of 128: the residue side with 0, 1, 120, 137, 62, 73, 129, 240, 256, ∞; the other with 3, 8,
 16, 72, 104, 128, 153, 225, 241; from 1: 1 → 33 → 201 → 190 → 108 → 27 → 120 → 0 → 256 → 148 → 96 → 57 → 4 → 140 → 178 →
@@ -373,11 +375,12 @@ return; 65536 = 2¹⁶ = F₄ − 1. — LEDGER 39.
 
 ## (c) Words and sums worth quests
 
-**C1 · Mirror pairs on the tablet.** 2551 pairs [w, v], each listed once: v has w's length k and the mirror sum 27k − s of w's
-sum s, and stands at that cell (`data.js` `mirrors`, built from the tablet at 2306 entries). 2417 hold both ways; 134 hold one way
-only, from a word the tablet keeps off its own sum (114 such words, SHIFT at 75 among them): [SHIFT, CROWN] holds, CROWN's mirror
-cell 62 does not hold SHIFT. Listed in the order found, w first in code-point order except for 59 of the one-way pairs. The eight
-letter pairs that are tablet words both sides: A/Z, B/Y, C/X, H/S, I/R, J/Q, L/O, M/N. — `build_data.py`; review "The fourth flip".
+**C1 · Mirror pairs on the tablet.** 2543 pairs [w, v], each listed once: v has w's length k and the mirror sum 27k − s of w's
+sum s, and stands at that cell (`data.js` `mirrors`, built from the tablet's 2301 entries without the name-words). 2409 hold both
+ways; 134 hold one way only, from a word the tablet keeps off its own sum (114 such words, SHIFT at 75 among them): [SHIFT, CROWN]
+holds, CROWN's mirror cell 62 does not hold SHIFT. Listed in the order found, w first in code-point order except for 59 of the
+one-way pairs. The eight letter pairs that are tablet words both sides: A/Z, B/Y, C/X, H/S, I/R, J/Q, L/O, M/N. — `build_data.py`;
+review "The fourth flip".
 → *Quest "the other side"*: tap a word's mirror cell within the level to earn its pair.
 
 **C2 · Self-mirrors by sum.** LOVE 54, SAMSON 81, MOUNT SINAI 135, PRESERVATION 162 (and TUNING FORK 135, not a tablet word, its
@@ -393,7 +396,7 @@ SHAKESPEARE, CONSERVATION OF ENERGY, PRESERVATION). — review "The fourth flip"
 82 ARMAGEDDON, 91 SPIRIT; inner 8 H, 17 Q, 26 GOD, 35 HAGAR, 44 (SPACE), 53 CARBON, 62 FIBONACCI, 71 TEMPLE, 80 REBIRTH. — LEDGER 22.
 → *The DOORS prizes*: closing a door awards the outer word; the inner word is the next level's start.
 
-**C5 · The fullest cells.** 44 with 31 words, 63 and 46 with 27, 81 and 75 with 26, 73, 71 and 48 with 24 (tablet at 2306). — `corpus/emerald_tablet.json`.
+**C5 · The fullest cells.** 44 with 30 words, 63 and 46 with 27, 81 and 75 with 26, 73, 71 and 48 with 24 (the game's 2301 entries). — `corpus/emerald_tablet.json`.
 → *Market squares*: tapping a crowded cell gives a random one of its words to the line.
 
 **C6 · The words at 75.** ESTHER, RAMSES, SPARTA, BARYON, JEFFREY, SODIUM D LINE (placed by value) and SHIFT (sum 62); the six-letter words at 75
@@ -401,7 +404,8 @@ mirror to 87 and back, a 2-cycle. — LEDGER 8–9.
 → *Quest*: find the one word at 75 that is not at its own sum.
 
 **C7 · Seven-step words.** HALT, IDENT, SYNC, LEDGER, STAGE, SHARE, CONJUGATE, VERIFY, SODIUM LAYER, FINE STRUCTURE, LASER GUIDE STAR,
-ALIEN, IDENTITY, TUNING FORK … (24 words whose four-figure sum takes seven Kaprekar steps). — LEDGER 5, 13.
+ALIEN, IDENTITY, TUNING FORK … (LEDGER 5 lists 24; on the tablet 427 distinct words have a four-figure sum that takes seven Kaprekar
+steps, 369 of them askable by `levels.js` `nice()`; `gen_material.py` counts them). — LEDGER 5, 13.
 → *The hardest doors runs*, unlocked after the three doors are sealed.
 
 **C8 · The Hebrew 22.** Atbash n → 23 − n, the constant 23 (AIM = I AM); ordinals 1…22 sum 253; gematria values sum 1495 ≡ 210; the
@@ -583,14 +587,14 @@ Marci's letter 19 August 1665 field 99; 1612 = 1420 + 192 = dlog i. — LEDGER 6
 → *THE HANDS chapter's level dates* (C31).
 
 **D15 · The game's own dates.** The machine gained its FOLD button and the game its files on 2026-10-17 (day 9421, STORE); the
-tablet stands at 2306 entries. — `machine/cascade_machine_v4.html` line 646; `data.js`.
+tablet stands at 2306 entries, 2301 in the game's data with the name-words out. — `machine/cascade_machine_v4.html` line 646; `data.js`.
 → *The first chapter's epigraph.*
 
 ---
 
 ### Five to put in first
 1. B2/B3 the three doors with their spines as THE DOORS' levels (already a mode; the spines give it chapters).
-2. B7 the mirror chain of ten as chapter "THE MIRROR" (ten targets, the line closing at 87).
-3. B17 the 6 ↔ 9 FLIP as a seventh, conditional move (crosses Γ's sides; one coincidence with Γ at 36 → 39).
+2. B7 the mirror chain of ten as chapter "THE MIRROR" (ten targets, the tenth mirror closing at 87).
+3. B17 the 6 ↔ 9 FLIP as a seventh, conditional move (crosses Γ's sides for 36 of its 82 cells; one coincidence with Γ at 36 → 39).
 4. D2/D3 gold days and tablet days as the calendar's festivals (computed, six and three dates in 2026–2027).
 5. A7 the five stars of the norm as the sky's fixed constellations and C18 the just intervals as the op sounds.

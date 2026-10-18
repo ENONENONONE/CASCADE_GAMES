@@ -69,7 +69,7 @@ downward. 0 stands at the near-left corner of the floor, at (−2, −2.98, 2).
    the inverse read as 128 and −t; the chapter's quest (the `quest` of a level spec, answered by a tap through `questDone`) is a
    star: tap cell 154, the norm of ±1/√5, or 103, the norm of ±φ/√5. The level kind stays `tape`.
 2. A level kind `turn` for the EXIST days (opcode 2, ×i free) or wherever the designer puts the quarter turn. The turn ring stands
-   at radius 5; after k counted moves the target is `turn.at(k).cell`, the x of orbit step k (step 25 is 44 BRIAN, u = 220), the
+   at radius 5; after k counted moves the target is `turn.at(k).cell`, the x of orbit step k (step 25 is 44 SPACE, u = 220), the
    marker moved by `turn.step(S.moves)`; solved by layers as `solveShift` solves SHIFT, with t_k = the orbit's x at k instead of
    t·3^k. With `angle: 'dlog'` the ring's step k stands under the cell 216^k on the sphere, so the orbit is seen to be the
    generator's powers read in two parts.
@@ -79,8 +79,8 @@ downward. 0 stands at the near-left corner of the floor, at (−2, −2.98, 2).
    seconds) the turn's marker is the clock: `turn.step(Math.floor(256 · elapsed / 30))`, the ring the dial, the start white where
    the thirty seconds close.
 
-## Not done here
+## In the game
 
-`index.html`, `ar.js`, `game.js`, `field.js` and `data.js` are untouched. To load the part in the game, add
-`<script src="parts/relief/relief.js"></script>` after `ar.js` and the file to `sw.js`'s SHELL with a bump of CACHE, or a phone that has
-the game keeps the old files.
+`index.html` loads `relief.js` after `fx.js`, and `sw.js` keeps it in SHELL. The RELIEF button and `monApply` / `monStep` in `index.html`
+mount it: the floor, and one monument a level (the door's circle, the ladder's hyperbola, the mirrors' product ceiling, THE TURN at the
+eye). A change to this file bumps `sw.js`'s CACHE, or a phone that has the game keeps the old one.
