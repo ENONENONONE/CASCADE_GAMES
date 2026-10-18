@@ -10,7 +10,7 @@
 // Each cell is one instanced quad: a halo in its ray's own colour (the machine's twelve rays, 377 nm to 610 nm), steady for a
 // residue and shimmering for a non-residue, the glyph pair and number and first word from a text atlas drawn once; the gold cells of
 // the order-4 subgroup burn gold, the pole 137 is an eye, Γ's fixed points 46 and 92 are mirrors. One draw call for the cells, one
-// for the π ribbon, a few lines. Light enough for a phone, a Pi or an RK3588.
+// for the π ribbon, one for the π tape's rain behind them, a few lines. Light enough for a phone, a Pi or an RK3588.
 window.AR = (function () {
   'use strict';
   const F = window.FIELD, T = window.THREE;
@@ -199,6 +199,7 @@ window.AR = (function () {
       const op = []; c = current; for (let k = 0; k < 128; k++) { const nx = F.gamma(c); if (nx !== F.INF && c !== F.INF) op.push(...arc(place(c), place(nx), 6)); c = nx; if (c === current) break; }
       A.orbit.geometry.dispose(); A.orbit.geometry = new T.BufferGeometry().setFromPoints(op.length ? op : [new T.Vector3(), new T.Vector3()]);
     }
+    rainPaint(state);   // the rain's iState: the same state, shown by the sky
   }
   // ── the flow: op f has been applied; cell n arrives from the place of its preimage ──
   function flow(op) {
@@ -206,15 +207,122 @@ window.AR = (function () {
     for (let n = 0; n < 258; n++) { const p = place(inv(n)); A.cellB.from.set([p.x, p.y, p.z], n * 3); }
     A.cellB.geo.getAttribute('iFrom').needsUpdate = true; A.flowT0 = now(); A.flowDur = op.id === 'gam' ? 1.1 : op.id === 'g' || op.id === 'ig' ? 0.5 : 0.8; A.flowOp = op.id; A.slow = 1;   // the page slows a closing flow (A.slow, A.zoom)
   }
-  // ── the tape ribbon ──
-  function tape(pi, o) {
-    const n = A.tapeB.count;
+  // ── the tape ribbon: the head gold; with the level's spec its start digits green, the target's gold, a slid window's skipped ones dim
+  // (M2); while the read flies it owns the ribbon, and this only keeps the arguments for when it lands ──
+  function tape(pi, o, spec) {
+    A.tapeArgs = [pi, o, spec]; if (A.reading) return;
+    const n = A.tapeB.count, W = windowOf(spec), role = j => !W ? 0 : j >= W.start[0] && j < W.start[1] ? 1 : j >= W.target[0] && j < W.target[1] ? 2 : j >= W.strike[0] && j < W.strike[1] ? 3 : 0;
     for (let i = 0; i < n; i++) {
       const k = o + i - 8, d = k >= 0 && k < pi.length ? +pi[k] : 0, a = (i - 8) / n * Math.PI * 2 * 0.9, el = -14 * Math.PI / 180, r = 5.2;
       const p = new T.Vector3(Math.sin(a) * Math.cos(el) * r, Math.sin(el) * r, -Math.cos(a) * Math.cos(el) * r);
-      const b = A.tapeB.born[i]; setInst(A.tapeB, i, p, 258 + d, i === 8 ? [1, 0.85, 0.4] : [0.55, 0.65, 0.6], i === 8 ? 1 : 0); A.tapeB.born[i] = b;
+      const b = A.tapeB.born[i]; setInst(A.tapeB, i, p, 258 + d, i === 8 ? [1, 0.85, 0.4] : ROLE_RGB[role(i - 8)], i === 8 ? 1 : 0); A.tapeB.born[i] = b;
     }
     flag(A.tapeB);
+  }
+  const ROLE_RGB = [[0.55, 0.65, 0.6], [0.55, 1, 0.6], [1, 0.83, 0.35], [0.3, 0.36, 0.33]];   // plain, start, target, skipped
+  // ── the tape sky (M1): the π tape as the rain, 256 columns at radius 9, column c above cell 3^c holding π[78c … 78c + 77] read
+  // downward, 19968 of the 20001 digits; one draw call, the shader in fx.js. The page picks the mode by its GPU tier: 'full' 256
+  // columns, 'sparse' the state columns alone with heads only (at most 42, the `tiny` tier), 'off' ──
+  const RAIN = { cols: 256, rows: 78, base: 0 }, GREEN3 = [0.37, 0.83, 0.48], HALT_RGB = [0.92, 0.72, 0.66];
+  let HALTS = [], SIDE = null;
+  const hash = x => { const s = Math.sin(x * 12.9898 + 78.233) * 43758.5453; return s - Math.floor(s); };
+  const bitrev = c => { let r = 0; for (let k = 0; k < 8; k++) r |= ((c >> k) & 1) << (7 - k); return r; };   // the woken columns spread round the sky
+  const slotOf = ch => ch === '∞' ? 26 : F.G16.indexOf(ch) + 10;   // a glyph's slot in the rain atlas
+  const tapeAt = (B, k, s) => { B.bytes[(k % RAIN.rows) * RAIN.cols + Math.floor(k / RAIN.rows)] = s; };
+  function rainInit(pi, mode) {
+    const FX = window.FOLD_FX; if (!FX || !FX.rain || !mode || mode === 'off') return null;
+    const spec = FX.rain(), n = RAIN.cols, geo = new T.InstancedBufferGeometry(), base = new T.PlaneBufferGeometry(1, 1, 1, 13);   // 2 × 14 vertices a column
+    geo.setAttribute('position', base.getAttribute('position')); geo.setIndex(base.getIndex());
+    const col = new Float32Array(n * 4), st = new Float32Array(n * 4); for (let c = 0; c < n; c++) col[c * 4 + 3] = c;
+    geo.setAttribute('iCol', new T.InstancedBufferAttribute(col, 4)); geo.setAttribute('iState', new T.InstancedBufferAttribute(st, 4)); geo.instanceCount = mode === 'sparse' ? 0 : n;
+    const bytes = new Uint8Array(n * RAIN.rows), B = { bytes };
+    for (let k = 0; k < n * RAIN.rows; k++) { const d = pi.charCodeAt(RAIN.base + k) - 48; tapeAt(B, k, d >= 0 && d <= 9 ? d : 27); }
+    const tex = new T.DataTexture(bytes, n, RAIN.rows, T.LuminanceFormat, T.UnsignedByteType); tex.minFilter = T.NearestFilter; tex.magFilter = T.NearestFilter; tex.generateMipmaps = false; tex.needsUpdate = true;
+    const atl = new T.CanvasTexture(FX.rainAtlas(F.G16)); atl.minFilter = T.LinearFilter; atl.magFilter = T.LinearFilter; atl.generateMipmaps = false;
+    spec.uniforms.tape.value = tex; spec.uniforms.atlas.value = atl;
+    const mat = new T.ShaderMaterial({ vertexShader: spec.vertexShader, fragmentShader: spec.fragmentShader, uniforms: spec.uniforms, transparent: true, depthWrite: false });
+    const mesh = new T.Mesh(geo, mat); mesh.frustumCulled = false; mesh.renderOrder = spec.renderOrder; A.scene.add(mesh);
+    Object.assign(B, { mesh, geo, col, st, tex, u: spec.uniforms }); A.rainB = B; A.rainMode = mode; A.rainT = 0; A.rainAlpha = 1;
+    HALTS = []; for (let c = 1; c < 257; c++) if (pi[c] === '9') HALTS.push(c);   // the 27 HALT cells, π[n] = 9
+    SIDE = new Array(258).fill(0); { let z = 1; for (let k = 0; k < 128; k++) { SIDE[z] = 1; z = F.gamma(z); } }   // Γ's orbit of 1, the side of 1
+    return B;
+  }
+  // the rule as a phase pattern, from each move's action on dlog: columns of one key fall together. NOP free; IDENT c with 256 − c;
+  // EXIST the four quarters; SEED rises from the floor; SHIFT steps the pattern a column a move; STORE trails twice as long; FOLD c with
+  // c + 128; JUMP Γ's two sides in counter-phase (46 and 92 on neither); SYNC one phase for every column, a travelling band; HALT freezes
+  function rainRule(digit, moves) {
+    const m = moves | 0, k = [c => c, c => Math.min(c, (256 - c) & 255), c => c & 63, c => c, c => (c - m) & 255, c => c, c => c & 127, c => c, c => 0, c => c][digit] || (c => c);
+    const side = c => { const n = F.POW[c]; return MIRRORS.has(n) ? -1 : SIDE && SIDE[n] ? 1 : 0; };
+    const phase = digit === 8 ? () => 0 : digit === 7 ? c => side(c) < 0 ? hash(c) : 0.5 * side(c) : c => hash(k(c)), speed = digit === 7 || digit === 8 ? () => 12 : c => 9 + 9 * hash(k(c) + 0.37);
+    return { phase, speed, dir: digit === 3 ? -1 : 1, trail: digit === 5 ? 20 : 10, freeze: digit === 9 };
+  }
+  // the level's window on the tape (M2), in digits from its head: the start, the target's four past a slid window's skipped digits; null
+  // where the level reads none (doors, ladders, the eye). A mirror reads its four start digits only, slid along the tape
+  function windowOf(spec) {
+    if (!spec || !spec.digits || spec.offset == null) return null; const o = spec.offset - RAIN.base, sl = spec.slid || 0, mir = spec.kind === 'mirror';
+    if (o < 0 || o + 8 + sl > RAIN.cols * RAIN.rows) return null;
+    return { o, c: Math.floor(o / RAIN.rows), r: o % RAIN.rows, start: mir ? [sl, sl + 4] : [0, 4], target: mir ? [0, 0] : [4 + sl, 8 + sl], strike: mir ? [0, sl] : [4, 4 + sl], seed: !mir && spec.rule === 3 };
+  }
+  // the state shown by the rain: your column fast and white-green, the target's gold, home blue, the reach columns in the hue of the move
+  // that reaches them, the visited a slow dim trail, the 27 HALT cells' on a HALT level; chapter k wakes 32k columns; the window's column
+  // stops at its head. Cells 0 and ∞ have no column (DLOG −1): their billboards stand at the floor's centre and the zenith. Comfort: in XR
+  // two static columns, under gyro drops only in the state columns, under CALM none, the glyphs lit by state
+  function rainPaint(state) {
+    const B = A.rainB; if (!B) return; A.rainLast = state;
+    const xr = A.renderer.xr.isPresenting, gyro = !!A.deviceQ, calm = !!A.calm, sparse = A.rainMode === 'sparse', W = A.readW = windowOf(state.spec);
+    const R = rainRule(state.rule || 0, state.moves || 0), wake = 32 * Math.max(1, Math.min(8, state.chapter || 8)), cur = state.current;
+    const look = new Map(), mark = (n, rgb, s) => { const c = F.dlog(n); if (c >= 0) look.set(c, [rgb, s]); };
+    const s0 = state.strip == null ? -1 : state.strip - RAIN.base; if (s0 >= 0) for (let c = Math.floor(s0 / RAIN.rows); c <= Math.min(255, Math.floor((s0 + 259) / RAIN.rows)); c++) look.set(c, [GREEN3, 7]);
+    if (R.freeze) for (const n of HALTS) mark(n, HALT_RGB, 6);
+    if (state.visited) for (const n of state.visited) mark(n, GREEN3, 4);
+    if (cur != null) for (const o of (state.ops || F.OPS)) { const v = o.f(cur); if (v !== cur) { const h = new T.Color().setHSL(o.hue / 360, 0.8, 0.6); mark(v, [h.r, h.g, h.b], 5); } }
+    if (state.home != null) mark(state.home, [0.5, 0.72, 1], 3); if (state.target != null) mark(state.target, [1, 0.83, 0.35], 2); if (cur != null) mark(cur, [0.75, 1, 0.8], 1);
+    const cols = xr ? [cur, state.target].map(F.dlog).filter(c => c >= 0) : sparse ? [...new Set([...look.keys()].concat(W ? [W.c] : []))] : null;
+    let i = 0;
+    for (const c of cols || Array.from({ length: RAIN.cols }, (_, c) => c)) {
+      const L = look.get(c), s = L ? L[1] : 0, own = s > 0 && s < 7;
+      let rgb = own ? L[0] : GREEN3, speed = R.speed(c) * R.dir, trail = R.trail, ph = R.phase(c), lit = 0.13;
+      if (!L && bitrev(c) >= wake) { speed = 0; trail = 0; lit = 0.05; }   // asleep: the code stands, no drop
+      if (s === 1) { speed *= 2.2; lit = 0.32; } else if (s === 2 || s === 3) lit = 0.3; else if (s === 5) lit = 0.26; else if (s === 4) { speed *= 0.4; lit = 0.12; } else if (s === 6) lit = 0.22;
+      if (gyro && !L) { speed = 0; trail = 0; }
+      if (sparse) { lit = 0; trail = Math.min(trail, 0.01); }   // heads only, no trail
+      if (calm || xr) { speed = 0; trail = 0; lit = own ? 0.45 : sparse ? 0 : lit; }
+      if (W && c === W.c && !xr) { speed = 0; trail = sparse ? 0.01 : R.trail; ph = (W.r + 4.5 + trail) / (86 + 2 * trail); }   // the window's column stops at its head
+      B.col.set([rgb[0], rgb[1], rgb[2], c], i * 4); B.st.set([speed, trail, ph, lit], i * 4); i++;
+    }
+    B.geo.instanceCount = i; B.geo.getAttribute('iCol').needsUpdate = true; B.geo.getAttribute('iState').needsUpdate = true;
+    B.u.strip.value = s0 >= 0 ? [Math.floor(s0 / RAIN.rows), s0 % RAIN.rows, 260, 0.9] : [0, 0, 0, 0];
+    B.u.win.value = W ? [W.c, W.r, B.u.win.value[2], W.seed ? 1 : 0] : [0, 0, 0, 0]; B.u.span.value = W ? W.start.concat(W.target) : [0, 0, 0, 0]; B.u.strike.value = W ? W.strike.slice() : [0, 0];
+  }
+  // a close decodes the window (M2): its four start digits become the glyphs of the cell they read (7846 ≡ 136 → εε), written into the
+  // tape texture in place, so the rain stays at two fetches a fragment; one 19,968 B upload
+  function decode(specs) {
+    const B = A.rainB; if (!B) return; let n = 0;
+    for (const sp of [].concat(specs || [])) { const W = windowOf(sp); if (!W) continue; const gl = Array.from(F.glyphs(parseInt(sp.digits[0], 10) % 257));
+      for (let j = 0; j < 4; j++) tapeAt(B, W.o + W.start[0] + j, j < gl.length ? slotOf(gl[j]) : 27); n++; }
+    if (n) B.tex.needsUpdate = true;
+  }
+  // the read (M2): the window's glyphs lift out of the sky and fly on the billboard flow, the head as its opcode to the rule pill, the
+  // start digits to the start cell and the target's to the target; it owns tapeB until they land, then the ribbon blooms back. A column
+  // off the screen sends its glyphs from the view's centre. Under CALM, in XR or with the rain hidden nothing flies. Returns its seconds
+  const skyAt = k => { const c = Math.floor(k / RAIN.rows), r = k % RAIN.rows, az = c / 256 * Math.PI * 2, el = (58 - (r + 0.5) * 98 / 78) * Math.PI / 180; return new T.Vector3(Math.sin(az) * Math.cos(el) * 9, Math.sin(el) * 9, -Math.cos(az) * Math.cos(el) * 9); };
+  const seen = p => { _w.copy(p).applyMatrix4(A.camera.matrixWorldInverse); _p.copy(p).project(A.camera); return _w.z < 0 && Math.abs(_p.x) < 1 && Math.abs(_p.y) < 1; };
+  function read(spec, opts) {
+    opts = opts || {}; readEnd(); const W = windowOf(spec), B = A.tapeB;
+    if (!W || !A.rainB || !A.rainB.mesh.visible || A.calm || A.renderer.xr.isPresenting) return 0;
+    A.rig.updateMatrixWorld(true); const ahead = new T.Vector3(0, 0, -5).applyQuaternion(A.camera.getWorldQuaternion(new T.Quaternion()));
+    const pill = opts.pill ? new T.Vector3(opts.pill[0], opts.pill[1], 0.5).unproject(A.camera).normalize().multiplyScalar(4) : ahead.clone().setY(ahead.y + 1.2);
+    const fly = [[7, 0, pill, 258 + (+spec.digits[0][0] || 0)]], to = n => place(n);
+    for (let j = W.start[0]; j < W.start[1]; j++) fly.push([8 + j, j, to(spec.start)]);
+    for (let j = W.target[0]; j < W.target[1]; j++) fly.push([8 + j, j, to(spec.target)]);
+    for (const [i, j, p, uvi] of fly) { if (i >= B.count) continue; const q = skyAt(W.o + j), f = seen(q) ? q : ahead; B.from.set([f.x, f.y, f.z], i * 3); B.pos.set([p.x, p.y, p.z], i * 3); if (uvi) B.uv.set(uvOf(uvi), i * 4); B.born[i] = -10; }
+    flag(B); B.mesh.material.uniforms.flow.value = 0; A.reading = { t0: now(), dur: 0.8, fly: fly.map(f => f[0]), done: opts.done }; return 0.8;
+  }
+  // the read lands, or a tap skips it: the ribbon back in its place, the flown glyphs blooming into it, and the level armed by the page
+  function readEnd() {
+    const R = A.reading; if (!R) return false; A.reading = null; A.tapeB.mesh.material.uniforms.flow.value = 1;
+    if (A.tapeArgs) tape(...A.tapeArgs); const t = now(); for (const i of R.fly) if (i < A.tapeB.count) A.tapeB.born[i] = t; flag(A.tapeB);
+    if (R.done) R.done(); return true;
   }
   // ── looking ──
   const zee = new T.Vector3(0, 0, 1), euler = new T.Euler(), q0 = new T.Quaternion(), q1 = new T.Quaternion(-Math.sqrt(0.5), 0, 0, Math.sqrt(0.5));
@@ -230,6 +338,13 @@ window.AR = (function () {
     out = out || {}; out.x = _p.x; out.y = _p.y; out.front = _w.z < 0; return out;
   }
   function pick(nx, ny) { A.rig.updateMatrixWorld(true); let best = null, bd = 0.06; const s = {}; for (let n = 0; n < 258; n++) { onScreen(n, s); if (!s.front) continue; const d = (s.x - nx) ** 2 + ((s.y - ny) * (window.innerHeight / window.innerWidth)) ** 2; if (d < bd) { bd = d; best = n; } } return best; }
+  // a tap on the ribbon's 48 digits or on the head in the sky (M2), tested before the cells: true when it falls on one
+  const _q = new T.Vector3();
+  function pickTape(nx, ny) {
+    A.rig.updateMatrixWorld(true); const asp = window.innerHeight / window.innerWidth, B = A.tapeB, hit = p => { _w.copy(p).applyMatrix4(A.camera.matrixWorldInverse); _p.copy(p).project(A.camera); return _w.z < 0 && (_p.x - nx) ** 2 + ((_p.y - ny) * asp) ** 2 < 0.0016; };
+    for (let i = 0; i < B.count; i++) if (hit(_q.set(B.pos[i * 3], B.pos[i * 3 + 1], B.pos[i * 3 + 2]))) return true;
+    return !!(A.readW && A.rainB && A.rainB.mesh.visible && hit(skyAt(A.readW.o)));
+  }
   // a line faded out is hidden too: three r128 still issues the draw call of a line at opacity 0
   const fade = (o, a) => { o.material.opacity = a; o.visible = a > 0; };
   function frame() {
@@ -240,7 +355,15 @@ window.AR = (function () {
     const slow = A.slow > 1 && f < 1; A.cellB.mesh.material.uniforms.ease.value = slow ? 1 : 0;
     const fov = slow && A.zoom && !A.renderer.xr.isPresenting ? 70 - 12 * Math.sin(Math.PI * f) : 70; if (A.camera.fov !== fov) { A.camera.fov = fov; A.camera.updateProjectionMatrix(); }
     fade(A.threads, A.flowOp === 'fold' ? 0.45 * live : 0); fade(A.ladder, A.showLadder ? 0.35 : 0); fade(A.orbit, A.showOrbit ? 0.35 : (A.flowOp === 'gam' ? 0.5 * live : 0));
+    // the rain's own clock, stopped on a HALT level (R5's freeze) and through a slowed close (M4); the read's flight on tapeB's flow; a
+    // change of comfort mode (XR, gyro, CALM) repaints the columns
+    if (A.rainB) {
+      const B = A.rainB, xr = A.renderer.xr.isPresenting, key = (xr ? 'x' : '') + (A.deviceQ ? 'g' : '') + (A.calm ? 'c' : ''); if (key !== B.key) { B.key = key; if (A.rainLast) rainPaint(A.rainLast); }
+      const dt = Math.min(0.1, Math.max(0, t - (B.t == null ? t : B.t))); B.t = t; if (!slow && !(A.rainLast && A.rainLast.rule === 9)) A.rainT += dt;
+      B.u.clock.value = A.rainT; B.u.alpha.value = xr ? 0.35 : A.rainAlpha; B.u.win.value[2] = A.readW ? (A.reading ? 1 : 0.6) : 0;
+    }
+    if (A.reading) { const r = (t - A.reading.t0) / A.reading.dur; if (r >= 1) readEnd(); else A.tapeB.mesh.material.uniforms.flow.value = r; }
     if (!A.renderer.xr.isPresenting) look(); A.renderer.render(A.scene, A.camera);
   }
-  return { init, paint, flow, bloom, tape, place, onOrientation, onScreen, pick, frame, A, resize, RAY_RGB, rayColor, GOLD, MIRRORS, EYE };
+  return { init, paint, flow, bloom, tape, place, onOrientation, onScreen, pick, pickTape, frame, A, resize, rainInit, rainRule, decode, read, readEnd, RAY_RGB, rayColor, GOLD, MIRRORS, EYE };
 })();
