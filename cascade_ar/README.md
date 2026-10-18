@@ -63,5 +63,5 @@ the Atbash mirror and the Heisenberg joining of words. One page, no build step, 
 `data.js` the tablet's words and the π tape · `parts/levels` the day's plan (`node parts/levels/test.js`) · `parts/story` the
 chapters and voices (`node parts/story/check.js`) · `parts/sound` Web Audio · `parts/shaders` sky, Airy halo, CRT, Γ warp, the tape's rain ·
 `parts/relief` the conics relief · `parts/well` the eye's lens (`node parts/well/check.js`) · `parts/void` THE BARDO
-(`demo.html`) · `parts/rays` the Twelve Rays, the TUBE and the ledger (`node parts/rays/check.js`) · `parts/glow` bloom, god rays, glitter and the grade (`node parts/glow/check.js`, `demo.html`) · `parts/corpus` numbers from the corpus (`node parts/corpus/check.js`) · `vendor/three.min.js`
+(`demo.html`) · `parts/rays` the Twelve Rays, the TUBE and the ledger (`node parts/rays/check.js`) · `parts/trace` the field ray tracer and its TRACE tile (`node parts/trace/check.js`, `demo.html`) · `parts/glow` bloom, god rays, glitter and the grade (`node parts/glow/check.js`, `demo.html`) · `parts/corpus` numbers from the corpus (`node parts/corpus/check.js`) · `vendor/three.min.js`
 r128 · `sw.js` (bump CACHE on every change) and the manifest. The data generators are kept beside this folder, not in it.
