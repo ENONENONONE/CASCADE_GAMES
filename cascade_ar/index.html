@@ -45,6 +45,8 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 .tgt{display:flex;align-items:baseline;gap:8px;font-family:var(--mono);font-size:13px;color:var(--gold)} .tgt .g{font-size:20px}
 .pill{border:1px solid var(--line);border-radius:999px;padding:2px 9px;background:var(--panel)} .pill.rule{color:var(--gold);border-color:rgba(201,168,76,.4)} .pill.ch{color:var(--blue);border-color:rgba(127,184,255,.35)}
 .voice{font:italic 12px/1.4 var(--sans);color:var(--dim);max-width:60ch;min-height:1.4em}
+.chips{display:flex;gap:4px;flex-wrap:wrap;align-items:center;font:12px var(--mono);color:var(--dim)} .chips[hidden]{display:none}
+.chips button{padding:3px 9px;min-height:24px;font-size:13px;letter-spacing:.02em;border-radius:999px;border-color:var(--c,var(--line));color:var(--c,var(--text))} .chips button[aria-current]{box-shadow:0 0 0 1px var(--gold)}
 #ops{position:absolute;left:0;right:0;bottom:0;padding:8px 10px max(12px,env(safe-area-inset-bottom));display:grid;grid-template-columns:repeat(6,1fr);gap:6px;background:linear-gradient(rgba(10,13,16,0),rgba(10,13,16,.92))}
 #ops[hidden]{display:none}
 #ops button{padding:14px 4px;font-size:15px;border-color:var(--c,var(--line));color:var(--c,var(--text));position:relative}
@@ -62,6 +64,7 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 #panel h3{margin:0 0 4px;font-size:16px;color:var(--text)} #panel h3 span{color:var(--gold);margin-right:8px;font-size:22px}
 #panel .k{color:var(--dim)} #panel p{margin:4px 0} #panel .v{font:italic 12px var(--sans);color:var(--gold)}
 #panel .x{position:absolute;top:6px;right:8px;padding:4px 8px;font-size:12px}
+#panel .more{padding:2px 8px;min-height:24px;font-size:11px;letter-spacing:.04em;color:var(--blue);border-color:rgba(127,184,255,.35)}
 #won,#chap{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(10,13,16,.74)}
 #won[hidden],#chap[hidden]{display:none}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px 22px;max-width:440px;width:100%;font-family:var(--mono);backdrop-filter:blur(10px);max-height:86vh;overflow:auto}
@@ -107,6 +110,7 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
     <div class="row"><span id="date"></span><span class="pill" id="daypill"></span><span class="pill rule" id="rulepill"></span><span class="pill ch" id="chpill"></span><span class="pill" id="lvl"></span><span id="clock"></span></div>
     <div class="stand"><span class="g" id="cur-g"></span><span class="n" id="cur-n"></span><span class="w" id="cur-w"></span></div>
     <div class="tgt" id="tgtrow">→ <span class="g" id="tg-g"></span><span id="tg-n"></span><span id="tg-w"></span><span class="pill" id="moves"></span></div>
+    <div class="chips" id="hintrow" role="group" aria-label="the road the hint gave" hidden></div>
     <div class="voice" id="voice"></div>
   </div>
   <div id="quest" hidden></div>
@@ -175,13 +179,19 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
   for (const o of F.OPS.concat([F.FLIP])) { const b = document.createElement('button'); b.dataset.op = o.id; if (o.id === 'flip') b.hidden = true; b.style.setProperty('--c', 'hsl(' + o.hue + ' 70% 65%)'); b.innerHTML = o.label + '<small>' + o.name + '</small>'; b.title = o.tell; b.onclick = () => move(o.id); opsEl.appendChild(b); }
   const aux = (t, f, title) => { const b = document.createElement('button'); b.className = 'aux'; b.textContent = t; b.title = title || ''; b.onclick = f; opsEl.appendChild(b); return b; };
   aux('UNDO', () => { if (busy) return; const id = G.undo(); if (id) { say(STORY && STORY.ops && STORY.ops.undo || 'the move is taken back'); paint(); } }, 'take the last move back');
-  aux('HINT', () => { const h = G.hint(); if (!h || !h.length) return toast(G.S.target == null ? 'no target in a free walk: read the cells' : 'you are there'); const o = F.OP[h[0]]; toast('the road: ' + h.map(id => F.OP[id].label).join(' ') + ' · first ' + o.label + ', ' + o.name); flash(o.id); }, 'the next move of the shortest road');
+  // HINT: the road from where you stand as chips under the target, its first move flashed; the first of a level is free, each one after
+  // caps the level at ★★ (game.js askHint)
+  aux('HINT', () => { const S = G.S, h = G.askHint(); if (!h || !h.length) return toast(S.target == null ? 'no target in a free walk: read the cells' : S.current === S.target ? 'you are there' : 'the level is over'); flash(h[0]); paint(); toast(S.hints > 1 ? 'hint ' + S.hints + ' · this level closes at ★★ at most' : 'free hint · another caps the level at ★★', 2600); }, 'the road from where you stand: the first hint of a level is free, each one after caps the level at ★★');
+  $('hintrow').onclick = e => { const b = e.target.closest('[data-chip]'); if (b) flash(b.dataset.chip); };
   const bRel = aux('RELIEF', () => { MON.mode = (MON.mode + 1) % 3; bRel.setAttribute('aria-pressed', MON.mode > 0); monFloor(); monApply(G.S); toast(['relief off', 'the norm as the floor: a² + ab − b² mod 257, its five stars lit', 'and the product a·b as the ceiling'][MON.mode], 2400); }, 'the conics relief in the world: the norm floor, the sheets, the rings');
   bRel.setAttribute('aria-pressed', 'true');
   const bLad = aux('LADDER', () => { A.A.showLadder = !A.A.showLadder; bLad.setAttribute('aria-pressed', !!A.A.showLadder); toast(A.A.showLadder ? 'the halving ladder of your cell: sixteen rungs, ×129 each' : 'ladder off'); }, 'the sixteen rungs of halving from your cell');
   bLad.setAttribute('aria-pressed', 'false');
   function flash(id) { const b = opsEl.querySelector('[data-op="' + id + '"]'); if (!b) return; b.style.boxShadow = '0 0 0 2px var(--gold)'; setTimeout(() => b.style.boxShadow = '', 900); }
   const say = t => { if (t) $('voice').textContent = t; };
+  // a road in runs: [op, times] for each run of one move, written Γ×10 ×i Γ×11
+  const rle = road => road.reduce((a, id) => (a.length && a[a.length - 1][0] === id ? a[a.length - 1][1]++ : a.push([id, 1]), a), []);
+  const roadText = road => rle(road).map(([id, k]) => F.OP[id].label + (k > 1 ? '×' + k : '')).join(' ');
   // ── the monuments: the conics relief in the world — the norm as the floor, a conic ring for the doors, THE TURN's orbit for the last
   // chapter and the eye, the product sheet as a ceiling for the mirrors, each refilled as the moves go on ──
   const MON = { level: 0, floor: null, kind: null, obj: null, mode: 1 };
@@ -215,6 +225,8 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
     $('lvl').textContent = (S.mode === 'free' ? '' : 'level ' + S.level + (S.kind && S.kind !== 'tape' && S.kind !== 'free' ? ' · ' + S.kind.toUpperCase() : '') + ' · ') + S.closed + ' closed';
     $('cur-g').textContent = c.glyphs; $('cur-n').textContent = c.n === F.INF ? '∞' : c.n; $('cur-w').textContent = c.word;
     if (S.target == null) { $('tgtrow').style.visibility = 'hidden'; } else { $('tgtrow').style.visibility = ''; const t = G.cellInfo(S.target); $('tg-g').textContent = t.glyphs; $('tg-n').textContent = t.n === F.INF ? '∞' : t.n; $('tg-w').textContent = t.word + (S.shift ? ' (shifting)' : ''); $('moves').textContent = S.moves + ' / par ' + S.par + (S.slack ? ' +' + S.slack : ''); }
+    const hl = G.hintLeft(); $('hintrow').hidden = !(hl && hl.length);   // the rest of the hint's road while you keep to it, the next move ringed
+    if (hl && hl.length) $('hintrow').innerHTML = '<span>road · ' + (S.hints > 1 ? '★★ at most' : 'free hint') + '</span>' + rle(hl).map(([id, k], j) => '<button data-chip="' + id + '" style="--c:hsl(' + F.OP[id].hue + ' 70% 65%)" title="' + F.OP[id].name + (k > 1 ? ', ' + k + ' times' : '') + '"' + (j ? '' : ' aria-current="step"') + '>' + F.OP[id].label + (k > 1 ? '×' + k : '') + '</button>').join('');
     for (const b of opsEl.querySelectorAll('[data-op]')) { b.classList.toggle('free', S.free.has(b.dataset.op)); if (b.dataset.op === 'flip') { b.hidden = !S.flip; b.disabled = S.flip && F.flip69(S.current) === S.current; } }
     opsEl.style.gridTemplateColumns = S.flip ? 'repeat(7,1fr)' : 'repeat(6,1fr)';
     const q = S.quest; $('quest').hidden = !q; if (q) { const done = S.quests.includes(q.cell); $('quest').className = done ? 'done' : ''; $('quest').textContent = (done ? '✓ ' : '? ') + q.ask; }
@@ -289,17 +301,26 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
   }
   // ── the cell panel: tap a cell to read it ──
   function showCell(n) {
-    const c = G.cellInfo(n); const S = G.S; const road = F.solve(S.current, n, S.free, S.opsList); const v = STORY && STORY.cells && STORY.cells[n];
+    const c = G.cellInfo(n); const S = G.S; const v = STORY && STORY.cells && STORY.cells[n];
+    // the target's road only after HINT, and then only what the hint gave, the rest of it while you keep to it: a tap is not a free hint
+    const gated = S.target != null && n === S.target && !S.done && !S.lost, road = gated ? G.hintLeft() : G.roadTo(n);
     // a pair [w, v] is listed once: show it from w's cell first, then from v's cell where it holds back too (w at v's own mirror cell)
-    const ws = c.words || [], backs = p => D.cells[((F.atbash(p[1]) % 257) + 257) % 257].ws.includes(p[0]);
-    const mirrors = D.mirrors.filter(p => ws.includes(p[0])).map(p => p[0] + ' ↔ ' + p[1])
-      .concat(D.mirrors.filter(p => !ws.includes(p[0]) && ws.includes(p[1]) && backs(p)).map(p => p[1] + ' ↔ ' + p[0])).slice(0, 4);
+    const ws = c.words || [], mcell = w => ((F.atbash(w) % 257) + 257) % 257, backs = p => D.cells[mcell(p[1])].ws.includes(p[0]);
+    const mirrors = D.mirrors.filter(p => ws.includes(p[0])).concat(D.mirrors.filter(p => !ws.includes(p[0]) && ws.includes(p[1]) && backs(p)).map(p => [p[1], p[0]]));
+    // four, then '4 of N ›' opens them all, grouped by the mirror cell 27k − s of the word here, where its partners stand
+    const pair = p => p[0] + ' ↔ ' + p[1], N = mirrors.length;
+    const mirHtml = open => { const more = N > 4 ? ' <button class="more" aria-expanded="' + open + '">' + (open ? N + ' of ' + N + ' ‹' : '4 of ' + N + ' ›') + '</button>' : '';
+      if (!open) return '<span class="k">mirrors</span> ' + mirrors.slice(0, 4).map(pair).join(', ') + more;
+      const by = new Map(); for (const p of mirrors) { const m = mcell(p[0]); if (!by.has(m)) by.set(m, []); by.get(m).push(p); }
+      return '<span class="k">mirrors, by the mirror cell 27k − s</span>' + more + [...by].map(([m, ps]) => '<br><span class="k">→ ' + m + ' ' + D.cells[m].w + '</span> ' + ps.map(pair).join(', ')).join(''); };
+    const mirSet = open => { const e = $('mirrors'); if (!e) return; e.innerHTML = mirHtml(open); const b = e.querySelector('.more'); if (b) b.onclick = () => { mirSet(!open); const nb = $('mirrors').querySelector('.more'); if (nb) nb.focus(); }; };
     $('panel-body').innerHTML = '<h3><span>' + c.glyphs + '</span>' + (n === F.INF ? '∞' : n) + ' · ' + c.word + '</h3>' + (v ? '<p class="v">' + v + '</p>' : '')
       + '<p>' + (c.words || []).slice(1).join(' · ') + '</p>'
       + '<p><span class="k">dlog</span> ' + c.dlog + ' <span class="k">ray</span> ' + c.ray + ' <span class="k">' + c.ch + '</span>' + (A.GOLD.has(n) ? ' <span class="k">· a quarter turn of the cycle</span>' : '') + (n === A.EYE ? ' <span class="k">· the pole: Γ sends it to ∞</span>' : '') + (A.MIRRORS.has(n) ? ' <span class="k">· a fixed point of Γ</span>' : '') + '</p>'
-      + '<p><span class="k">fold</span> ' + c.fold + ' <span class="k">inverse</span> ' + (c.inv === F.INF ? '∞' : c.inv) + ' <span class="k">Γ</span> ' + (c.gam === F.INF ? '∞' : c.gam) + (mirrors.length ? ' <span class="k">· mirrors</span> ' + mirrors.join(', ') : '') + '</p>'
-      + '<p><span class="k">from where you stand</span> ' + (road && road.length ? road.map(id => F.OP[id].label).join(' ') + ' · ' + F.cost(road, S.free) + ' moves' : 'here') + '</p>';
-    $('panel').hidden = false; snd.cell(n);
+      + '<p><span class="k">fold</span> ' + c.fold + ' <span class="k">inverse</span> ' + (c.inv === F.INF ? '∞' : c.inv) + ' <span class="k">Γ</span> ' + (c.gam === F.INF ? '∞' : c.gam) + '</p>'
+      + (N ? '<p id="mirrors"></p>' : '')
+      + '<p><span class="k">from where you stand</span> ' + (gated && !road ? (S.hints ? 'off the hinted road · HINT again: ★★ at most' : 'the target: HINT shows the road, the first hint free') : road && road.length ? roadText(road) + ' · ' + F.cost(road, S.free) + ' moves' : 'here') + '</p>';
+    mirSet(false); $('panel').hidden = false; snd.cell(n);
     if (G.questDone(n)) { toast('the quest is answered: ' + n + ' ' + c.word, 2600); paint(); }
   }
   $('panel-x').onclick = () => $('panel').hidden = true;
