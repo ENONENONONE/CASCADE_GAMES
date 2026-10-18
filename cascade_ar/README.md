@@ -15,7 +15,10 @@ the Atbash mirror and the Heisenberg joining of words. One page, no build step, 
   the digit under the head the level's rule (NOP · IDENT INV free · EXIST ×i free · SEED start at 0 · SHIFT the target steps ×g each
   move · STORE par + 1 still closes · FOLD free · JUMP Γ free · SYNC one over loses · HALT thirty seconds). The doors (30–32) walk
   4176, 8352, 8532 to 6174; the ladders (36, 40) climb your cell's halvings; the mirrors (44, 48) go to a word's Atbash cell; the eye
-  (56) runs 137 → ∞ → 1. Par is the fewest moves; par closes with three stars. A gold day (day ≡ 0 mod 128) frees ×i.
+  (56) runs 137 → ∞ → 1: the first Γ turns the sky to its negative and lifts the view toward ∞, the second slams I AM and the field
+  is reborn from 1. Par is the fewest moves; par closes with three stars. A gold day (day ≡ 0 mod 128) frees ×i.
+- The eye, 137, is a black hole: in chapter 7, on JUMP levels and within two moves of it, its pupil is a shadow in a gold ring and it
+  lenses the sky and the cells round it, the ring's radius (92/11)°/√(d + 1) reading the d moves from your cell to the eye.
   HINT shows the road from where you stand as chips: the first HINT of a level is free, each one after caps the level at ★★. A tapped
   cell's panel gives the road to it, but to the target only after a HINT.
 - Each chapter sets a quest: find a cell by its words, by tapping it. Each target's word joins your line; the seal at night reads the
@@ -44,5 +47,5 @@ the Atbash mirror and the Heisenberg joining of words. One page, no build step, 
 `index.html` the page · `field.js` the field and its moves · `ar.js` the scene and the flow · `game.js` levels, rules, state ·
 `data.js` the tablet's words and the π tape · `parts/levels` the day's plan (`node parts/levels/test.js`) · `parts/story` the
 chapters and voices (`node parts/story/check.js`) · `parts/sound` Web Audio · `parts/shaders` sky, Airy halo, CRT, Γ warp, the tape's rain ·
-`parts/relief` the conics relief · `parts/corpus` numbers from the corpus (`node parts/corpus/check.js`) · `vendor/three.min.js`
+`parts/relief` the conics relief · `parts/well` the eye's lens (`node parts/well/check.js`) · `parts/corpus` numbers from the corpus (`node parts/corpus/check.js`) · `vendor/three.min.js`
 r128 · `sw.js` (bump CACHE on every change) and the manifest. The data generators are kept beside this folder, not in it.
