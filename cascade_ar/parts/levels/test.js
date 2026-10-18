@@ -40,6 +40,7 @@ function check(day, name, quiet) {
     assert(Number.isInteger(sp.rule) && sp.rule >= 0 && sp.rule <= 9, 'level ' + sp.n + ' rule digit');
     assert(Array.isArray(sp.free) && sp.free.every(id => F.OP[id]), 'level ' + sp.n + ' free ops');
     assert(typeof sp.title === 'string' && sp.title && typeof sp.text === 'string' && sp.text, 'level ' + sp.n + ' title and text');
+    assert(L.CHAPTER_SHEETS.includes(sp.sheet) && sp.sheet === (sp.rule === 9 ? 'circle' : L.CHAPTER_SHEETS[Math.floor((sp.n - 1) / 8)]), 'level ' + sp.n + ' stands on ' + sp.sheet + (sp.rule === 9 ? ', a HALT level off the circle' : ', not its chapter\'s sheet'));
     const r = play(sp);
     assert(r.ok, 'level ' + sp.n + ' ' + sp.kind + ' ' + sp.start + '→' + sp.target + ': the road ' + r.path.join(' ') + ' reaches ' + r.cur + ' (target ' + r.target + ') in ' + r.moves + ', par ' + sp.par);
     // the spec's own road agrees with the solver's par
@@ -94,7 +95,7 @@ console.log('\n== THE DOORS ==');
 for (const d of ['2026', '1467', '6174', '1111', '0000', '9384', '12']) {
   const lv = L.doors(d);
   console.log('  ' + d + ': ' + (lv.length ? lv.map(sp => sp.start + '→' + sp.target + ' par ' + sp.par).join(' · ') + ' · chain ' + lv[0].chain[0] + lv.map(sp => ' → ' + sp.next).join('') : 'no door'));
-  for (const sp of lv) { assert(sp.kind === 'door' && sp.rule === 0 && sp.par > 0 && play(sp).ok, 'doors ' + d + ' level ' + sp.n + ' plays in par'); assert(sp.next % 257 === sp.target && sp.number % 257 === sp.start, 'doors ' + d + ' residues'); }
+  for (const sp of lv) { assert(L.CHAPTER_SHEETS.includes(sp.sheet), 'doors ' + d + ' level ' + sp.n + ' sheet ' + sp.sheet); assert(sp.kind === 'door' && sp.rule === 0 && sp.par > 0 && play(sp).ok, 'doors ' + d + ' level ' + sp.n + ' plays in par'); assert(sp.next % 257 === sp.target && sp.number % 257 === sp.start, 'doors ' + d + ' residues'); }
   if (lv.length) assert(lv[lv.length - 1].next === 6174, 'doors ' + d + ' ends on 6174');
 }
 assert(L.doors('1111').length === 0 && L.doors('0000').length === 0, 'repdigits reach no door');
@@ -102,7 +103,7 @@ assert(L.doors('2026').length === 6 && L.doors('2026')[0].start === 227, '2026 t
 
 // FREE WALK
 const fw = L.free('TORAH');
-assert(fw.kind === 'free' && fw.target === null && fw.par === null && fw.start === 62, 'free walk from 62 with no target');
+assert(fw.kind === 'free' && fw.target === null && fw.par === null && fw.start === 62 && L.CHAPTER_SHEETS.includes(fw.sheet), 'free walk from 62 with no target, on a listed sheet');
 console.log('\n== FREE WALK == ' + fw.text);
 
 console.log('\n' + checks + ' checks, ' + fails + ' failed' + (fails ? '' : ' — the plan computes'));
