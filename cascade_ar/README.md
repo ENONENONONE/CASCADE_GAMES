@@ -21,8 +21,9 @@ the Atbash mirror and the Heisenberg joining of words. One page, no build step, 
 - Each chapter sets a quest: find a cell by its words, by tapping it. Each target's word joins your line; the seal at night reads the
   line's cell and its mirror.
 - FREE WALK: no target; walk and read, with the eye as the quest. THE DOORS: type four figures and walk their Kaprekar chain.
-- RELIEF puts the conics relief in the world (the norm floor with its five stars, rings for the doors and ladders, THE TURN's orbit
-  in the eye's chapter, the product sheet overhead); LADDER shows your cell's sixteen halvings.
+- RELIEF puts the conics relief in the world (a sheet a chapter as the floor: the product, the hyperbola, the circle, the ellipse,
+  the parabola, then the norm with its five stars, and the circle under every HALT level; rings for the doors and ladders, THE
+  TURN's orbit in the eye's chapter, the product sheet overhead); LADDER shows your cell's sixteen halvings.
 
 ## Where it runs
 

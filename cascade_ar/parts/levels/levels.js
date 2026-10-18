@@ -24,6 +24,11 @@ window.FOLD_LEVELS = (function () {
   // the special levels sit in the story's chapters: THE DOORS (4) ends on its three doors, THE LADDER (5) climbs twice, THE MIRROR (6)
   // reflects twice, THE EYE (7) ends on the pole; SUNRISE, THE FOLD, THE QUARTER TURN and THE SEAL are the tape's own roads
   const SPECIAL = { 30: 'door', 31: 'door', 32: 'door', 36: 'ladder', 40: 'ladder', 44: 'mirror', 48: 'mirror', 56: 'eye' };
+  // a sheet a chapter, the floor the page lays under it (relief.js floor(kind)): SUNRISE the product a·b, THE FOLD the hyperbola, THE
+  // QUARTER TURN the circle, THE DOORS the ellipse, THE LADDER the parabola y² − 4x, THE MIRROR the room (the norm until the room
+  // stands), THE EYE and THE SEAL the norm; a HALT level stands on the circle, its zone plate, whatever its chapter
+  const CHAPTER_SHEETS = ['product', 'hyperbola', 'circle', 'ellipse', 'parabola', 'room', 'norm', 'norm'];
+  const sheetOf = (chapter, digit) => RULES[digit].clock ? 'circle' : CHAPTER_SHEETS[Math.max(0, Math.min(7, chapter - 1))];
   const FLIP_CHAPTER = 6;   // THE MIRROR opens the 6 ↔ 9 flip; its pars and roads are counted with it, as game.js plays it
   let OPSET = null;          // the moves the plan counts with while it builds a chapter (null: the six)
   const DOORS = [4176, 8352, 8532];     // the three doors, each one Kaprekar step from 6174: 4176 ≡ 64, 8352 ≡ 128, 8532 ≡ 51
@@ -77,8 +82,8 @@ window.FOLD_LEVELS = (function () {
   // ── one spec, filled from a rule digit ──
   function base(n, kind, day, name, s, t, digit, o) {
     const R = RULES[digit], free = freeOf(digit), shift = !!R.shift;
-    const p = par(s, t, free, shift), r = shift ? solveShift(s, t) : road(s, t, free);
-    return { n, kind, chapter: Math.floor((n - 1) / CHAPTER) + 1, day, name: cleanName(name), home: home(name), offset: o, start: s, target: t,
+    const p = par(s, t, free, shift), r = shift ? solveShift(s, t) : road(s, t, free), chapter = Math.floor((n - 1) / CHAPTER) + 1;
+    return { n, kind, chapter, sheet: sheetOf(chapter, digit), day, name: cleanName(name), home: home(name), offset: o, start: s, target: t,
       rule: digit, ruleName: R.name, free: [...free], slack: R.slack || 0, strict: !!R.strict, clock: R.clock || 0, shift,
       par: p, cost: p, road: r, roadText: labels(r), title: '', text: '', quest: null, flip: !!OPSET };
   }
@@ -232,7 +237,7 @@ window.FOLD_LEVELS = (function () {
       const a = chain[i], s = a % P; let j = i + 1; while (j < chain.length - 1 && chain[j] % P === s) j++;
       const b = chain[j], t = b % P; if (t === s) break;                     // the chain ends on the start's own residue: nothing left to play
       const sp = base(out.length + 1, 'door', null, '', s, t, 0, null);
-      sp.number = a; sp.next = b; sp.chain = chain.slice(i, j + 1); sp.steps = j - i; sp.typed = x; sp.offset = null; sp.name = null; sp.home = null;
+      sp.number = a; sp.next = b; sp.chain = chain.slice(i, j + 1); sp.steps = j - i; sp.typed = x; sp.offset = null; sp.name = null; sp.home = null; sp.sheet = CHAPTER_SHEETS[3];   // THE DOORS' own ellipse
       const stepText = sp.chain.slice(0, -1).map((v, q) => { const { hi, lo } = kap(v); return hi + ' − ' + lo + ' = ' + sp.chain[q + 1]; }).join(', then ');
       sp.title = 'THE DOORS · ' + String(a).padStart(4, '0') + ' → ' + b;
       sp.text = stepText + '. ' + String(a).padStart(4, '0') + ' ≡ ' + s + ' ' + word(s) + ' → ' + b + ' ≡ ' + t + ' ' + word(t) + (sp.steps > 1 ? ' (the steps between keep the residue ' + s + ')' : '') + '. ' + ruleLine(sp);
@@ -243,9 +248,9 @@ window.FOLD_LEVELS = (function () {
   // ── FREE WALK: no target, no par ──
   function free(name) {
     const h = home(name);
-    return { n: 1, kind: 'free', chapter: 0, day: null, name: cleanName(name), home: h, offset: null, start: h, target: null, rule: 0, ruleName: 'NOP', free: [], slack: 0, strict: false, clock: 0, shift: false,
+    return { n: 1, kind: 'free', chapter: 0, sheet: 'norm', day: null, name: cleanName(name), home: h, offset: null, start: h, target: null, rule: 0, ruleName: 'NOP', free: [], slack: 0, strict: false, clock: 0, shift: false,
       par: null, cost: null, road: [], roadText: '', title: 'FREE WALK', text: 'No target: walk the field from ' + h + ' ' + word(h) + ' by the six moves. Tap any cell to read it and the road to it from where you stand.',
       quest: (() => { const w = pick(words(EYE).filter(nice), h) || word(EYE); return { cell: EYE, word: w, chapter: 0, ask: 'Find the eye: the cell that holds ' + w + ', where Γ opens to ∞ (' + clue(EYE) + ').' }; })() };
   }
-  return { plan, quest, seal, doors, free, RULES, SPECIAL, DOORS, CONSTANT, EYE, IAM, HALF, LEVELS, CHAPTER, solveShift, road, par, home, tapeSpec, doorSpec, ladderSpec, mirrorSpec, eyeSpec, kaprekarChain, mirrorPairs };
+  return { plan, quest, seal, doors, free, RULES, SPECIAL, CHAPTER_SHEETS, DOORS, CONSTANT, EYE, IAM, HALF, LEVELS, CHAPTER, solveShift, road, par, home, tapeSpec, doorSpec, ladderSpec, mirrorSpec, eyeSpec, kaprekarChain, mirrorPairs };
 })();
