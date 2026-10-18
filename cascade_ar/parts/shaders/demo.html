@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>THE FOLD · shader demo</title>
+<style>
+:root{--ground:#0a0d10;--panel:rgba(12,16,20,.82);--line:#24302a;--text:#e8f3e4;--dim:#8fa796;--gold:#c9a84c;--green:#5fd37a;--mono:ui-monospace,"SF Mono",Menlo,"DejaVu Sans Mono",monospace}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--ground);color:var(--text);font:13px/1.4 var(--mono);overflow:hidden}
+#room{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;filter:saturate(.75) brightness(.8)}
+#c{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+#ui{position:fixed;left:0;right:0;bottom:0;padding:8px;display:flex;flex-wrap:wrap;gap:6px;background:linear-gradient(rgba(10,13,16,0),rgba(10,13,16,.9));pointer-events:none}
+#ui>*{pointer-events:auto}
+button{font:600 12px var(--mono);letter-spacing:.08em;color:var(--text);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:9px 12px;cursor:pointer}
+button[aria-pressed="true"]{border-color:var(--green);color:var(--green)}
+button.op{border-color:var(--gold);color:var(--gold)}
+#report{position:fixed;top:8px;left:8px;right:8px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 10px;white-space:pre-wrap;max-height:38vh;overflow:auto;font-size:12px;pointer-events:none}
+#report b{color:var(--green)} #report i{color:#ff7b7b;font-style:normal} #report span{color:var(--dim)}
+#plot{position:fixed;right:8px;bottom:70px;width:300px;height:140px;background:rgba(0,0,0,.5);border:1px solid var(--line);border-radius:8px;display:none}
+</style>
+</head>
+<body>
+<canvas id="room"></canvas>
+<canvas id="c"></canvas>
+<div id="report">loading…</div>
+<canvas id="plot" width="600" height="280"></canvas>
+<div id="ui"></div>
+<script src="../../vendor/three.min.js"></script>
+<script src="fx.js"></script>
+<script>
+(function () {
+  'use strict';
+  const T = window.THREE, FX = window.FOLD_FX, $ = id => document.getElementById(id);
+  // ── the console, caught: three.js reports a shader that does not compile with console.error ──
+  const errs = [], warns = [];
+  const ce = console.error.bind(console), cw = console.warn.bind(console);
+  console.error = function () { errs.push(Array.from(arguments).map(String).join(' ')); ce.apply(console, arguments); };
+  console.warn = function () { warns.push(Array.from(arguments).map(String).join(' ')); cw.apply(console, arguments); };
+  // ── a room to stand in for the camera: a grid, a window, a word, so the CSS moves can be seen ──
+  function drawRoom() {
+    const cv = $('room'); cv.width = innerWidth; cv.height = innerHeight; const g = cv.getContext('2d');
+    const w = cv.width, h = cv.height; const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#2a3340'); gr.addColorStop(1, '#141a1e'); g.fillStyle = gr; g.fillRect(0, 0, w, h);
+    g.strokeStyle = 'rgba(255,255,255,0.08)'; g.lineWidth = 1; for (let x = 0; x < w; x += 48) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, h); g.stroke(); } for (let y = 0; y < h; y += 48) { g.beginPath(); g.moveTo(0, y); g.lineTo(w, y); g.stroke(); }
+    g.fillStyle = '#6b8fb0'; g.fillRect(w * 0.1, h * 0.15, w * 0.25, h * 0.3); g.fillStyle = '#c9a84c'; g.fillRect(w * 0.7, h * 0.6, w * 0.18, h * 0.25);
+    g.fillStyle = 'rgba(255,255,255,0.7)'; g.font = '600 ' + Math.round(h * 0.08) + 'px ' + 'ui-monospace, Menlo, monospace'; g.fillText('ROOM', w * 0.42, h * 0.5); g.font = Math.round(h * 0.035) + 'px ui-monospace, Menlo, monospace'; g.fillText('left', w * 0.05, h * 0.9); g.fillText('right', w * 0.85, h * 0.9); g.fillText('top', w * 0.48, h * 0.08);
+  }
+  drawRoom();
+  // ── the scene ──
+  const canvas = $('c'); const gl1 = /gl1/.test(location.search) ? canvas.getContext('webgl', { alpha: true, antialias: false, premultipliedAlpha: true, powerPreference: 'low-power' }) : undefined;   // ?gl1 forces a WebGL1 context, as on an older phone or a Pi
+  const renderer = new T.WebGLRenderer({ canvas, context: gl1, antialias: false, alpha: true, powerPreference: 'low-power' });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5)); renderer.setClearColor(0x000000, 0); renderer.autoClear = true;
+  const scene = new T.Scene(), camera = new T.PerspectiveCamera(70, 1, 0.05, 80); scene.add(camera);
+  const warpScene = new T.Scene();
+  // the sky
+  const skySpec = FX.sky(); const sky = FX.quad(T, skySpec); scene.add(sky);
+  // the halos: 48 cells round the viewer on the horizon's band, the first dark ring at 38 % of the quad, the rings lifted; and one big disc ahead
+  const haloFrag = `precision mediump float; uniform vec3 col; uniform float scale; uniform float lift; uniform float time; varying vec2 vQ;
+` + FX.halo() + `
+void main(){ float r = length(vQ) * scale; float h = airyGlow(r, lift); float core = airy(r); vec3 rgb = col * h + vec3(1.0) * core * 0.5; float a = clamp(h * 1.1, 0.0, 1.0); if (a < 0.01) discard; gl_FragColor = vec4(rgb, a); }`;
+  const haloVert = `varying vec2 vQ; void main(){ vQ = uv * 2.0 - 1.0; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;
+  const halos = new T.Group(); scene.add(halos);
+  const rayRGB = r => { const c = new T.Color().setHSL(0.78 - r * 0.78 / 11, 0.9, 0.6); return [c.r, c.g, c.b]; };
+  for (let k = 0; k < 48; k++) {
+    const az = k / 48 * Math.PI * 2, el = (-20 + (k % 12) * 5) * Math.PI / 180, R = 6;
+    const m = new T.ShaderMaterial({ vertexShader: haloVert, fragmentShader: haloFrag, uniforms: { col: { value: rayRGB(k % 12) }, scale: { value: 2.655 }, lift: { value: 0.45 }, time: { value: 0 } }, transparent: true, depthWrite: false, depthTest: false, blending: T.NormalBlending });
+    const q = new T.Mesh(new T.PlaneBufferGeometry(0.9, 0.9), m); q.position.set(Math.sin(az) * Math.cos(el) * R, Math.sin(el) * R, -Math.cos(az) * Math.cos(el) * R); q.lookAt(0, 0, 0); halos.add(q);
+  }
+  const big = new T.Mesh(new T.PlaneBufferGeometry(3, 3), new T.ShaderMaterial({ vertexShader: haloVert, fragmentShader: haloFrag, uniforms: { col: { value: [0.37, 0.83, 0.48] }, scale: { value: 3.6 }, lift: { value: 0.35 }, time: { value: 0 } }, transparent: true, depthWrite: false, depthTest: false }));
+  big.position.set(0, 0, -4); halos.add(big);
+  // the CRT overlay and the warp
+  const crtSpec = FX.crt(); const crt = FX.quad(T, crtSpec); crt.visible = false; scene.add(crt); FX.resize(crtSpec.uniforms, renderer);
+  const warpSpec = FX.warp(); const warp = FX.quad(T, warpSpec); warp.visible = false; warpScene.add(warp);
+  // ── looking: drag ──
+  let yaw = 0, pitch = 0, drag = null;
+  canvas.addEventListener('pointerdown', e => { drag = { x: e.clientX, y: e.clientY, yaw, pitch }; canvas.setPointerCapture(e.pointerId); });
+  canvas.addEventListener('pointermove', e => { if (!drag) return; yaw = drag.yaw + (e.clientX - drag.x) * 0.0035; pitch = Math.max(-1.5, Math.min(1.5, drag.pitch + (e.clientY - drag.y) * 0.0035)); });
+  canvas.addEventListener('pointerup', () => drag = null);
+  function resize() { renderer.setSize(innerWidth, innerHeight, false); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); FX.resize(crtSpec.uniforms, renderer); warpSpec.uniforms.aspect.value = innerWidth / innerHeight; drawRoom(); }
+  window.addEventListener('resize', resize); resize();
+  // ── the buttons ──
+  const ui = $('ui'); const state = { sky: true, halo: true, crt: false, grab: false, plot: false };
+  const btn = (label, f, pressed, cls) => { const b = document.createElement('button'); b.textContent = label; if (cls) b.className = cls; if (pressed != null) b.setAttribute('aria-pressed', pressed); b.onclick = () => f(b); ui.appendChild(b); return b; };
+  btn('SKY', b => { state.sky = !state.sky; sky.visible = state.sky; b.setAttribute('aria-pressed', state.sky); }, true);
+  btn('HALO', b => { state.halo = !state.halo; halos.visible = state.halo; b.setAttribute('aria-pressed', state.halo); }, true);
+  btn('AIRY PLOT', b => { state.plot = !state.plot; $('plot').style.display = state.plot ? 'block' : 'none'; b.setAttribute('aria-pressed', state.plot); if (state.plot) plot(); }, false);
+  btn('CRT', b => { state.crt = !state.crt; crt.visible = state.crt; b.setAttribute('aria-pressed', state.crt); }, false);
+  btn('PULSE', () => { crt.visible = true; state.crt = true; const hue = Math.random(); const c = new T.Color().setHSL(hue, 0.8, 0.6); FX.pulse(crtSpec.uniforms, [c.r, c.g, c.b]); });
+  btn('WARP Γ', () => { warpSpec.uniforms.useMap.value = 0; warp.visible = true; FX.warpRun(warpSpec.uniforms, 0.4, 1100); });
+  btn('WARP + GRAB', () => { state.grab = true; warp.visible = true; FX.warpRun(warpSpec.uniforms, 0.4, 1100); setTimeout(() => { state.grab = false; warpSpec.uniforms.useMap.value = 0; }, 1200); });
+  for (const id of ['g', 'ig', 'fold', 'inv', 'i', 'gam']) btn(id.toUpperCase(), () => { FX.cssApply($('room'), id, 700); sky.visible = false; setTimeout(() => sky.visible = state.sky, 900); }, null, 'op');
+  btn('CSS RESET', () => { const r = $('room'); r.style.filter = FX.cssReset.filter; r.style.transform = FX.cssReset.transform; });
+  btn('STARS 23 / 13 / 0', b => { const n = { 23: 13, 13: 0, 0: 23 }[skySpec.uniforms._samples || 23]; const s = FX.sky({ samples: n }); sky.material.fragmentShader = s.fragmentShader; sky.material.needsUpdate = true; skySpec.uniforms._samples = n; b.textContent = 'STARS ' + n + ' samples'; });
+  // ── the plot of airy(r): the first dark ring at r = 1, the next at 1.831 and 2.655 ──
+  function plot() {
+    const cv = $('plot'), g = cv.getContext('2d'), w = cv.width, h = cv.height; g.clearRect(0, 0, w, h); g.fillStyle = 'rgba(0,0,0,0.6)'; g.fillRect(0, 0, w, h);
+    g.strokeStyle = '#24302a'; for (const r of [1, 7.0156 / 3.8317, 10.1735 / 3.8317]) { const x = r / 3 * w; g.beginPath(); g.moveTo(x, 0); g.lineTo(x, h); g.stroke(); }
+    g.strokeStyle = '#5fd37a'; g.lineWidth = 2; g.beginPath(); for (let i = 0; i <= 600; i++) { const r = i / 600 * 3, v = FX.airy(r); const y = h - 10 - Math.pow(v, 0.35) * (h - 20); i ? g.lineTo(i / 600 * w, y) : g.moveTo(0, y); } g.stroke();
+    g.fillStyle = '#8fa796'; g.font = '18px ui-monospace, Menlo, monospace'; g.fillText('airy(r)^0.35 · rings at r = 1, 1.831, 2.655 · airy(1.341) = ' + FX.airy(5.1356 / 3.8317).toFixed(4), 10, 24);
+  }
+  // ── the report: the GPU, its precisions, the compile ──
+  function report() {
+    const gl = renderer.getContext(); const dbg = gl.getExtension('WEBGL_debug_renderer_info'); const gpu = dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER);
+    const pf = (sh, p) => { const f = gl.getShaderPrecisionFormat(sh, p); return f ? f.precision + ' bits, 2^' + f.rangeMin + '..2^' + f.rangeMax : '?'; };
+    const lines = ['<b>THE FOLD · shaders</b> three r' + T.REVISION + ' · ' + (renderer.capabilities.isWebGL2 ? 'WebGL2' : 'WebGL1') + ' · ' + gpu,
+      '<span>fragment mediump float ' + pf(gl.FRAGMENT_SHADER, gl.MEDIUM_FLOAT) + ' · highp ' + pf(gl.FRAGMENT_SHADER, gl.HIGH_FLOAT) + ' · buffer ' + renderer.getDrawingBufferSize(new T.Vector2()).x + '×' + renderer.getDrawingBufferSize(new T.Vector2()).y + '</span>'];
+    renderer.compile(scene, camera); renderer.compile(warpScene, camera);
+    const bad = errs.filter(e => /shader|program|glsl/i.test(e));
+    lines.push(bad.length ? '<i>shader errors: ' + bad.length + '</i>\n' + bad.map(e => e.slice(0, 1200)).join('\n') : '<b>compiled</b>: sky, halo ×49, crt, warp — no shader errors from three.js');
+    const w = warns.filter(e => /shader|program|glsl/i.test(e)); if (w.length) lines.push('warnings: ' + w.join(' | ').slice(0, 600));
+    lines.push('<span>drag to look · buttons below; FPS at the end of this line: </span><b id="fps">—</b>');
+    $('report').innerHTML = lines.join('\n');
+  }
+  // ── the loop ──
+  const t0 = performance.now(); let frames = 0, ft = performance.now();
+  renderer.setAnimationLoop(() => {
+    const t = (performance.now() - t0) / 1000; skySpec.uniforms.time.value = t; crtSpec.uniforms.time.value = t; warpSpec.uniforms.time.value = t;
+    camera.rotation.set(pitch, yaw, 0, 'YXZ');
+    renderer.render(scene, camera);
+    if (warp.visible) {
+      if (state.grab) FX.grab(T, renderer, warpSpec.uniforms);
+      renderer.autoClear = false; renderer.render(warpScene, camera); renderer.autoClear = true;
+      if (warpSpec.uniforms.t.value <= 0 && !warpSpec.uniforms._warpRaf) warp.visible = false;
+    }
+    frames++; if (performance.now() - ft > 1000) { const f = $('fps'); if (f) f.textContent = frames + ' fps'; frames = 0; ft = performance.now(); }
+  });
+  setTimeout(report, 300);
+})();
+</script>
+</body>
+</html>
