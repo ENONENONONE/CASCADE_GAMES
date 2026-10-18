@@ -65,8 +65,9 @@ eye itself at (cell, 0) with I = 1 (not at SEED). Depth 4.
   and between moves every pixel only falls (by at most 0.036 a 60 Hz frame at τ = 600 ms; the steepest step of F over 1/72 is 0.0358 at T ≈ 0.4).
 - `lightAt(scene, origin, opts)` or `lightAt(result)` → `{angle, rgb, energy, coherence, cell, stats}`: the light's vector sum with each direction
   at the azimuth where ar.js stands its cell w (dlog/256 of a turn, 0 ahead), so a GLOW pass can hang its god rays at that azimuth in the
-  field's own frame; `rgb` the energy-weighted colour (unit), `cell` the brightest direction's w. One lit direction gives its own azimuth and
-  coherence 1; a direction and its opposite (u^128 = −1) cancel.
+  field's own frame; `rgb` the energy-weighted colour (unit), `cell` the brightest direction's w, `energy` Σ of the light over the 256
+  directions (265 … 780 over every cell, sheet and target of the default scene, median 545). One lit direction gives its own azimuth and
+  coherence 1; a direction and its opposite (u^128 = −1) cancel. GLOW's third light is this (below).
 - `Tile(canvas, {size: 64, beam: 64, dpr, tau: 600, gain: 0.55, calm, cycle})` → `{set(scene, origin, modes?), frame(now), cycle(i?), mode,
   modeName, cycleIndex, modes, stats, ms, shown, target}`. `set` renders and lays the picture (returns the render); `frame` draws while the
   persistence runs and stops drawing once it is done; under CALM the new picture stands at once and nothing moves between moves. `cycle()`
@@ -76,7 +77,7 @@ eye itself at (cell, 0) with I = 1 (not at SEED). Depth 4.
 ## In the game
 
 `index.html` loads `trace.js` after `rays.js` and `sw.js` keeps it in SHELL (CACHE left for the merger). The tile is `<div id="trace">` in `#ui`
-(so the dom-overlay carries it): a 64 × 64 CSS px canvas beside the rays inset (left 150 px, bottom 166 px, the caption under it; on a screen
+(so the dom-overlay carries it): a 64 × 64 CSS px canvas beside the rays inset (left 150 px, bottom 196 px with the inset, both clear of the four rows of `#ops` with GLOW, the caption under it; on a screen
 under 420 px wide it stands above the inset at left 10, bottom 336, clear of the quest box). The TRACE button shares RAYS's slot in `#ops`
 (both span one column), so the moves keep their rows; `z` toggles it, kept in `fold.prefs` `{trace: 'on' | 'off'}`; a tap on the tile, Enter
 on it or `x` cycles the law, kept as `fold.prefs.traceMode`. `traceSet(S)` runs from `paint()` — on every move, at a level's opening, after
@@ -84,6 +85,14 @@ UNDO — by a key of the cell, the level, the target, the sheet and the law, so 
 cell gives the same picture; the scene is `scene({sheet: S.spec.sheet, target, current, home})` and the origin `[S.current, 0]`, null at ∞.
 The caption is `hit·bounces·coherence` (`248·750·.02`); the tile's title and aria-label carry the words, the law and the render's ms. The TUBE
 hides it as it hides the inset; in XR it rides the overlay. It is on for every tier (CPU integer math and a 16 × 16 canvas), and still under CALM.
+
+**GLOW's third light.** The same render feeds `FOLD_GLOW`'s shafts (parts/glow, `TRACE.light` in index.html): after the tile is laid,
+`lightAt(R)` of the render in hand gives the brightest direction's cell, the light's colour and its energy; index.html projects that cell
+each frame as GLOW projects the eye (`A.onScreen(cell)`), tints the shaft by the colour and sets its strength to `FOLD_GLOW.traceStrength
+(energy)` = energy / 640 clamped (a typical cell ~0.85, the brightest 1, ∞ none), faded at the screen's edge as the other lights are;
+glow.js eases it between moves over 600 ms (a step under CALM). With the tile off (z) the tracer still runs once a move for the light —
+`render` alone, the picture not laid, 1.2–2.7 ms in headless Chromium — unless `fold.prefs {traceGlow: 'off'}` leaves the third light out
+(then nothing runs with the tile off). The light follows the tile's law (x), since it is read from the tile's own render.
 
 No flash: the tile's 4096 px² are under the gate's area (2.8 % of the screen: 21824 px² at 1024 × 768, 9217 on a 390 × 844 phone), and its
 luminance changes once a move, at the move (the persistence only dims after it; `check.js` asserts both on a stub canvas, and the play-through
@@ -107,7 +116,8 @@ measured the tile's mean luminance 0.29 → 0.38 at the move, then falling to 0.
 
 ## Left out, and why
 
-- **A GLOW pass from `lightAt`**: the API is here (the azimuth in the field's frame, the colour, the energy); the god rays are a later step.
+- **The azimuth as the shaft's place**: `lightAt` gives it (the field's own frame), but GLOW hangs the shaft at the brightest direction's
+  cell on the screen instead, so the shaft comes from a place the player can look at; the azimuth is logged, not drawn.
 - **Occlusion of the lights**: E(q) sums every light's inverse square with no shadow ray (that would be 6 more hit tests a bounce; the field has
   no 'between' anyway, since t is read as an integer by choice, not by order).
 - **A medium left behind**: under Snell a sheet sets the medium and nothing resets it; a solid conic would need an inside.

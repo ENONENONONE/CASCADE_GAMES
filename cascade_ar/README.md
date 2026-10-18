@@ -42,17 +42,23 @@ the Atbash mirror and the Heisenberg joining of words. One page, no build step, 
   of the rain as it opens, its start and target digits flying to their cells, and a close turns its start digits into the cell's
   glyphs; the seal counts the windows decoded. Tap the ribbon to read the level's line; VIEW (or v) hides the rain.
 - GLOW: the field through one post pass — bloom in each source's own colour (cells in their rays, the rain in phosphor green, the ring
-  and the quarter turns in gold), golden god rays from the eye's ring and the floor's twelve spokes in their colours, slow glitter on
-  the brightest points, a 1–2 px colour split at the edges and a grade that deepens the blacks and lifts the saturation a fifth, the
-  palette kept. Full on desktops and phones, bloom alone on a low-end GPU, off on a Pi and in the room; GLOW (or b) toggles it, kept
-  in fold.prefs. Under reduced motion the shafts and the glitter are stills.
+  and the quarter turns in gold), god rays from three lights: the eye's ring in gold, the floor's twelve spokes in their colours, and
+  the field's own light, where the TRACE tracer says the light arrives at your cell, in the colour it arrives in, eased between moves;
+  slow glitter on the brightest points, a 1–2 px colour split at the edges and a grade that deepens the blacks and lifts the
+  saturation a fifth, the palette kept. Full on desktops and phones, bloom alone on a low-end GPU, off on a Pi and in the room; GLOW
+  (or b) toggles it, kept in fold.prefs. Under reduced motion the shafts and the glitter are stills.
+- TRACE: the field's own ray tracer, every number an integer mod 257 — 256 rays from your cell along THE TURN's 256 directions, hits on
+  the chapter's sheet and four more where the discriminant is a residue (the character), four bounces by Γ = (Z − 120)/(Z + 120) off the
+  gradient (or Snell, by another law), the light laid on the 16 × 16 picture through the Airy beam and kept by the P22 persistence: the
+  tile beside the rays inset, rendered anew on each move. TRACE (or z) toggles it; a tap on it, or x, cycles its law. Its light feeds
+  GLOW's third shaft whether the tile shows or not (fold.prefs {traceGlow: 'off'} leaves it out).
 
 ## Where it runs
 
 - Phones: device orientation turns the view (iOS asks on ENTER), the back camera shows the room; a PWA that plays offline after the
   first load over https. Android Chrome with WebXR gets an AR button for the room itself.
 - Raspbian, an RK3588 board and desktops: drag or arrow keys to look; keys g G f i q r are the moves, u undoes, v the rain, m the rays
-  inset, t the TUBE, b the glow. The sky
+  inset, t the TUBE, b the glow, z the trace tile, x its law. The sky
   shader scales down by GPU (none on VideoCore/llvmpipe, half on Mali); the rain keeps only its state columns, heads only, on a Pi
   or SwiftShader, and is off on llvmpipe; the glow is bloom alone on Mali and off on a Pi.
 - Nothing is sent anywhere; the day's progress stays in the browser.

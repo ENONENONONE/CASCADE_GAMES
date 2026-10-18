@@ -1,9 +1,11 @@
 // THE FOLD — parts/glow/check.js: the glow's numbers against the code, under node with no GL. Every pass's GLSL kept to ES 1.00 and
-// mediump's rules (a precision line first, the HP macro, constant loops of 9 and 24, no derivative, no lod); the tiers; the twinkle's
+// mediump's rules (a precision line first, the HP macro, constant loops of 9 and 16, no derivative, no lod); the tiers; the twinkle's
 // periods (≥ 1.5 s, each dividing the 30 s clock) and the whole pass's largest change of luminance a frame against the flash gate's 0.1;
-// the clock still under CALM and the toggle's ramp (a mock renderer, the real three.js); the grade on the palette (hue kept, chroma up
-// 15–25 %, black black); the bright pass's knee against the sky's field, the ring and a cell's core; the split's bound; the budget at
-// 1280 × 800. Loads three.js, data.js, field.js, fx.js, ar.js and glow.js in a page of its own. Run: node parts/glow/check.js
+// the clock still under CALM and the toggle's ramp (a mock renderer, the real three.js); the third light (the tracer's) eased over 600 ms
+// between keys, a step under CALM, fading in where it is and out where it was; the grade on the palette (hue kept, chroma up 15–25 %, black
+// black); the bright pass's knee against the sky's field, the ring and a cell's core; the split's bound; the budget at 1280 × 800 (three
+// lights of 16 samples under 6 ms, 20 or 24 a light over it); traceStrength; the page's wiring. Loads three.js, data.js, field.js, fx.js,
+// ar.js and glow.js in a page of its own. Run: node parts/glow/check.js
 'use strict';
 const fs = require('fs'), path = require('path'), vm = require('vm');
 const root = path.join(__dirname, '..', '..'), read = p => fs.readFileSync(path.join(root, p), 'utf8');
@@ -26,8 +28,10 @@ for (const tier of ['full', 'bloom']) for (const [name, src] of Object.entries(G
 }
 { const S = GL.shaders('full'); ok((S.blurH.match(/texture2D\(/g) || []).length === 1 && (S.blurV.match(/texture2D\(/g) || []).length === 3 && new RegExp('if \\(i >= -' + K.cross + ' && i <= ' + K.cross + '\\)').test(S.blurV), 'the blur fetches once a tap, V the cross\'s ±' + K.cross + ' of the bright pass and the centre');
   ok(K.taps >= 9 && K.taps <= 13 && K.taps % 2 === 1 && new RegExp('for \\(int i = -' + ((K.taps - 1) >> 1) + '; i <= ' + ((K.taps - 1) >> 1)).test(S.blurH), 'the blur has ' + K.taps + ' taps (9–13, odd)');
-  ok(K.samples >= 24 && K.samples <= 32 && new RegExp('#define N ' + K.samples).test(S.rays), 'the shafts take ' + K.samples + ' samples a light (24–32)');
-  ok(/lightA\.z > 0\.0/.test(S.rays) && /lightB\.z > 0\.0/.test(S.rays) && /spokeDir\[12\]/.test(S.rays) && /spokeCol\[12\]/.test(S.rays), 'two lights, each a uniform branch, the floor\'s tinted by the twelve spokes');
+  ok(K.samples >= 16 && K.samples <= 32 && K.lights === 3 && new RegExp('#define N ' + K.samples).test(S.rays), 'the shafts take ' + K.samples + ' samples a light (16–32), ' + K.lights + ' lights');
+  ok(/lightA\.z > 0\.0/.test(S.rays) && /lightB\.z > 0\.0/.test(S.rays) && /spokeDir\[12\]/.test(S.rays) && /spokeCol\[12\]/.test(S.rays), 'the eye and the floor, each a uniform branch, the floor\'s tinted by the twelve spokes');
+  ok(/uniform vec3 lightC; uniform vec3 colC;/.test(S.rays) && /if \(lightC\.z > 0\.0\) col \+= shaft\(lightC\.xy\) \* drift\(lightC\.xy\) \* lightC\.z \* mix\(vec3\(1\.0\), colC \* 1\.4, 0\.7\);/.test(S.rays), 'the third light, the tracer\'s: a uniform branch in its own colour, the same shaft and drift');
+  ok((S.rays.match(/shaft\(light[ABC]\.xy\)/g) || []).length === 3 && (S.rays.match(/texture2D\(/g) || []).length === 1, 'three shafts of one loop body: ' + K.lights * K.samples + ' samples a pixel');
   ok(/#define RAYS 1/.test(S.composite) && /#define SPLIT 1/.test(S.composite) && /#define RAYS 0/.test(GL.shaders('bloom').composite) && /#define SPLIT 0/.test(GL.shaders('bloom').composite), 'the bloom tier\'s composite drops the shafts and the split');
   ok(/#if 1/.test(S.bright) && /#if 0/.test(GL.shaders('bloom').bright), 'the bloom tier\'s bright pass drops the glitter');
   ok(/varying HP vec2 vUv/.test(S.composite) && !/varying HP/.test(S.bright) && !/varying HP/.test(S.blurH), 'highp on the composite\'s uv alone');
@@ -62,6 +66,20 @@ for (const tier of ['full', 'bloom']) for (const [name, src] of Object.entries(G
   clock = 50000; G.setTier('off'); ok(G.tier === 'full' && G.want === 'off', 'off: the pass keeps running while the mix ramps down'); clock += 300; G.begin(); G.end({}); ok(G.level > 0.4 && G.level < 0.6 && G.u.mixK.value === G.level, 'half way at 300 ms: ' + G.level.toFixed(3)); clock += 400; G.begin(); G.end({}); ok(G.tier === 'off' && G.level === 0, 'and off at 600 ms'); ok(G.begin() === false, 'begin() is false while off');
   G.setTier('bloom'); ok(G.tier === 'bloom' && G.want === 'bloom' && /#define RAYS 0/.test(G.materials().composite.fragmentShader), 'on again as bloom: the composite rebuilt without the shafts'); clock += 50; G.begin(); G.end({}); ok(G.level > 0 && G.level < 0.2, 'ramping up: ' + G.level.toFixed(3));
   FX.calm(true); G.setTier('full'); clock += 1; G.begin(); G.end({ calm: true }); ok(G.level === 1 && G.tier === 'full', 'under CALM the toggle steps'); FX.calm(false);
+  // the third light: fades in where it is over 600 ms (smoothstep), glides to a new key's place and colour, follows the live place meanwhile,
+  // fades out where it stood when the light goes, steps under CALM; off while the tier is bloom
+  { const C = G.rays.lightC.value, CC = G.rays.colC.value, tr = { pos: [0.3, 0.4], a: 0.8, rgb: [0.7, 1, 0.85], key: 'a' };
+    clock = 60000; G.begin(); G.end({}); ok(C.z === 0, 'no trace: the third light is off');
+    G.begin(); G.end({ trace: tr }); ok(C.z === 0 && Math.abs(C.x - 0.3) < 1e-9 && Math.abs(C.y - 0.4) < 1e-9 && Math.abs(CC.y - 1) < 1e-9, 'a new light starts at 0 at its own place and colour: ' + [C.x, C.y, C.z].join());
+    clock += 300; G.begin(); G.end({ trace: tr }); near(C.z, 0.4, 1e-9, 'half way up at 300 ms (smoothstep): ' + C.z.toFixed(3)); clock += 300; G.begin(); G.end({ trace: tr }); near(C.z, 0.8, 1e-9, 'full at 600 ms');
+    tr.pos[0] = 0.32; G.begin(); G.end({ trace: tr }); near(C.x, 0.32, 1e-9, 'the same key follows the live place (the camera moved) with no ramp');
+    const t2 = { pos: [0.6, 0.2], a: 0.4, rgb: [1, 0.5, 0.2], key: 'b' }; G.begin(); G.end({ trace: t2 }); near(C.x, 0.32, 1e-9, 'a new key starts from where the shaft was'); near(C.z, 0.8, 1e-9, 'at its strength');
+    clock += 300; G.begin(); G.end({ trace: t2 }); near(C.x, 0.46, 1e-9, 'half way across at 300 ms: ' + C.x.toFixed(3)); near(C.y, 0.3, 1e-9, 'in v too'); near(C.z, 0.6, 1e-9, 'the strength eases'); near(CC.x, 0.85, 1e-9, 'and the colour: ' + CC.x.toFixed(3));
+    clock += 300; G.begin(); G.end({ trace: t2 }); near(C.x, 0.6, 1e-9, 'arrived'); near(C.z, 0.4, 1e-9, 'at the new strength'); near(CC.z, 0.2, 1e-9, 'in the new colour');
+    G.begin(); G.end({}); clock += 300; G.begin(); G.end({}); near(C.z, 0.2, 1e-9, 'the light gone: half way out at 300 ms'); near(C.x, 0.6, 1e-9, 'where it stood'); clock += 300; G.begin(); G.end({}); ok(C.z === 0, 'and out at 600 ms');
+    FX.calm(true); G.begin(); G.end({ trace: tr, calm: true }); near(C.z, 0.8, 1e-9, 'under CALM a new light steps to its strength'); near(C.x, 0.32, 1e-9, 'at its place'); FX.calm(false);
+    G.begin(); G.end({ trace: null }); ok(G.trace.key === null && G.trace.x === 0, 'null clears the key and restarts the ramp down');
+    ok(K.ease === 600, 'the ease is the toggle\'s 600 ms'); }
   size.w = 1000; size.h = 500; G.begin(); ok(G.rt.hw === 500 && G.rt.qw === 250 && G.u.res.value.x === 1000 && Math.abs(G.rays.aspect.value - 2) < 1e-9, 'a resize remakes the targets'); G.end({});
   G.dispose(); ok(!G.rt.scene, 'disposed'); }
 // 5. the grade on the palette: hue kept within 1°, chroma up 15–25 % wherever a colour has the room (a colour already at a channel's end,
@@ -82,13 +100,21 @@ for (const tier of ['full', 'bloom']) for (const [name, src] of Object.entries(G
   ok(knee(field) === 0, 'the sky\'s field (max channel ' + field.toFixed(3) + ') lights no bloom'); ok(knee(ring) >= 0.6, 'the photon ring (' + ring.toFixed(3) + ') blooms at ' + knee(ring).toFixed(2)); ok(knee(core) === 1, 'a cell\'s core (' + core + ') blooms whole');
   ok(K.ca >= 1 && K.ca <= 2, 'the RGB split is at most ' + K.ca + ' px'); ok(K.raysRoom < K.rays / 2, 'over the room the shafts are faint: ' + K.raysRoom + ' of ' + K.rays);
   ok(K.sat >= 1.15 && K.sat <= 1.25 && K.crush > 0 && K.crush < 0.05, 'the grade: saturation ×' + K.sat + ', the lift crushed by ' + K.crush); }
-// 7. the budget at 1280 × 800: the fetches and ops by the tap counts, under a mid phone's 6 ms; the sky's saving at half res
+// 7. the budget at 1280 × 800: the fetches and ops by the tap counts, under a mid phone's 6 ms with three lights of 16 samples (48, the
+// count two lights of 24 had); 20 or 24 a light would not fit (6.15 and 6.45 ms), which is why 16; the sky's saving at half res
 { const b = GL.budget(1280, 800, 'full'), l = GL.budget(1280, 800, 'bloom');
   ok(b.scenePx === 640 * 400 && b.quarterPx === 320 * 200, 'the targets: ' + b.scenePx + ' and ' + b.quarterPx + ' px');
+  ok(b.samples === 48 && b.f.rays === 320 * 200 * 48 && b.o.rays === 320 * 200 * (48 * 7 + 96 + 40), 'the shafts: ' + b.samples + ' samples a pixel, ' + (b.f.rays / 1e6).toFixed(2) + ' M fetches');
   ok(b.fetches < 16e6 && b.ms < 6, 'full: ' + (b.fetches / 1e6).toFixed(2) + ' M fetches, ' + (b.ops / 1e6).toFixed(0) + ' M ops, ~' + b.ms + ' ms'); ok(l.fetches < b.fetches * 0.6 && l.ms < b.ms, 'bloom: ' + (l.fetches / 1e6).toFixed(2) + ' M fetches, ~' + l.ms + ' ms');
-  ok(b.skyOps > 1e9, 'the sky at half res saves ' + (b.skyOps / 1e9).toFixed(2) + ' G ops a frame against the full pass\'s ' + (b.ops / 1e6).toFixed(0) + ' M'); }
+  const was = K.samples, at = n => { K.samples = n; const m = GL.budget(1280, 800, 'full').ms; K.samples = was; return m; };
+  ok(at(20) >= 6 && at(24) >= 6 && at(16) < 6, 'three lights fit at 16 a light alone: 16 → ' + at(16) + ' ms, 20 → ' + at(20) + ', 24 → ' + at(24));
+  ok(b.skyOps > 1e9, 'the sky at half res saves ' + (b.skyOps / 1e9).toFixed(2) + ' G ops a frame against the full pass\'s ' + (b.ops / 1e6).toFixed(0) + ' M');
+  const ts = GL.traceStrength; ok(ts(0) === 0 && ts(undefined) === 0 && ts(-5) === 0 && Math.abs(ts(545) - 545 / 640) < 1e-9 && ts(640) === 1 && ts(780) === 1 && K.traceRef === 640, 'traceStrength: energy / ' + K.traceRef + ' clamped: a typical cell (545) ' + ts(545).toFixed(2) + ', the brightest 1, none 0'); }
 // 8. the page: the script, the shell, the button and the key
 { const html = read('index.html'), sw = read('sw.js'); ok(/<script src="parts\/glow\/glow.js">/.test(html) && /'\.\/parts\/glow\/glow\.js'/.test(sw), 'index.html loads glow.js and sw.js caches it');
-  ok(/aux\('GLOW'/.test(html) && /e\.key === 'b'/.test(html) && /PREFS\.glow/.test(html), 'the GLOW button, the b key, fold.prefs.glow'); ok(/over\.add\(q\)/.test(html) && /glow\.end\(glowState\(\)\)/.test(html), 'the CRT in its own scene after the composite'); }
-console.log(fails ? 'FAILED ' + fails + ' of ' + checks : 'OK · ' + checks + ' checks, none failed · ' + K.taps + ' taps, ' + K.samples + ' samples a light, twinkle 1.5–3 s, ' + (GL.budget(1280, 800, 'full').fetches / 1e6).toFixed(1) + ' M fetches at 1280 × 800');
+  ok(/aux\('GLOW'/.test(html) && /e\.key === 'b'/.test(html) && /PREFS\.glow/.test(html), 'the GLOW button, the b key, fold.prefs.glow'); ok(/over\.add\(q\)/.test(html) && /glow\.end\(glowState\(\)\)/.test(html), 'the CRT in its own scene after the composite');
+  ok(/<script src="parts\/trace\/trace.js">/.test(html) && /TRC\.lightAt\(R\)/.test(html) && /GLW\.traceStrength\(L\.energy\)/.test(html) && /traceLight\(R, key\)/.test(html), 'the third light: lightAt of the tile\'s render after every move, its strength by traceStrength');
+  ok(/else if \(TRACE\.glow && glow\) R = TRC\.render\(sc, origin, t\.mode\)/.test(html) && /PREFS\.traceGlow !== 'off'/.test(html), 'the tile off: the render alone, unless fold.prefs.traceGlow is off');
+  ok(/A\.onScreen\(tl\.cell\)/.test(html) && /GT\.a = c\.front \? tl\.a \* edge\(c\) : 0/.test(html) && /GS\.trace = GT/.test(html), 'its cell projected each frame as the eye is, faded at the edge, into state.trace'); }
+console.log(fails ? 'FAILED ' + fails + ' of ' + checks : 'OK · ' + checks + ' checks, none failed · ' + K.taps + ' taps, ' + K.lights + ' lights of ' + K.samples + ' samples, twinkle 1.5–3 s, ' + (GL.budget(1280, 800, 'full').fetches / 1e6).toFixed(1) + ' M fetches at 1280 × 800, ~' + GL.budget(1280, 800, 'full').ms + ' ms');
 process.exit(fails ? 1 : 0);

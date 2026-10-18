@@ -1,11 +1,11 @@
 # THE FOLD · glow — notes
 
 `glow.js` defines `window.FOLD_GLOW`: the "ray-traced" look as one post pass — bloom, god rays, glitter and a grade — over the scene
-drawn at half resolution; `demo.html` shows it over the shader demo's sky, halos, rain and floor (open it over http; `?gl1` forces
+drawn at half resolution, its third light the field's own ray tracer's (parts/trace); `demo.html` shows it over the shader demo's sky, halos, rain and floor (open it over http; `?gl1` forces
 WebGL1) with the passes' knobs on buttons; `node parts/glow/check.js` checks the numbers below against the code (a node check, kept out
 of sw.js SHELL). All GLSL is ES 1.00 for three.js r128 and compiles on WebGL1 and WebGL2 (the demo's report line says so, from
 three.js's own compile): `precision mediump float` first in every fragment, `HP` (highp where the fragment stage has it, fx.js's macro)
-on the two clocks and on the composite's uv alone, loops of 9 and 24 on int constants, no derivative, no lod, no float texture needed.
+on the two clocks and on the composite's uv alone, loops of 9 and 16 on int constants, no derivative, no lod, no float texture needed.
 Written for the same targets as fx.js: phones at 1.5× pixel ratio, an RK3588 at 1080p, a Pi 4, desktops; measured here in SwiftShader.
 
 ## What it does, in order
@@ -30,15 +30,29 @@ Written for the same targets as fx.js: phones at 1.5× pixel ratio, an RK3588 at
    texels, ±12 screen px, tapering) along the row, the V pass takes the bright pass's own alpha along the column for the same ±2 taps
    (five fetches more, folded at compile time) and keeps the brighter of that and the H streak at the centre — a star cross from two
    lines. 9 fetches, then 9 + 5.
-4. **The shafts, at a quarter.** A radial blur of the *bright pass* (not the blur) toward each light: 24 samples along the line to it,
-   0.92 of the way, the weights falling by 0.955 a step, the sum normalised. Two lights, each a uniform branch: **the eye** (cell 137)
+4. **The shafts, at a quarter.** A radial blur of the *bright pass* (not the blur) toward each light: 16 samples along the line to it,
+   0.92 of the way, the weights falling by 0.955 a step, the sum normalised. Three lights, each a uniform branch: **the eye** (cell 137)
    at its screen place from `A.onScreen(137)` (the same lensed projection the taps use) while the ring shows (well.js's `a` and `e` above
-   0), in gold (the shaft mixed 70 % toward 1.4·gold), and **SEED at the floor's centre** when it is on the screen, tinted by the spoke
+   0), in gold (the shaft mixed 70 % toward 1.4·gold); **SEED at the floor's centre** when it is on the screen, tinted by the spoke
    the pixel lies along: the twelve spokes' screen directions (index.html projects the twelve floor points each frame, aspect-true) and
-   their colours (`AR.RAY_RGB`), a pow(dot, 16) blend, gold between them. Each light fades out as it leaves the screen (1 inside, 0 past
-   1.4 of it), so a light just off the edge never smears the edge. The drift: the shafts' brightness round each light is 0.95 + 0.3·sin(6φ
-   + t) + 0.25·sin(13φ − 0.7t), t one turn in 30 s — 0.4 … 1.5, a slow breathing of lobes, never a flicker; under CALM the clock stands,
-   so it is a still. Over the camera `rayK` drops from 0.9 to 0.3: the room stays visible.
+   their colours (`AR.RAY_RGB`), a pow(dot, 16) blend, gold between them; and **the field's own light**, from parts/trace: after every
+   move and at a level's opening the tracer sends 256 rays from the player's cell through the chapter's sheets, and `lightAt` reads back
+   the brightest direction as a cell (`cell`, the direction's w = x + 16y), the energy-weighted colour of all that arrives (`rgb`, unit)
+   and the energy (Σ of the light over the 256 directions). index.html projects that cell each frame as it does the eye
+   (`A.onScreen(cell)`), the shaft is tinted by `rgb` as the eye's is by gold (mixed 70 % toward 1.4·rgb), and its strength is
+   `traceStrength(energy)` = energy / `K.traceRef` clamped to 0 … 1: over every cell, sheet and target of the tracer's default scene the
+   energy runs 265 … 780 (median 545, p90 581, 3096 renders), so traceRef = 640 lights a typical cell's shaft at ~0.85 and the brightest
+   at 1; the eye at ∞ (no rays) gives 0. Each light fades out as it leaves the screen (1 inside, 0 past 1.4 of it), so a light just off
+   the edge never smears the edge — the field's light is often off it, since its cell lies wherever the field says, and then there is no
+   third shaft. The drift: the shafts' brightness round each light is 0.95 + 0.3·sin(6φ + t) + 0.25·sin(13φ − 0.7t), t one turn in 30 s
+   — 0.4 … 1.5, a slow breathing of lobes, never a flicker; under CALM the clock stands, so it is a still. Over the camera `rayK` drops
+   from 0.9 to 0.3: the room stays visible.
+   **The third light's easing** (`end()`'s `easeTrace`): the tracer's answer comes with a key (the cell, the level, the target, the sheet
+   and the tile's law); a new key freezes what is shown (place, strength, colour) as `from` and the light eases to the live target over
+   the toggle's 600 ms by smoothstep — the target place is projected anew each frame, so the shaft follows the camera meanwhile; from
+   nothing it fades in at its own place (never a glide in from the corner); gone (the cell off the screen, ∞, the tile's part missing) it
+   fades out where it stood; under CALM the mix is a step. So a move never flashes the shaft: at 30 fps the strength moves at most
+   0.05 of a frame's worth of 0.9·shaft light, under the gate's 0.1 as the toggle's own ramp is.
 5. **The composite, at the screen's size.** The half-res scene up, sharpened by an unsharp mask on one diagonal pair of texels (c +
    0.5·(c − mean of the pair)); the **split**: red sampled toward the edge and blue away from it by up to `ca` = 1.5 px, the offset
    0.6·(the pixel's distance² from the centre, 1 at the sides' middles) + 1.2·the bloom's luminance (the brightest edges), faded in from
@@ -51,9 +65,11 @@ Written for the same targets as fx.js: phones at 1.5× pixel ratio, an RK3588 at
    was, the alpha grown by 1.5 × the light's luminance, so over the camera the light is added to the room. `mixK` is the toggle's ramp.
 
 `mount(THREE, renderer, {tier, scale, FX, scene})` → `G` with `begin()`, `end(state)`, `setTier()`, `resize()`, `dispose()`, `u` (the
-composite's uniforms, for tuning), `rays`, `bright`, `rt`, `hdr`, `tier`, `want`, `level`, `clock`. `state` for `end`: `{eye: [u, v],
-eyeA, floor: [u, v], floorA, spokes (24 floats), spokeCol (36), room, calm}`; index.html's `glowState()` fills it after `A.frame()`,
-from the camera as it was drawn. The targets are remade when the drawing buffer's size changes (checked each `begin()`).
+composite's uniforms, for tuning), `rays`, `bright`, `rt`, `hdr`, `tier`, `want`, `level`, `clock`, `trace` (the third light as eased:
+`key`, `from`, `to`, `cur` [u, v, strength, r, g, b], `x` the ramp). `state` for `end`: `{eye: [u, v], eyeA, floor: [u, v], floorA,
+spokes (24 floats), spokeCol (36), trace: {pos: [u, v], a, rgb: [r, g, b], key} | null, room, calm}`; index.html's `glowState()` fills it
+after `A.frame()`, from the camera as it was drawn. `FOLD_GLOW.traceStrength(energy)` is the third light's strength. The targets are
+remade when the drawing buffer's size changes (checked each `begin()`).
 
 ## Tiers, the toggle, CALM
 
@@ -84,13 +100,18 @@ By construction, at 1280 × 800 (1.024 Mpx), `full`:
 | bright + glitter | 64,000 | 1 | 0.06 M | 45 | 2.9 M |
 | blur H | 64,000 | 9 | 0.58 M | 72 | 4.6 M |
 | blur V + cross | 64,000 | 9 + 5 | 0.90 M | 92 | 5.9 M |
-| shafts, two lights | 64,000 | 24 + 24 | 3.07 M | 472 | 30 M |
+| shafts, three lights | 64,000 | 16 + 16 + 16 | 3.07 M | 472 | 30 M |
 | composite | 1,024,000 | 3 + 2 + 1 + 1 | 7.17 M | 75 | 77 M |
 | **all** | | | **11.8 M** | | **120 M** |
 
 A mid phone's GPU (an Adreno 6xx, a Mali-G5x) does ~4 G bilinear fetches and ~50 G scalar ops a second: 2.9 + 2.4 ms, five target
-switches ~0.5 ms, **~5.8 ms** (`FOLD_GLOW.budget(w, h, tier)` does this sum; the check holds it under 6). `bloom`: 4.9 M fetches, ~3.1
-ms. Against it, the scene at half res is drawn on a quarter of the pixels: the sky alone (~1500 ops a fragment at 23 samples) saves
+switches ~0.5 ms, **~5.85 ms** (`FOLD_GLOW.budget(w, h, tier)` does this sum; the check holds it under 6). The third light was added at
+the same 48 samples a pixel the two had at 24 each: by the same arithmetic three lights at 24 come to 6.45 ms and at 20 to 6.15, both
+over the 6, and 16 is the first count that fits (17 would, at 5.93; 18 is 6.00), so the shafts take 16 a light. A sample is then
+0.92/16 of the way to the light; for a light half a screen away that is 9 quarter-texels, 37 screen px, against 6 and 25 at 24 — a
+coarser radial blur of a sharp small source, which the bloom's 24 px glow over the same source hides; the check asserts 16 → under 6,
+20 and 24 → over. The tracer's own cost is the CPU's, once a move, not the pass's: see parts/trace/notes.md. `bloom`: 4.9 M fetches,
+~3.1 ms. Against it, the scene at half res is drawn on a quarter of the pixels: the sky alone (~1500 ops a fragment at 23 samples) saves
 1.15 G ops a frame at this size, the cells, the rain and the relief three quarters of their fragments too, so on a phone the frame as a
 whole should come out ahead. At 1.5× pixel ratio on a 390 × 844 phone (585 × 1266 = 0.74 Mpx) the pass is ~4.2 ms.
 
@@ -106,19 +127,29 @@ Measured (headless Chromium, SwiftShader, 1280 × 800, `frame3d()` timed with a 
 (two runs each; the prefs forced rain, lens and glow full). SwiftShader charges ~3 ns a bilinear fetch and runs the composite's 1 Mpx on
 the CPU, so the pass costs it 18–36 ms while the half-res scene gives back only 5–10 (its sky is 0 samples on `tiny`, which is why
 `auto` leaves SwiftShader and the Pi off and the headless run has to force `on`); the arithmetic above is what a GPU sees. The frame as
-a whole stayed under the 110 ms the earlier parts measured for the full rain on this machine.
+a whole stayed under the 110 ms the earlier parts measured for the full rain on this machine. With the third light (three lights of 16,
+the same fetches), the frame intervals from requestAnimationFrame over 5 s: level 1 with the tile on 116.7 ms p50 (149.9 p90) against
+83.4 (100.1) with GLOW off; level 56 facing the eye 116.7 (133.4); under prefers-reduced-motion 116.6 (116.7) and 83.3 (83.5) — a busier
+machine than the table's day, the pass's share the same ~33 ms. The tracer's render + `lightAt`, once a move: 1.2–2.7 ms (8.3 the first
+time, JIT cold), the tile's `set` 1.5–3.1 ms.
 
 Draw calls: the scene's own + 5 (the four quarter passes and the composite) + 1 (the CRT in `over`).
 
 ## Checked
 
-`node parts/glow/check.js`: the GLSL's rules (above), the tap and sample counts, the tiers, the twinkle's periods and the gate margin,
-the clock under CALM and its wrap (a mock renderer, the real three.js: the targets' sizes and types, the Points halved and put back, the
-ramp's timing, the resize, the room's faint shafts), the grade on the palette (green, gold, the current, target, home and gold cells,
-the twelve rays, the seven moves' hues, the trail and the field), the knee against the field, the ring and a core, the split's bound,
-the budget, and index.html's wiring. `demo.html` on WebGL2 and `?gl1` under SwiftShader: every pass compiles with no error or warning
+`node parts/glow/check.js`: the GLSL's rules (above), the tap and sample counts, the three lights' branches in one loop body, the
+tiers, the twinkle's periods and the gate margin, the clock under CALM and its wrap (a mock renderer, the real three.js: the targets'
+sizes and types, the Points halved and put back, the ramp's timing, the resize, the room's faint shafts), the third light's easing (in
+from 0 at its own place, half way at 300 ms, a new key gliding place, strength and colour from where it was, the live place followed
+meanwhile, out where it stood, a step under CALM), the grade on the palette (green, gold, the current, target, home and gold cells, the
+twelve rays, the seven moves' hues, the trail and the field), the knee against the field, the ring and a core, the split's bound, the
+budget (48 samples a pixel under 6 ms; 20 and 24 a light over it), `traceStrength`, and index.html's wiring (lightAt of the tile's
+render after every move, the render alone with the tile off, the cell projected as the eye is, `fold.prefs.traceGlow`). `demo.html` on WebGL2 and `?gl1` under SwiftShader: every pass compiles with no error or warning
 from three.js, with half-float quarter targets (`EXT_color_buffer_float` / `EXT_color_buffer_half_float`); the fallback to bytes is
 taken where the extension or a complete framebuffer is missing (the check's mock takes it). The headless play-through (DAILY, the six
-moves, HINT, UNDO, level 33, level 56 facing the eye, the TUBE open and closed, a SYNC level lost → the bardo → REBIRTH, chapter 1
-closed to its ledger, GLOW off and on, the day ended; once under prefers-reduced-motion) ran with no page error and no console error.
+moves with the third light's cell, colour and strength logged at each, HINT, UNDO, the tile's six laws by x, the tile off by z and a
+move (the light still answered), level 33, level 56 facing the eye, the TUBE open and closed, a SYNC level lost → the bardo → REBIRTH,
+chapter 1 closed to its ledger, GLOW off and on, the day ended; once under prefers-reduced-motion) ran with no page error and no
+console error; the third light moved 143 → 19 → 143 → 33 → 201 → 167 → 106 over g G f i q r at level 1 (strength 0.80–0.87), its
+shaft on the screen when its cell was.
 Not measured: a phone, an RK3588, a Pi 4 — the tiers are reasoned from the arithmetic above, as fx.js's are.

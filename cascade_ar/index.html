@@ -96,9 +96,9 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 #clock{color:var(--red)}
 #quest{position:absolute;right:10px;bottom:178px;max-width:min(60vw,360px);background:var(--panel);border:1px solid rgba(127,184,255,.35);border-radius:10px;padding:6px 10px;font:11px/1.4 var(--mono);color:var(--blue)}
 #quest[hidden]{display:none} #quest.done{color:var(--green);border-color:var(--green)}
-#rays{position:absolute;left:10px;bottom:178px;width:132px;height:132px;border-radius:50%;background:var(--tube);border:1px solid var(--line);cursor:pointer;touch-action:none}
+#rays{position:absolute;left:10px;bottom:196px;width:132px;height:132px;border-radius:50%;background:var(--tube);border:1px solid var(--line);cursor:pointer;touch-action:none}
 #rays[hidden],#tube[hidden]{display:none}
-#trace{position:absolute;left:150px;bottom:166px;width:64px;font:9px/12px var(--mono);color:var(--dim);text-align:center;white-space:nowrap}
+#trace{position:absolute;left:150px;bottom:196px;width:64px;font:9px/12px var(--mono);color:var(--dim);text-align:center;white-space:nowrap}
 #trace[hidden]{display:none}
 #trace canvas{display:block;width:64px;height:64px;border-radius:6px;background:var(--tube);border:1px solid var(--line);cursor:pointer}
 #trace canvas:focus-visible{outline:2px solid var(--blue)}
@@ -232,7 +232,8 @@ html.calm *{transition:none!important;animation:none!important}
   if (FX && FX.warp && FX.quad) { try { const spec = FX.warp(); const q = FX.quad(THREE, spec); q.renderOrder = 999; q.visible = false; warpQ = q; A.A.scene.add(q); warpU = spec.uniforms; window.addEventListener('resize', () => { warpU.aspect.value = window.innerWidth / Math.max(1, window.innerHeight); }); } catch (e) { console.warn('warp', e); } }
   if (WELL && WELL.mount && LENS !== 'off') { try { WELL.mount(THREE, A, { tier: LENS, FX, sky: A.A.sky }); } catch (e) { console.warn('well', e); } }
   // GLOW (parts/glow): the scene into a half-res target, then bloom, the eye's and the floor's shafts, glitter and the grade as one pass;
-  // fold.prefs {glow: 'on' | 'off' | 'auto'}: auto leaves `tiny` off and `lowEnd` with bloom alone, on is the full pass anywhere; never in XR
+  // fold.prefs {glow: 'on' | 'off' | 'auto'}: auto leaves `tiny` off and `lowEnd` with bloom alone, on is the full pass anywhere; never in XR.
+  // Its third light is the field's own, from parts/trace (TRACE.light below; fold.prefs {traceGlow: 'off'} leaves it out)
   let glow = null; const glowTier = () => GLW ? GLW.tierFor(PREFS.glow, { tiny, lowEnd }) : 'off';
   if (GLW && GLW.mount) { try { glow = GLW.mount(THREE, A.A.renderer, { tier: glowTier(), FX, scene: A.A.scene }); } catch (e) { console.warn('glow', e); glow = null; } }
   let xrSupported = false; if (navigator.xr && navigator.xr.isSessionSupported) navigator.xr.isSessionSupported('immersive-ar').then(ok => { xrSupported = !!ok; $('xrnote').hidden = !ok; }).catch(() => {});
@@ -336,19 +337,30 @@ html.calm *{transition:none!important;animation:none!important}
   // from your cell at (x, y) = (cell, 0) through the chapter's sheet at the target's level and four more, four bounces by Γ, rendered anew on
   // each move and at a level's opening (through paint(), by a key of the cell, the level, the target and the law, so a hint or a quest renders
   // nothing anew), kept by the P22 persistence and still under CALM. TRACE or z toggles it, kept in fold.prefs; a tap on it, Enter on it or x
-  // cycles the law it carries. Its 4096 px² are under the gate's 2.8 %, so no change of it is a large flash; one onset a move ──
-  const TRC = window.FOLD_TRACE || null, TRACE = { on: PREFS.trace !== 'off', tile: null, key: '' };
+  // cycles the law it carries. Its 4096 px² are under the gate's 2.8 %, so no change of it is a large flash; one onset a move.
+  // The same render feeds GLOW's third light (TRACE.light): lightAt's brightest direction is a cell, projected each frame by A.onScreen as
+  // the eye is, its strength the energy over FOLD_GLOW.K.traceRef (640: a typical cell ~0.85, the brightest 1), its colour the light's own;
+  // glow.js eases it between moves. With the tile off the tracer still runs once a move for it (~1 ms, the picture not laid), unless
+  // fold.prefs {traceGlow: 'off'} says otherwise; the eye at ∞ gives no light and the shaft fades where it stood ──
+  const TRC = window.FOLD_TRACE || null, TRACE = { on: PREFS.trace !== 'off', glow: PREFS.traceGlow !== 'off', tile: null, key: '', light: null };
   if (TRC) { try { TRACE.tile = TRC.Tile($('tracec'), { size: 64, dpr: dpr2, calm: () => calm, cycle: PREFS.traceMode | 0 }); } catch (e) { console.warn('trace', e); } }
   const bTrace = TRC && TRACE.tile ? aux('TRACE', () => traceToggle(), 'the field ray tracer: 256 rays from your cell through the chapter\'s sheets, bounced by Γ (key z); tap the tile, or x, for another law') : null;
   if (bTrace) { bTrace.setAttribute('aria-pressed', TRACE.on); bTrace.style.gridColumn = 'span 1'; if (bRays) bRays.style.gridColumn = 'span 1'; }   // the two share RAYS's slot, so the moves keep their rows
   function traceToggle() { TRACE.on = !TRACE.on; PREFS.trace = TRACE.on ? 'on' : 'off'; LS.set('fold.prefs', JSON.stringify(PREFS)); if (bTrace) bTrace.setAttribute('aria-pressed', TRACE.on); traceShow(); if (TRACE.on) traceSet(G.S, true); toast(TRACE.on ? 'the trace: 256 rays from your cell, the sheets as mirrors, Γ the reflection · tap it for another law' : 'trace off'); }
   function traceShow() { $('trace').hidden = !TRACE.tile || !TRACE.on || RAYS.tube || $('hud').hidden; }
   function traceSet(S, force) {
-    const t = TRACE.tile; if (!t || !TRACE.on || !S || !S.road) return; const key = [S.current, S.level, S.target, S.spec && S.spec.sheet, t.cycleIndex].join(':'); if (key === TRACE.key && !force) return; TRACE.key = key;
-    const st = t.set(TRC.scene({ sheet: S.spec && S.spec.sheet, target: S.target, current: S.current, home: S.home }), S.current === F.INF ? null : [S.current, 0]).stats, c = st.coherence.toFixed(2);
-    $('tracecap').textContent = st.hit + '·' + st.bounces + '·' + c.slice(1);
-    $('tracec').setAttribute('aria-label', 'the trace from ' + (S.current === F.INF ? '∞, dark' : 'cell ' + S.current) + ': ' + st.hit + ' of 256 rays hit, ' + st.bounces + ' bounces, coherence ' + c + ' · ' + t.modeName);
-    $('trace').title = 'TRACE · ' + st.hit + ' of 256 rays hit · ' + st.bounces + ' bounces · coherence ' + c + ' · ' + t.modeName + ' · ' + t.ms.toFixed(1) + ' ms · tap for another law (x)';
+    const t = TRACE.tile; if (!t || !S || !S.road) { TRACE.light = null; return; } const key = [S.current, S.level, S.target, S.spec && S.spec.sheet, t.cycleIndex].join(':'); if (key === TRACE.key && !force) return; TRACE.key = key;
+    const sc = TRC.scene({ sheet: S.spec && S.spec.sheet, target: S.target, current: S.current, home: S.home }), origin = S.current === F.INF ? null : [S.current, 0]; let R = null;
+    if (TRACE.on) { R = t.set(sc, origin); const st = R.stats, c = st.coherence.toFixed(2);
+      $('tracecap').textContent = st.hit + '·' + st.bounces + '·' + c.slice(1);
+      $('tracec').setAttribute('aria-label', 'the trace from ' + (S.current === F.INF ? '∞, dark' : 'cell ' + S.current) + ': ' + st.hit + ' of 256 rays hit, ' + st.bounces + ' bounces, coherence ' + c + ' · ' + t.modeName);
+      $('trace').title = 'TRACE · ' + st.hit + ' of 256 rays hit · ' + st.bounces + ' bounces · coherence ' + c + ' · ' + t.modeName + ' · ' + t.ms.toFixed(1) + ' ms · tap for another law (x)'; }
+    else if (TRACE.glow && glow) R = TRC.render(sc, origin, t.mode);   // the tile off: the render alone, for the third light
+    traceLight(R, key);
+  }
+  function traceLight(R, key) {
+    if (!R || !TRACE.glow || !GLW) { TRACE.light = null; return; } const t0 = performance.now(), L = TRC.lightAt(R), a = GLW.traceStrength(L.energy);
+    TRACE.light = L.cell >= 0 && a > 0 ? { cell: L.cell, rgb: L.rgb, energy: L.energy, angle: L.angle, coherence: L.coherence, a, key, ms: performance.now() - t0 + (R.stats ? R.stats.ms : 0) } : null;
   }
   function traceCycle() { const t = TRACE.tile; if (!t) return; const c = t.cycle(); PREFS.traceMode = t.cycleIndex; LS.set('fold.prefs', JSON.stringify(PREFS)); traceSet(G.S, true); toast('the trace: ' + c.name, 2400); }
   function traceFrame() { if (TRACE.tile && !$('trace').hidden) TRACE.tile.frame(performance.now()); }
@@ -666,9 +678,10 @@ html.calm *{transition:none!important;animation:none!important}
   }
   // ── the 3D frame: the scene (into GLOW's half-res target when it is on), GLOW's passes and composite, then the CRT overlay; in the room
   // the compositor owns the frame, so neither. The glow's lights are read after the frame, from the camera as it was drawn: the eye's ring
-  // (well.js: a and e above 0) at 137's screen place, SEED at the floor's centre with the twelve spokes' screen directions, each fading out
-  // as it leaves the screen; over the camera the shafts go faint ──
-  const GS = { eye: [0, 0], eyeA: 0, floor: [0, 0], floorA: 0, spokes: new Float32Array(24), spokeCol: new Float32Array(36), room: false, calm: false }, gv = new THREE.Vector3();
+  // (well.js: a and e above 0) at 137's screen place, SEED at the floor's centre with the twelve spokes' screen directions, and the field's
+  // own light (TRACE.light: the tracer's brightest direction as a cell, in the light's colour, by its energy), each fading out as it leaves
+  // the screen; over the camera the shafts go faint ──
+  const GS = { eye: [0, 0], eyeA: 0, floor: [0, 0], floorA: 0, spokes: new Float32Array(24), spokeCol: new Float32Array(36), trace: null, room: false, calm: false }, gv = new THREE.Vector3(), GT = { pos: [0, 0], a: 0, rgb: [1, 1, 1], key: '' };
   const SPOKES = []; for (let r = 0; r < 12; r++) { const a = r / 12 * Math.PI * 2; SPOKES.push(new THREE.Vector3(Math.sin(a) * 3, -2.4, -Math.cos(a) * 3)); const c = A.RAY_RGB[r]; GS.spokeCol.set(c, r * 3); }
   const edge = s => 1 - Math.min(1, Math.max(0, (Math.max(Math.abs(s.x), Math.abs(s.y)) - 1) / 0.4));   // 1 on the screen, 0 past 1.4 of it
   function glowState() {
@@ -676,6 +689,7 @@ html.calm *{transition:none!important;animation:none!important}
     GS.eye[0] = (s.x + 1) / 2; GS.eye[1] = (s.y + 1) / 2; GS.eyeA = ws && ws.a > 0 && ws.e > 0 && s.front ? ws.a * edge(s) : 0;
     const f = A.onScreen(0); GS.floor[0] = (f.x + 1) / 2; GS.floor[1] = (f.y + 1) / 2; GS.floorA = f.front ? edge(f) : 0;
     if (GS.floorA > 0) for (let r = 0; r < 12; r++) { gv.copy(SPOKES[r]).project(cam); let dx = (gv.x - f.x) * asp, dy = gv.y - f.y; const l = Math.hypot(dx, dy) || 1; GS.spokes[2 * r] = dx / l; GS.spokes[2 * r + 1] = dy / l; }
+    const tl = TRACE.light; if (tl) { const c = A.onScreen(tl.cell); GT.pos[0] = (c.x + 1) / 2; GT.pos[1] = (c.y + 1) / 2; GT.a = c.front ? tl.a * edge(c) : 0; GT.rgb = tl.rgb; GT.key = tl.key; GS.trace = GT; } else GS.trace = null;   // the field's light: the tracer's cell, as the eye is read
     GS.room = $('video').style.display === 'block'; GS.calm = calm; return GS;
   }
   function frame3d(xr) {
