@@ -2,7 +2,8 @@
 
 `well.js` defines `window.FOLD_WELL`: the eye, cell 137 = Γ's pole, as a black hole (scope S1), and the numbers the crossing (S4)
 leans on. It owns no geometry but one quad; the law runs where the things it bends are drawn: the sky in `fx.js sky({lens: true})`,
-the cells, the π ribbon and the lines between cells in `ar.js` (`LENS_GL`'s `lensImage()` in their vertex shaders, `lensed()` in JS).
+the cells, the π ribbon, the lines between cells and the π tape's rain in `ar.js` (`LENS_GL`'s `lensImage()` in their vertex shaders,
+`lensed()` in JS).
 `node parts/well/check.js` checks the numbers below against the code (three.js, data.js, field.js, game.js, fx.js, ar.js, well.js and
 levels.js in a node vm); it is a node check, kept out of sw.js SHELL.
 
@@ -36,18 +37,24 @@ DAMASCUS, ×g of 137, 8.452° out, shows at 13.60° and −5.14° on the eye, at
 - The lines between cells (the horizon, the fold threads, the ladder, Γ's orbit, the move arcs, the road) run the same law in their
   vertex shaders by `onBeforeCompile` on their LineBasicMaterials, so an arc still ends on the cell it names. The floor and the relief
   are ground, not sky, and do not bend.
+- The rain (M1, fx.js rain({lens}), parts/shaders/notes.md) runs `LENS_GL` in its own vertex shader on the cells' uniform objects:
+  each vertex of a column at θ+ on its great circle, where a cell (or a star) at that angle stands, the strip stretched across and
+  squashed along the radius by the mesh itself (its rows 0.35° apart round the eye's −34°, so a column wraps the ring in short chords).
+  The primary image never falls inside θE, and the fragment culls what a chord carries there, so the shadow and the disc inside the
+  ring hold none of it (the far side's images are the sky's alone, as for the cells). Column 72, behind the eye, splits to both sides of it.
 - Taps: `AR.lensed(v)` is the same law in JS; `onScreen()` and so `pick()` and the compass arrows read the image, so a tap near the eye
-  lands on what is drawn (154 at 13.597°, not 8.452°: up to 5.15° of miss without it).
+  lands on what is drawn (154 at 13.597°, not 8.452°: up to 5.15° of miss without it); the read's flight and a tap on the head in
+  the rain (`skyAt`) read the image too. `AR.rainSeen(p)` is the rain's fragment cull in JS, for the check.
 
 ## When, and where
 
 - Lit in chapter 7 (levels 49–56) of the daily run, on every JUMP level (the eye's own rule), and wherever d ≤ 2.
 - Per tier (index.html, `fold.prefs` {lens: 'full' | 'tiny' | 'off'} overrides):
-  - `full` (desktop, unflagged phones, `lowEnd`): the sky bends and draws the shadow and ring; the cells and lines bend.
+  - `full` (desktop, unflagged phones, `lowEnd`): the sky bends and draws the shadow and ring; the cells, lines and rain bend.
   - `tiny` (VideoCore, V3D, llvmpipe, SwiftShader): the sky has no stars to bend, so nothing bends; the shadow and ring are one
-    camera-facing quad at the eye, 2.8·θE across, with the pupil black on the eye's cell.
+    camera-facing quad at the eye, 2.8·θE across, with the pupil black on the eye's cell, drawn over the (sparse) rain.
   - the camera on (any tier): the sky is hidden, so the quad draws the shadow and ring over the room; the cells bend on `full`.
-  - WebXR: the cells bend alone (the billboard lens); no quad, no sky.
+  - WebXR: the cells bend (the billboard lens) and the rain's two columns with them; no quad, no sky.
 - The scope put the over-the-room ring in fx.js warp() as a second path at 137's projected uv. It is the quad instead: the same pixels
   where the eye stands, at the eye's own place in the world rather than a screen-space pole, drawn only where it covers (a full-screen
   warp would cost its 65 ops a fragment everywhere, and its alpha and visibility belong to the Γ warp).
@@ -84,6 +91,8 @@ radius over 600 ms, the gate's own fallback, so the ring never jumps where it wo
 
 - Sky (`full`): one branch on a uniform; when lit about 45 ops, an atan, a sqrt, a sin and a cos, and airyGlow's pow and cos, per
   fragment (+3 % at 23 samples). The negative is one mix and one max.
-- Cells: about 50 ops a vertex × 1032 vertices, plus the ribbon's 192; lines a few hundred vertices more. Nothing per frame on the CPU
+- Cells: about 50 ops a vertex × 1032 vertices, plus the ribbon's 192; lines a few hundred vertices more. The rain: the same 50 a
+  vertex × 19,968 (its rows were 7168 before the lens; the extra rows cost SwiftShader about 3 ms a frame) and a dot, a length, a
+  division and a smoothstep a fragment; off, one compare each. Nothing per frame on the CPU
   but `step()`: a handful of uniforms, and the quad placed when it shows.
 - Quad (`tiny`, the camera): 1 draw call, only where it covers, at d = 0 a 23.4° square, 7.6 % of a 16:9 view; on ∞ 8.9°, 1.1 %.

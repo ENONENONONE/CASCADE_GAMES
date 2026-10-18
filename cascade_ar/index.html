@@ -607,7 +607,7 @@ html.calm *{transition:none!important;animation:none!important}
     if (mode === 'daily' && LV && LV.plan) { try { plan = LV.plan(F.dayNumber(new Date()), name); } catch (e) { console.warn('plan', e); plan = null; } }
     if (mode === 'doors') { const d = ($('digits').value || '').replace(/\D/g, '').padStart(4, '0').slice(-4); if (!LV || !LV.doors) return toast('the doors need the level designer\'s module'); plan = LV.doors(d); if (!plan || !plan.length) return toast(d + ' reaches no door: four figures not all the same'); }
     if (mode === 'free') plan = [LV && LV.free ? LV.free(name) : { n: 1, kind: 'free', start: F.letterSum(name) % 257, target: null, rule: 0, free: [] }];
-    snd.init(); G.start(name, mode, plan); snd.home(G.S.home); if (A.decode && G.S.plan && G.S.decoded.length) A.decode(G.S.plan.filter(sp => sp && G.S.decoded.includes(sp.window || sp.n)));
+    snd.init(); G.start(name, mode, plan); snd.home(G.S.home); if (A.rainDay) A.rainDay(G.S.head); if (A.decode && G.S.plan && G.S.decoded.length) A.decode(G.S.plan.filter(sp => sp && G.S.decoded.includes(sp.window || sp.n)));
     $('start').hidden = true; $('hud').hidden = false; $('ops').hidden = false; $('cross').hidden = false; raysShow();
     paint(); A.bloom(3.2); snd.bloom(3.2);
     const t0 = performance.now(); const gyro = await sensors(); const cam = await cameraOn();

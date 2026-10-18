@@ -141,18 +141,44 @@ second). It is a node check, kept out of sw.js SHELL.
 ## rain() / rainAtlas() — the tape sky (M1) and the read (M2)
 
 `rain()` returns `{vertexShader, fragmentShader, uniforms, …}` for one InstancedBufferGeometry that `ar.js` builds (`rainInit(pi,
-mode)`): PlaneBufferGeometry(1, 1, 1, 13), 2 × 14 vertices a column, 256 instances, 7168 vertices, one draw call at renderOrder −5,
-depthWrite off. The vertex shader bends each strip onto the sphere of radius 9: column c at the azimuth of cell 3^c (c/256 of a turn,
+mode)`): PlaneBufferGeometry(1, 1, 1, 38) with its 39 rows of vertices moved to where the lens bends (`rainRows()`: 0.35° apart at the
+eye's elevation, −34°, 0.12° wider each degree off it, at most 7.5°; the demo keeps 13 even ones), 78 vertices a column, 256
+instances, 19,968 vertices (7168 before the lens), one draw call at renderOrder −5, depthWrite off. The vertex shader bends each strip onto the sphere of radius 9: column c at the azimuth of cell 3^c (c/256 of a turn,
 x = sin, z = −cos, so it stands right behind its cell), from −40° to +58°, row 0 at the top; column c holds π[78c … 78c + 77], 19968 of
 the tape's 20001 digits. Per instance `iCol` = (r, g, b, c) and `iState` = (speed in rows/s, below 0 rising; trail in rows, 0 no drop;
 phase; lit, the glyphs' own light). The drop's head is placed in the vertex stage (highp there by the spec), so the clock never meets
 mediump; the row varying takes `HP`. The fragment works out its light first (the drop, the read's eight digits, the day's strip) and
 discards an unlit one before either fetch; then one fetch of `tape` (a 256 × 78 LUMINANCE DataTexture, NEAREST, a slot index a byte,
-19,968 B) and one of the atlas. ~40 ops and 2 fetches a fragment.
+19,968 B; a byte of 128 or more is the code's, below) and one of the atlas. ~45 ops and 2 fetches a fragment.
 
-`rainAtlas(G16)` draws 32 slots of 40 × 64 on a 320 × 256 canvas (327,680 B): the digits 0–9, the sixteen G16 glyphs (10–25), ∞ (26),
-a blank (27) and ▮ · × ◆ (28–31), each about 32 px in the slot's middle 40 × 40 (a row is ~17 px at 1080p, so at most twice the row).
+`rainAtlas(G16)` draws 40 slots of 40 × 64 on a 320 × 320 canvas (409,600 B): the digits 0–9, the sixteen G16 glyphs (10–25), ∞ (26),
+a blank (27), ▮ · × ◆ (28–31) and the code's two bits (32, 33: 0 and 1 bolder and narrower, standing on a bar, so a bit never reads
+as a digit of π), 34–39 blank; each about 32 px in the slot's middle 40 × 40 (a row is ~17 px at 1080p, so at most twice the row).
 No letters: a column decodes into glyphs, never words. NPOT, linear, unmipmapped, as the main atlas is.
+
+The code (M1): the rain is the Matrix written in this field's alphabet. Column c stands above cell n = 3^c, and it writes its own name
+into its code twice, 39 rows apart, from row r₀ = ⌊29·fract(c/φ)⌋ (the golden stagger, so the words scatter rather than band; r₀ ≤ 28
+keeps both words inside the column): n's glyph pair (`F.glyphs(n)`; three glyphs for 256, ∂ΦΦ) and then c, n's dlog, in 8 bits from
+the top bit. Column 72, the eye's, reads εδ 01001000. A word is 10 rows (11 for 256), so 5,121 of the 19,968 rows are code and π
+keeps 74 % of the sky; a function of the column and the row alone (`AR.rainCode(c)`), the same for every player. The tape's own
+digits stay where they are read: `AR.rainDay(head)` writes the tape afresh once a day (index.html at ENTER, before the day's decodes;
+`rainPaint` catches a day the page did not announce), π everywhere and every word that does not touch the day's 260 (head … head +
+259, the strip, which holds every window the day's plan reads: the level's read, M2, lights the true digits); so a word is whole or
+not there (day 9422 leaves 69 rows of it out). One 19,968 B upload a day, none a frame; `decode()` writes its glyphs over it as before
+(plain slots, so a decoded window keeps its look) and a new day wipes the old day's. In the byte the code is its slot + 128; the
+shader takes the slot below and tints by it: a glyph of the code pale, a bit gold (the number's colour on a cell, the glyph pair
+white, as the cells' own labels), both 1.3× the digits' light, the head's white over all. Three mixes a fragment, no fetch.
+
+The lens (S1, parts/well/notes.md): `rain({lens: LENS_GL})` splices ar.js's lens into the vertex shader, the cells' own `lensed()` on
+the cells' own uniform objects (`A.lensU.lensDir`, `lensE`), so the rain bends wherever and whenever the cells do (`full`, XR; not on
+`tiny`, where the quad draws the shadow over it) with no second copy of the law: each vertex stands at its primary image θ+ on its
+great circle, so the strip is stretched across by sin θ+/sin β and squashed along the radius by θ+²/(θ+² + θE²) by the mesh itself,
+and a column passing near the eye wraps the ring in short chords (the dense rows). The primary image never falls inside θE; there only
+the far side shows, and that is the sky's (the cells draw the primary image alone too), so the fragment culls it: `vE` = (the image's
+offset from the eye's axis, cos θ·tan θE)/9, linear on the flat triangle and so exact per fragment, and smoothstep(1, 1.06, |vE.xyz| /
+vE.w) scales the light before the discard. A chord between two images on either side of the eye crosses the shadow; this keeps it
+empty. No uniform is shared with the fragment stage (a highp one there would fail where it has no highp), so off (lensE 0, vE = 0) it
+costs one compare a vertex and one a fragment; lit, LENS_GL's ~50 ops a vertex and ~8 a fragment.
 
 The state (`AR.paint` writes `iState` through `rainPaint`): your column runs ×2.2 and white-green, the target's gold, home blue, the
 six (seven with THE MIRROR's flip) reach columns in the hue of the move that reaches them, visited columns ×0.4 and dim, on a HALT
@@ -196,6 +222,9 @@ forced 67.7 / 66.8 ms, off 39.6 / 40.2 ms; draw calls 10 → 11. The full tier c
 sparse; check a Pi 4 before full runs there. `demo.html` shows it on a made-up tape (RAIN, RAIN FULL / SPARSE) and compiles it on
 WebGL2 and on `?gl1`; under that SwiftShader the fragment mediump is a real 10-bit float, so the digit-counting from the head, the
 whole column and the clamped trail were run at 16 bits, not only reasoned.
+With the code and the lens (the same method, full forced, facing the eye, 2 runs each against the commit before): level 1 67.3 → 71.4
+ms, level 56 (lens lit) 67.7 → 71.5 ms; the 39 rows about 3 ms of it, the fragment's code and cull about 1. Draw calls the same; the
+tape texture written at build, once a day and at a close.
 
 ## mediump, and what was checked
 
