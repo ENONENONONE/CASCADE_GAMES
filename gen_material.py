@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Generates cascade_ar/parts/corpus/material.js for THE FOLD from the corpus: every number computed here, none typed. It reads
-# cascade_ar/data.js (run build_data.py first) and the tablet, FOLD_TABLET=emerald_tablet.json or the corpus's own copy.
+# cascade_ar/data.js (run build_data.py first), field.js's sixteen glyphs and the tablet, FOLD_TABLET=emerald_tablet.json or the corpus's own copy.
 import json, re, datetime, os
 P = 257
 HERE = os.path.dirname(os.path.abspath(__file__))          # cascade_machine/cascade_ar_tools, or the CASCADE_GAMES repo
@@ -8,11 +8,13 @@ DOCS = os.path.abspath(os.path.join(HERE, '..', '..'))   # the directory holding
 H = lambda rel: os.path.join(DOCS, rel)
 AR = next((p for p in (os.path.join(HERE, 'cascade_ar'), os.path.join(HERE, '..', 'cascade_ar')) if os.path.isdir(p)), os.path.join(HERE, '..', 'cascade_ar'))   # the game: this folder's child or its sibling
 TAB = json.load(open(os.environ.get('FOLD_TABLET') or H('Φ≡c≡g≡∂ₜΦ≡Oc≡∂ₜΦ≡g≡c≡Φ/emerald_tablet.json'), encoding='utf-8'))
-NAME_CELLS = {44, 62, 70}   # the first word of these cells is a name the game's data does not carry; the next word stands for it
-def W(n):
-    ws = TAB[str(n % P)]['words']
-    return ws[1] if (n % P) in NAME_CELLS else ws[0]
-WS = lambda n: TAB[str(n % P)]['words']
+# the tablet's two name-words stay out, as build_data.py keeps them out of data.js (material.md:10–12): found by place, 44's first word and
+# 62's third, with every entry that carries one as a word; W is the first word left, data.js's w: 44 SPACE, 62 FIBONACCI, and 70 LILITH,
+# whose first word is no name-word (material.md names only 44 and 62)
+NAME_AT = {44: 0, 62: 2}
+NAMES = {TAB[str(n)]['words'][j] for n, j in NAME_AT.items()}
+WS = lambda n: [w for w in TAB[str(n % P)]['words'] if not NAMES & set(re.findall('[A-Z]+', w.upper()))]
+W = lambda n: WS(n)[0]
 S = lambda w: sum(ord(c) - 64 for c in w.upper() if 'A' <= c <= 'Z')
 K = lambda w: sum(1 for c in w.upper() if 'A' <= c <= 'Z')
 POW = [0]*256; DLOG = [-1]*P
@@ -64,10 +66,15 @@ for i, w in enumerate(mirror_chain):
     nxt = (27*K(w) - S(w)) % P; assert_eq(nxt, cells[(i+1) % 10], 'mirror of %s' % w)
     if w != 'SHIFT': assert_eq(S(w), cells[i], 'sum %s' % w)
 assert_eq(S('SHIFT'), 62, 'SHIFT sums to 62')
+line = sum(S(w) for w in mirror_chain); assert_eq((line, line % P), (1053, 25), 'the chain\'s words sum to 1053 ≡ 25: its line does not close at 87')
 # ── tunnel chain ──
 tunnel = [1, 140, 117, 234, 55]
 assert_eq(1*140 % P, 140, 'T'); assert_eq(fold(140), 117, 'chi'); assert_eq(117*2 % P, 234, 'closure'); assert_eq(234*87 % P, 55, 'W')
 assert_eq(140*256*2*87 % P, 55, 'composite 55'); assert_eq(2400 % P, 87, 'W = 2400 mod 257')
+# a cell's glyphs, its two hex digits in field.js's sixteen (read from field.js, not typed here), as FIELD.glyphs writes them
+G16 = list(re.search(r"G16 = Array\.from\('([^']+)'\)", open(os.path.join(AR, 'field.js'), encoding='utf-8').read()).group(1)); assert_eq(len(G16), 16, 'sixteen glyphs')
+glyphs = lambda n: '∞' if n == 'inf' else '∂ΦΦ' if n == 256 else G16[n >> 4] + G16[n & 15]
+assert_eq(glyphs(55), '∞⅗', '55 HEAVEN is ∞⅗'); assert_eq(glyphs(156), 'δQ', 'δQ is 156')
 # ── halving ladders (×129 = ×2⁻¹) ──
 def ladder(n):
     out = [n]
@@ -111,6 +118,9 @@ assert_eq([atb_fixed[k] for k in (1,2,3,4,5,6,7,8,9,12)], [142,27,169,54,196,81,
 for w in ('LOVE', 'SAMSON', 'MOUNT SINAI', 'PRESERVATION'): assert_eq(27*K(w) - S(w), S(w), 'self-mirror %s' % w)
 # ── HALT points of π ──
 D = open(os.path.join(AR, 'data.js'), encoding='utf-8').read()
+DATA = json.loads(D[D.index('window.CASCADE_DATA=') + 20:].rstrip().rstrip(';'))
+assert_eq([c['ws'] for c in DATA['cells']], [WS(n) for n in range(P)], 'data.js built from this tablet by the same rule (run build_data.py first)')
+assert_eq([nm.split(' ')[0] for nm in DATA['glyphs']['names']], G16, 'data.js names field.js\'s sixteen glyphs')
 pi = re.search(r'"pi":"([0-9]+)"', D).group(1)
 def need_pi(n, what):
     if n >= len(pi): raise SystemExit('the π tape in data.js has %d digits; %s needs digit %d — rebuild data.js from a longer tape' % (len(pi), what, n))
@@ -185,7 +195,14 @@ assert_eq([L(129), L(258), L(387)], [225, 255, 32], 'Lucas quarter points')   # 
 # ── Younger Dryas years in the field ──
 yd = {12900: 50, 12800: 207, 11700: 135, 10950: 156, 10850: 56, 9750: 241, 9500: 248}
 for y, f in yd.items(): assert_eq(y % P, f, 'YD %d' % y)
-# ── Kaprekar seven-step words from LEDGER 5 ──
+# ── Kaprekar seven-step words from LEDGER 5: the distinct tablet words whose sum, as four figures, takes seven steps to 6174 ──
+def steps(n):
+    if len(set('%04d' % n)) == 1: return -1
+    k = 0
+    while n != 6174: n = kap(n); k += 1
+    return k
+seven = sorted({w for n in range(P) for w in WS(n) if steps(S(w)) == 7}); assert_eq(len(seven), 427, 'seven-step words on the tablet (material.md C7)')
+for w in ('HALT', 'IDENT', 'SYNC', 'LEDGER', 'STAGE', 'SHARE', 'CONJUGATE', 'VERIFY', 'SODIUM LAYER', 'FINE STRUCTURE', 'LASER GUIDE STAR', 'ALIEN', 'IDENTITY'): assert w in seven, '%s takes seven steps' % w
 # ── the four-figure bridges ──
 bridges = [('sidereal ratio 1.002738', 1003), ('pi 3.14159', 3142), ('sidereal day 86164.09 s', 8616), ('15 degrees an hour', 15), ('45 degrees', 45), ('solar minus sidereal 235.91 s', 2359), ('one radian 57.2958 deg', 5730), ('pi/180', 1745), ('Bessel refraction 34.5 min', 3450), ('Bessel aberration 20.4955 sec', 2050), ('log10 2', 3010), ('log10 3', 4771), ('log10 257', 2410), ('1/alpha 137.036', 1370), ('mp/me 1836.15', 1836), ('c 2998', 2998), ('phi 1618', 1618), ('WiFi 2400 MHz', 2400), ('Avogadro 6022', 6022), ('Planck 6626', 6626), ('Boltzmann 1381', 1381)]
 br = [(nm, v, v % P, W(v % P), DLOG[v % P], ray(v % P)) for nm, v in bridges]
@@ -231,7 +248,7 @@ out = {
   'kaprekar_families': {'outer': [(9*k + 10, W(9*k + 10)) for k in range(1, 10)], 'inner': [(9*m - 1, W(9*m - 1)) for m in range(1, 10)], 'outer_rule': '9k + 10', 'inner_rule': '9m − 1', 'digits': 'k, m−1, 9−m, 10−k', 'scales': {'999': 999 % P, '90': 90}},
   'mirror_chain': [{'word': w, 'cell': cells[i], 'k': K(w), 'sum': S(w), 'mirror': 27*K(w) - S(w)} for i, w in enumerate(mirror_chain)],
   'atbash': {'fixed_sum_by_length': atb_fixed, 'self_mirrors': {w: S(w) for w in ('LOVE', 'SAMSON', 'MOUNT SINAI', 'PRESERVATION')}, 'letter_pairs_both_words': ['B/Y', 'C/X', 'H/S', 'I/R', 'J/Q', 'L/O', 'M/N'], 'mirror_pairs_on_tablet': len(mirrors)},
-  'tunnel': {'cells': tunnel, 'steps': ['Γ = 1', '×140 T', 'fold χ', '×2 closure', '×87 W'], 'composite': 55, 'glyphs': ['Φ∂', 'εQ', '⅗⊗', 'ψΩ', 'δQ']},
+  'tunnel': {'cells': tunnel, 'steps': ['Γ = 1', '×140 T', 'fold χ', '×2 closure', '×87 W'], 'composite': 55, 'glyphs': [glyphs(n) for n in tunnel]},
   'ladders': {str(k): v for k, v in ladders.items()},
   'five_staircase': {'dlog5': 55, 'first': stair[:13], 'k33': stair[33], 'k34': stair[34], 'k128': 256},
   'gamma': {'z0': 120, 'zero': 120, 'pole': 137, 'fixed': [46, 92], 'at_infinity': 1, 'w_multiplier': 153, 'w_step_dlog': 122, 'order': 128, 'orbit_of_1_first16': orb[:16], 'orbit_of_63_first16': g63[:16]},

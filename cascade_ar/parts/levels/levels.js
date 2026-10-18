@@ -3,9 +3,9 @@
 // nothing is kept here. The engine (game.js) plays a spec as it is given: start, target, rule digit, free ops, slack, strict, clock,
 // shift and par; title, text and quest are shown; the rest is for the test and the notes.
 //
-// Eight chapters of eight. Seven levels of each chapter read the π tape as the engine always has, re-ordered within the chapter so
-// that par rises; the eighth is the chapter's own: the three Kaprekar doors (8, 16, 24), the player's halving ladder (32, 48), the
-// Atbash mirror of a word (40, 56) and the eye (64), 137 → ∞ → 1.
+// Eight chapters of eight. The tape levels read the π tape as the engine always has, re-ordered within the chapter so that par rises;
+// four chapters hold levels of their own (SPECIAL): the three Kaprekar doors (30, 31, 32), the player's halving ladder (36, 40), the
+// Atbash mirror of a word (44, 48) and the eye (56), 137 → ∞ → 1.
 window.FOLD_LEVELS = (function () {
   'use strict';
   const F = window.FIELD, D = window.CASCADE_DATA, P = 257, INF = F.INF;

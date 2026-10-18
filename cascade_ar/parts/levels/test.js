@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // THE FOLD — the level designer's test: node test.js (from anywhere; the requires are relative to this file).
-// Plans today and day 9384 for RITO, prints the 64 levels, asserts the plan's shape, plays every level by the field's own solver
+// Plans today and day 9384 for TORAH, prints the 64 levels, asserts the plan's shape, plays every level by the field's own solver
 // and checks the target is reached in par, then prints the seal; then THE DOORS for a few numbers and FREE WALK.
 'use strict';
 global.window = {};
