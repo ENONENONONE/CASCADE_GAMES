@@ -194,6 +194,10 @@ html.calm *{transition:none!important;animation:none!important}
   const gpu = (() => { try { const gl = A.A.renderer.getContext(), x = gl.getExtension('WEBGL_debug_renderer_info'); return x ? String(gl.getParameter(x.UNMASKED_RENDERER_WEBGL)) : ''; } catch (e) { return ''; } })();
   const tiny = /VideoCore|V3D|Broadcom|llvmpipe|SwiftShader/i.test(gpu), lowEnd = tiny || /Mali|PowerVR|Adreno \(TM\) [3-5]/i.test(gpu) || (navigator.hardwareConcurrency || 8) <= 4 || /Raspbian|armv7/i.test(navigator.userAgent);
   if (FX && FX.sky && A.A.scene) { try { const s = FX.sky({ samples: tiny ? 0 : lowEnd ? 13 : 23 }); const q = FX.quad(THREE, s); q.renderOrder = -10; /* opaque, drawn first: the relief's marks stand over it */ A.A.camera.add(q); q.position.z = -1; A.A.sky = q; A.A.stars.visible = false; } catch (e) { console.warn('sky shader', e); } }
+  // the tape sky (M1): the π tape as the rain behind the cells, full on phones and desktops, the state columns alone with heads only on a
+  // `tiny` GPU, off on llvmpipe (software, no GPU at all); fold.prefs {rain: 'full' | 'sparse' | 'off'} overrides. VIEW or v hides it
+  const RAIN = ['full', 'sparse', 'off'].includes(PREFS.rain) ? PREFS.rain : /llvmpipe/i.test(gpu) ? 'off' : tiny ? 'sparse' : 'full';
+  if (A.rainInit) { try { A.rainInit(D.pi, RAIN); if (A.A.rainB) A.A.rainB.mesh.visible = LS.get('fold.view') !== 'none'; } catch (e) { console.warn('rain', e); A.A.rainB = null; } }
   // the CRT as a shader overlay when the module is loaded: scanlines bowed by the barrel, the tube's edge, a phosphor pulse on each move
   let crtU = null, warpU = null, crtQ = null, warpQ = null;
   if (FX && FX.crt && FX.quad) { try { const spec = FX.crt(); const q = FX.quad(THREE, spec); q.renderOrder = 998; crtQ = q; A.A.scene.add(q); crtU = spec.uniforms; FX.resize(crtU, A.A.renderer); $('crt').style.display = 'none'; window.addEventListener('resize', () => FX.resize(crtU, A.A.renderer)); } catch (e) { console.warn('crt', e); } }
@@ -212,8 +216,16 @@ html.calm *{transition:none!important;animation:none!important}
   bRel.setAttribute('aria-pressed', 'true');
   const bLad = aux('LADDER', () => { A.A.showLadder = !A.A.showLadder; bLad.setAttribute('aria-pressed', !!A.A.showLadder); toast(A.A.showLadder ? 'the halving ladder of your cell: sixteen rungs, ×129 each' : 'ladder off'); }, 'the sixteen rungs of halving from your cell');
   bLad.setAttribute('aria-pressed', 'false');
+  // VIEW: the rain on or off (M3's CODE will join it on this one button); kept on the device
+  const bView = aux('VIEW', () => view(), 'the π tape as the rain behind the field, on or off (key v)');
+  function view() { const B = A.A.rainB; if (!B) return toast('the rain is off on this device'); B.mesh.visible = !B.mesh.visible; LS.set('fold.view', B.mesh.visible ? 'rain' : 'none'); bView.setAttribute('aria-pressed', B.mesh.visible); if (!B.mesh.visible) A.readEnd(); toast(B.mesh.visible ? 'the rain: the π tape, 78 digits a column, a column a dlog tick' : 'rain off', 2400); }
+  bView.setAttribute('aria-pressed', !!(A.A.rainB && A.A.rainB.mesh.visible));
   function flash(id) { const b = opsEl.querySelector('[data-op="' + id + '"]'); if (!b) return; b.style.boxShadow = '0 0 0 2px var(--gold)'; setTimeout(() => b.style.boxShadow = '', 900); }
-  const say = t => { if (t) $('voice').textContent = t; };
+  let typing = 0;
+  const say = t => { if (t) { clearInterval(typing); $('voice').removeAttribute('aria-busy'); $('voice').textContent = t; } };
+  // the open line types in with a block cursor (M2), 120 characters a second by the clock, so a slow frame does not slow it; whole under
+  // CALM; aria-busy while it types, so the live region is read once
+  function type(t) { if (!t) return; if (calm) return say(t); const v = $('voice'), t0 = performance.now(); clearInterval(typing); v.setAttribute('aria-busy', 'true'); typing = setInterval(() => { const k = Math.min(t.length, Math.ceil((performance.now() - t0) * 0.12)); v.textContent = t.slice(0, k) + (k < t.length ? '▮' : ''); if (k >= t.length) { clearInterval(typing); v.removeAttribute('aria-busy'); } }, 25); }
   // a road in runs: [op, times] for each run of one move, written Γ×10 ×i Γ×11
   const rle = road => road.reduce((a, id) => (a.length && a[a.length - 1][0] === id ? a[a.length - 1][1]++ : a.push([id, 1]), a), []);
   const roadText = road => rle(road).map(([id, k]) => F.OP[id].label + (k > 1 ? '×' + k : '')).join(' ');
@@ -266,7 +278,7 @@ html.calm *{transition:none!important;animation:none!important}
     opsEl.style.gridTemplateColumns = S.flip ? 'repeat(7,1fr)' : 'repeat(6,1fr)';
     effort(S);
     const q = S.quest; $('quest').hidden = !q; if (q) { const done = G.answered(q); $('quest').className = done ? 'done' : ''; $('quest').textContent = (done ? '✓ ' : '? ') + q.ask; }
-    A.paint({ current: S.current, target: S.target, home: S.home, visited: S.visited, reach: G.reach(), road: S.road, ops: S.opsList }); A.tape(D.pi, S.offset);
+    A.paint({ current: S.current, target: S.target, home: S.home, visited: S.visited, reach: G.reach(), road: S.road, ops: S.opsList, rule: S.digit, moves: S.moves, chapter: S.mode === 'daily' ? chapterOf(S.level) + 1 : 8, strip: S.head, spec: S.spec }); A.tape(D.pi, S.offset, S.spec);
   }
   // ── the effort bar (H2): par + slack segments and one dim 2★; a counted move fills one by what it did to the solver's distance:
   // closer blue and full, kept grey and half height, further orange and notched below the line; whitened by the move's heat, the
@@ -296,7 +308,8 @@ html.calm *{transition:none!important;animation:none!important}
   // is only a longer wait
   const bullet = st => calm ? 1 : Math.max(1, Math.min(3, st | 0));
   function move(id) {
-    const S = G.S; if (slow && skip()) return; if (S.done || S.lost || busy) return; const o = F.OP[id]; const v = G.apply(id); if (v == null) return;
+    const S = G.S; if (slow && skip()) return; if (S.done || S.lost || busy) return; if (A.readEnd) A.readEnd(); const o = F.OP[id]; const v = G.apply(id); if (v == null) return;
+    if (S.done && !S.lost && A.decode) A.decode(S.spec);   // M2: the start digits become the start cell's glyphs
     const k = S.done && !S.lost ? bullet(S.stars[S.level - 1]) : 1; if (S.done && !S.lost) S.doneAt = performance.now();
     busy = true; A.flow(o); if (k > 1) { A.A.flowDur *= k; A.A.slow = k; A.A.zoom = $('video').style.display !== 'block'; }   // flow() wrote flowDur; both timers below read it
     snd.op(id); roomFx(id, k); say(STORY && STORY.ops && STORY.ops[id] || o.tell); monStep(S);
@@ -358,21 +371,27 @@ html.calm *{transition:none!important;animation:none!important}
     const dayLine = STORY && STORY.days && STORY.days[S.digit] ? STORY.days[S.digit].line : S.rule.tell;
     toast((S.mode === 'free' ? 'free walk' : 'level ' + S.level + ' · ' + titleOf(S)) + ' · ' + S.rule.name, 2600);
     const dd = S.kind === 'door' && STORY && STORY.doors && S.spec ? STORY.doors[String(S.spec.number)] : null, doorLine = dd ? (dd.text || dd) : null;
-    say(doorLine || (S.kind === 'tape' && dayLine ? dayLine + (S.spec && S.spec.text ? ' · ' + S.spec.text : '') : (S.spec && S.spec.text ? S.spec.text : dayLine))); G.arm();
+    type(doorLine || (S.kind === 'tape' && dayLine ? dayLine + (S.spec && S.spec.text ? ' · ' + S.spec.text : '') : (S.spec && S.spec.text ? S.spec.text : dayLine))); readThen(S);
+  }
+  // the read (M2): a level that reads the tape comes out of the rain before it arms, so HALT's thirty seconds never run during it; one
+  // flow, 0.8 s; a tap, a key or a move skips it; under CALM, or with nothing to read, the level arms at once
+  function readThen(S) {
+    const lv = S.level, pr = $('rulepill').getBoundingClientRect(), cr = canvas.getBoundingClientRect(), pill = pr.width ? [(pr.left + pr.width / 2 - cr.left) / cr.width * 2 - 1, 1 - (pr.top + pr.height / 2 - cr.top) / cr.height * 2] : null;
+    if (!(A.read && A.read(S.spec, { pill, done: () => { if (G.S.level === lv && !G.S.ended) G.arm(); } }))) G.arm();
   }
   function chapter(ch) {
     const c = STORY.chapters[ch]; const S = G.S;
     const epi = c.epigraph ? (typeof c.epigraph === 'string' ? c.epigraph : c.epigraph.text + (c.epigraph.cell != null ? ' · ' + c.epigraph.cell : '')) : '';
     $('chapbody').innerHTML = '<h2 class="ch">' + (ch + 1) + ' · ' + c.title + '</h2>' + (epi ? '<p class="epi">' + epi + '</p>' : '') + '<p>' + (c.intro || '') + '</p>' + (S.quest ? '<p style="color:var(--blue)">the chapter\'s quest: ' + S.quest.ask + '</p>' : '') + '<div class="btns"><button class="big" id="chapgo">GO</button></div>';
-    $('chap').hidden = false; $('chapgo').onclick = () => { $('chap').hidden = true; const dayLine = STORY.days && STORY.days[S.digit] ? STORY.days[S.digit].line : S.rule.tell; toast('level ' + S.level + ' · ' + titleOf(S) + ' · ' + S.rule.name, 2600); say(dayLine + (S.spec && S.spec.text ? ' · ' + S.spec.text : '')); G.arm(); };
+    $('chap').hidden = false; $('chapgo').onclick = () => { $('chap').hidden = true; const dayLine = STORY.days && STORY.days[S.digit] ? STORY.days[S.digit].line : S.rule.tell; toast('level ' + S.level + ' · ' + titleOf(S) + ' · ' + S.rule.name, 2600); type(dayLine + (S.spec && S.spec.text ? ' · ' + S.spec.text : '')); readThen(S); };
   }
   function endDay() {
-    const S = G.S; const seal = LV && LV.seal ? LV.seal(S.targets) : null; const L = G.lineInfo();
+    const S = G.S; const seal = LV && LV.seal ? LV.seal(S.targets) : null; const L = G.lineInfo(), dec = G.tapeRead ? G.tapeRead() : null;
     const tpl = STORY && STORY.seal ? STORY.seal : 'The day closes on {word}, cell {cell}; its mirror {mirror}. {stars} stars.';
     const stars = S.stars.reduce((a, b) => a + (b || 0), 0);
     const fill = (t, k, v) => t.split('{' + k + '}').join(String(v));   // every occurrence, and old Safari has no replaceAll
     const txt = fill(fill(fill(fill(tpl, 'word', L.word), 'cell', L.cell), 'mirror', D.cells[L.mirror].w + ' ' + L.mirror), 'stars', stars);
-    $('wonbody').innerHTML = '<h2 class="ch">THE SEAL · ' + G.today() + '</h2><p class="epi">' + txt + '</p><p>' + S.closed + ' levels closed · ' + stars + ' stars · the line: <b>' + (L.txt || '—') + '</b> ≡ ' + L.cell + ' ' + L.word + '</p>' + (seal ? '<p>product of the targets ≡ <b>' + seal.cell + ' ' + seal.word + '</b></p>' : '') + (Math.abs(S.borrowed || 0) >= 0.05 ? '<p>' + S.borrowed.toFixed(1) + ' s borrowed from the eye today</p>' : '') + '<div class="btns"><button class="big" id="again">WALK ON</button><button id="share2">SHARE</button></div>';
+    $('wonbody').innerHTML = '<h2 class="ch">THE SEAL · ' + G.today() + '</h2><p class="epi">' + txt + '</p><p>' + S.closed + ' levels closed · ' + stars + ' stars · the line: <b>' + (L.txt || '—') + '</b> ≡ ' + L.cell + ' ' + L.word + '</p>' + (seal ? '<p>product of the targets ≡ <b>' + seal.cell + ' ' + seal.word + '</b></p>' : '') + (dec && S.mode === 'daily' ? '<p>the tape decoded ' + dec.k + ' of ' + dec.of + ' windows · longest run ' + dec.run + '</p>' : '') + (Math.abs(S.borrowed || 0) >= 0.05 ? '<p>' + S.borrowed.toFixed(1) + ' s borrowed from the eye today</p>' : '') + '<div class="btns"><button class="big" id="again">WALK ON</button><button id="share2">SHARE</button></div>';
     $('won').hidden = false; $('again').onclick = () => { $('won').hidden = true; const nm = $('name').value; G.start(nm, 'free', [LV && LV.free ? LV.free(nm) : { n: 1, kind: 'free', start: F.letterSum(nm) % 257, target: null, rule: 0, free: [] }]); openLevel(); };
     $('share2').onclick = () => { const t = 'THE FOLD · ' + G.today() + ' · ' + S.closed + ' closed · ' + stars + ' stars · ' + txt; if (navigator.share) navigator.share({ text: t }).catch(() => {}); else { navigator.clipboard && navigator.clipboard.writeText(t); toast('copied'); } };
   }
@@ -406,10 +425,10 @@ html.calm *{transition:none!important;animation:none!important}
   canvas.addEventListener('pointercancel', () => { drag = null; });
   canvas.addEventListener('pointerdown', e => { if (!e.isPrimary) return; drag = { x: e.clientX, y: e.clientY, yaw: A.A.yaw, pitch: A.A.pitch, ty: A.A.touchYaw }; moved = false; canvas.setPointerCapture(e.pointerId); });
   canvas.addEventListener('pointermove', e => { if (!drag) return; const dx = e.clientX - drag.x, dy = e.clientY - drag.y; if (Math.abs(dx) + Math.abs(dy) > 4) moved = true; const k = 0.0035; if (A.A.deviceQ) A.A.touchYaw = drag.ty + dx * k; else { A.A.yaw = drag.yaw + dx * k; A.A.pitch = Math.max(-1.4, Math.min(1.4, drag.pitch + dy * k)); } });
-  canvas.addEventListener('pointerup', e => { const d = drag; drag = null; if (!d || moved || $('start').hidden === false) return; if (slow && skip()) return; const r = canvas.getBoundingClientRect(); const nx = (e.clientX - r.left) / r.width * 2 - 1, ny = -((e.clientY - r.top) / r.height * 2 - 1); const n = A.pick(nx, ny); if (n != null) showCell(n); });
-  window.addEventListener('keydown', e => { if (slow && (e.key === ' ' || e.key === 'Escape') && skip()) return; const k = 0.08; if (e.key === 'ArrowLeft') A.A.yaw += k; if (e.key === 'ArrowRight') A.A.yaw -= k; if (e.key === 'ArrowUp') A.A.pitch = Math.min(1.4, A.A.pitch + k); if (e.key === 'ArrowDown') A.A.pitch = Math.max(-1.4, A.A.pitch - k); const m = { g: 'g', G: 'ig', f: 'fold', i: 'inv', q: 'i', r: 'gam' }[e.key]; if (m && !$('hud').hidden && $('chap').hidden && $('won').hidden && document.activeElement !== $('name')) move(m); if (e.key === 'u' && !busy && !$('hud').hidden && $('chap').hidden) { const id = G.undo(); if (id) { paint(); monStep(G.S); } } });
+  canvas.addEventListener('pointerup', e => { const d = drag; drag = null; if (!d || moved || $('start').hidden === false) return; if (slow && skip()) return; if (A.readEnd && A.readEnd()) return; const r = canvas.getBoundingClientRect(); const nx = (e.clientX - r.left) / r.width * 2 - 1, ny = -((e.clientY - r.top) / r.height * 2 - 1); if (A.pickTape && A.pickTape(nx, ny)) return type(G.S.spec && G.S.spec.text || G.S.rule.tell); const n = A.pick(nx, ny); if (n != null) showCell(n); });
+  window.addEventListener('keydown', e => { if (slow && (e.key === ' ' || e.key === 'Escape') && skip()) return; if ((e.key === ' ' || e.key === 'Escape') && A.readEnd && A.readEnd()) return; if (e.key === 'v' && !$('hud').hidden && document.activeElement !== $('name')) view(); const k = 0.08; if (e.key === 'ArrowLeft') A.A.yaw += k; if (e.key === 'ArrowRight') A.A.yaw -= k; if (e.key === 'ArrowUp') A.A.pitch = Math.min(1.4, A.A.pitch + k); if (e.key === 'ArrowDown') A.A.pitch = Math.max(-1.4, A.A.pitch - k); const m = { g: 'g', G: 'ig', f: 'fold', i: 'inv', q: 'i', r: 'gam' }[e.key]; if (m && !$('hud').hidden && $('chap').hidden && $('won').hidden && document.activeElement !== $('name')) move(m); if (e.key === 'u' && !busy && !$('hud').hidden && $('chap').hidden) { const id = G.undo(); if (id) { paint(); monStep(G.S); } } });
   async function sensors() { try { if (window.DeviceOrientationEvent && typeof DeviceOrientationEvent.requestPermission === 'function') { const r = await DeviceOrientationEvent.requestPermission(); if (r !== 'granted') return false; } } catch (e) { return false; } window.addEventListener('deviceorientation', A.onOrientation, true); return true; }
-  async function cameraOn() { if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return false; try { const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 } }, audio: false }); const v = $('video'); v.srcObject = s; v.style.display = 'block'; await v.play().catch(() => {}); A.A.stars.visible = false; if (A.A.sky) A.A.sky.visible = false; return true; } catch (e) { return false; } }
+  async function cameraOn() { if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return false; try { const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 } }, audio: false }); const v = $('video'); v.srcObject = s; v.style.display = 'block'; await v.play().catch(() => {}); A.A.stars.visible = false; A.A.rainAlpha = 0.35; if (A.A.sky) A.A.sky.visible = false; return true; } catch (e) { return false; } }
   // ── the compass arrows and the clock ──
   function arrows() {
     const S = G.S; if (!S || !S.road || $('hud').hidden) return;
@@ -433,7 +452,7 @@ html.calm *{transition:none!important;animation:none!important}
     if (mode === 'daily' && LV && LV.plan) { try { plan = LV.plan(F.dayNumber(new Date()), name); } catch (e) { console.warn('plan', e); plan = null; } }
     if (mode === 'doors') { const d = ($('digits').value || '').replace(/\D/g, '').padStart(4, '0').slice(-4); if (!LV || !LV.doors) return toast('the doors need the level designer\'s module'); plan = LV.doors(d); if (!plan || !plan.length) return toast(d + ' reaches no door: four figures not all the same'); }
     if (mode === 'free') plan = [LV && LV.free ? LV.free(name) : { n: 1, kind: 'free', start: F.letterSum(name) % 257, target: null, rule: 0, free: [] }];
-    snd.init(); G.start(name, mode, plan); snd.home(G.S.home);
+    snd.init(); G.start(name, mode, plan); snd.home(G.S.home); if (A.decode && G.S.plan && G.S.decoded.length) A.decode(G.S.plan.filter(sp => sp && G.S.decoded.includes(sp.window || sp.n)));
     $('start').hidden = true; $('hud').hidden = false; $('ops').hidden = false; $('cross').hidden = false;
     paint(); A.bloom(3.2); snd.bloom(3.2);
     const t0 = performance.now(); const gyro = await sensors(); const cam = await cameraOn();

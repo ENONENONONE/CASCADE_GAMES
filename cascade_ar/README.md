@@ -24,19 +24,25 @@ the Atbash mirror and the Heisenberg joining of words. One page, no build step, 
 - RELIEF puts the conics relief in the world (a sheet a chapter as the floor: the product, the hyperbola, the circle, the ellipse,
   the parabola, then the norm with its five stars, and the circle under every HALT level; rings for the doors and ladders, THE
   TURN's orbit in the eye's chapter, the product sheet overhead); LADDER shows your cell's sixteen halvings.
+- The sky is the π tape as rain: 256 columns of 78 digits, one above each dlog tick, drops of light running down them in the rule's
+  pattern (FOLD's c and c + 128 together, SEED rising, SYNC one band, HALT frozen); your column runs fast, the target's is gold, the
+  six moves' columns take their hues, and each chapter wakes 32 more columns. A tape level reads out of the rain as it opens, its
+  start and target digits flying to their cells, and a close turns its start digits into the cell's glyphs; the seal counts the
+  windows decoded. Tap the ribbon to read the level's line; VIEW (or v) hides the rain.
 
 ## Where it runs
 
 - Phones: device orientation turns the view (iOS asks on ENTER), the back camera shows the room; a PWA that plays offline after the
   first load over https. Android Chrome with WebXR gets an AR button for the room itself.
-- Raspbian, an RK3588 board and desktops: drag or arrow keys to look; keys g G f i q r are the moves, u undoes. The sky shader
-  scales down by GPU (none on VideoCore/llvmpipe, half on Mali).
+- Raspbian, an RK3588 board and desktops: drag or arrow keys to look; keys g G f i q r are the moves, u undoes, v the rain. The sky
+  shader scales down by GPU (none on VideoCore/llvmpipe, half on Mali); the rain keeps only its state columns, heads only, on a Pi
+  or SwiftShader, and is off on llvmpipe.
 - Nothing is sent anywhere; the day's progress stays in the browser.
 
 ## Files
 
 `index.html` the page · `field.js` the field and its moves · `ar.js` the scene and the flow · `game.js` levels, rules, state ·
 `data.js` the tablet's words and the π tape · `parts/levels` the day's plan (`node parts/levels/test.js`) · `parts/story` the
-chapters and voices (`node parts/story/check.js`) · `parts/sound` Web Audio · `parts/shaders` sky, Airy halo, CRT, Γ warp ·
+chapters and voices (`node parts/story/check.js`) · `parts/sound` Web Audio · `parts/shaders` sky, Airy halo, CRT, Γ warp, the tape's rain ·
 `parts/relief` the conics relief · `parts/corpus` numbers from the corpus (`node parts/corpus/check.js`) · `vendor/three.min.js`
 r128 · `sw.js` (bump CACHE on every change) and the manifest. The data generators are kept beside this folder, not in it.
