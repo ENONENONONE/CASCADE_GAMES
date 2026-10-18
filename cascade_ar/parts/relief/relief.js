@@ -17,15 +17,19 @@
 //   FOLD_RELIEF.conic(kind, r, opts)    one conic's solution set lifted onto a ring of radius 4.5 round the player
 //   FOLD_RELIEF.turn(opts)              THE TURN's orbit as a closed ring of radius 5, a marker moved by obj.step(k), obj.at(k)
 //   FOLD_RELIEF.sheet(kind, mult, opts) a 65 × 65 relief of the product or the norm (or any of the forms) as a ceiling at y ≈ 5 or a wall
+//   FOLD_RELIEF.plate(opts)             the circle as HALT's floor, a zone plate whose ten terraces are the clock: obj.clock(left, total)
 //   FOLD_RELIEF.dispose(obj)            frees every geometry and material under obj
 //   FOLD_RELIEF.count(obj)              the vertices under obj
-// and the arithmetic alone: solve(kind, r), orbit(c, s, x0, y0), valueAt(form, a, b, t), hue(h), DLOG, POW, STARS, MULTS, FORMS.
+// and the arithmetic alone: solve(kind, r), orbit(c, s, x0, y0), valueAt(form, a, b, t), hue(h), DLOG, POW, STARS, MULTS, FORMS, ZONE.
 window.FOLD_RELIEF = (function () {
   'use strict';
   const P = 257;
   const DLOG = new Int16Array(P).fill(-1), POW = new Uint16Array(256);
   { let a = 1; for (let k = 0; k < 256; k++) { DLOG[a] = k; POW[k] = a; a = a * 3 % P; } }
   const mod = n => ((n % P) + P) % P;
+  // the zone plate's edges: (128 + e)² ≡ 193 + e(e − 1), so about (128.5, 128.5) the circle's value is 128.5 + ρ² and it wraps at
+  // ρ_k = √(257k − 128.5) cells, 11.34 … 49.41 for k = 1 … 10 (R5)
+  const ZONE = Array.from({ length: 10 }, (_, k) => Math.sqrt(257 * (k + 1) - 128.5));
   // the relief's hue: h in [0, 1) round the colour wheel, the machine's own ramp
   const hue = h => { h = h - Math.floor(h); const r = Math.abs(h * 6 - 3) - 1, g = 2 - Math.abs(h * 6 - 2), b = 2 - Math.abs(h * 6 - 4); return [Math.max(0, Math.min(1, r)), Math.max(0, Math.min(1, g)), Math.max(0, Math.min(1, b))]; };
   // the cube vertex of gcd(v, 210): UNITY, c, g, Φ, cg, cΦ, gΦ, cgΦ, with the relief's colours
@@ -66,32 +70,46 @@ window.FOLD_RELIEF = (function () {
   // ── a sheet: n × n samples of a form, every `step`th point of the 257 × 257 grid, laid in a frame o + u·X + v·Y + nrm·h ──
   // X and Y run −half … +half across the samples; h = amp × (height of the value × mult). Returns an Object3D whose children are
   // the Points (or the indexed LineSegments, or the Mesh) and, for the norm, the five stars; obj.setT(t) refills it for v → v·g^t.
+  // spec.order 'radius' stores the samples sorted once by ρ, their distance in cells from (128.5, 128.5), and the primitives of wire and
+  // mesh by their outermost vertex, so obj.setRadius(ρ) draws the disc ρ' ≤ ρ alone and obj.dimBand(r0, r1, k) dims one ring of it.
   function makeSheet(spec) {
     const TH = T(), n = spec.n, step = spec.step, N = n * n, f = spec.form;
-    const pos = new Float32Array(N * 3), col = new Float32Array(N * 3);
+    const pos = new Float32Array(N * 3), col = new Float32Array(N * 3), col0 = new Float32Array(N * 3);
     const fr = spec.frame, u = fr.u, v = fr.v, nm = fr.nrm, o = fr.o, half = spec.half;
+    let rank = null, rho = null;
+    if (spec.order === 'radius') {
+      const r = new Float32Array(N), id = new Uint32Array(N); for (let q = 0; q < N; q++) { r[q] = Math.hypot((q % n) * step - 128.5, Math.floor(q / n) * step - 128.5); id[q] = q; }
+      id.sort((x, y) => r[x] - r[y]); rank = new Uint32Array(N); rho = new Float32Array(N); for (let k = 0; k < N; k++) { rank[id[k]] = k; rho[k] = r[id[k]]; }
+    }
+    const at = q => rank ? rank[q] : q;
+    const within = r => { let lo = 0, hi = N; while (lo < hi) { const m = (lo + hi) >> 1; if (rho[m] <= r) lo = m + 1; else hi = m; } return lo; };   // the samples with ρ ≤ r
     const fill = t => {
       for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
-        const a = i * step, b = j * step, val = valueAt(f, a, b, t), k = (j * n + i) * 3;
+        const a = i * step, b = j * step, val = valueAt(f, a, b, t), k = at(j * n + i) * 3;
         const X = (a / 256 - 0.5) * 2 * half, Y = (b / 256 - 0.5) * 2 * half, h = spec.amp * spec.mult * heightOf(val, spec.height, spec.centred);
         pos[k] = o[0] + u[0] * X + v[0] * Y + nm[0] * h; pos[k + 1] = o[1] + u[1] * X + v[1] * Y + nm[1] * h; pos[k + 2] = o[2] + u[2] * X + v[2] * Y + nm[2] * h;
         colourOf(val, spec.colour, col, k);
       }
+      col0.set(col);
     };
     fill(spec.t || 0);
     const geo = new TH.BufferGeometry();
     geo.setAttribute('position', new TH.BufferAttribute(pos, 3)); geo.setAttribute('color', new TH.BufferAttribute(col, 3));
-    let body;
+    let body, per = 1, keys = null;
+    // the primitives in the radius order: sorted by their outermost vertex, so a draw range of them is a disc too
+    const byRadius = (idx, k) => { if (!rank) return idx; const m = idx.length / k, p = new Uint32Array(m), key = new Uint32Array(m), out = new Uint32Array(idx.length);
+      for (let i = 0; i < m; i++) { p[i] = i; let x = 0; for (let c = 0; c < k; c++) x = Math.max(x, idx[i * k + c]); key[i] = x; }
+      p.sort((x, y) => key[x] - key[y]); keys = new Uint32Array(m); for (let i = 0; i < m; i++) { keys[i] = key[p[i]]; for (let c = 0; c < k; c++) out[i * k + c] = idx[p[i] * k + c]; } per = k; return out; };
     if (spec.mode === 'wire') {           // the rows and the columns of the grid as one indexed LineSegments: 4n(n − 1) indices, n² vertices
       const idx = new Uint32Array(4 * n * (n - 1)); let q = 0;
-      for (let j = 0; j < n; j++) for (let i = 0; i < n - 1; i++) { idx[q++] = j * n + i; idx[q++] = j * n + i + 1; }
-      for (let i = 0; i < n; i++) for (let j = 0; j < n - 1; j++) { idx[q++] = j * n + i; idx[q++] = (j + 1) * n + i; }
-      geo.setIndex(new TH.BufferAttribute(idx, 1));
+      for (let j = 0; j < n; j++) for (let i = 0; i < n - 1; i++) { idx[q++] = at(j * n + i); idx[q++] = at(j * n + i + 1); }
+      for (let i = 0; i < n; i++) for (let j = 0; j < n - 1; j++) { idx[q++] = at(j * n + i); idx[q++] = at((j + 1) * n + i); }
+      geo.setIndex(new TH.BufferAttribute(byRadius(idx, 2), 1));
       body = new TH.LineSegments(geo, new TH.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: spec.opacity }));
     } else if (spec.mode === 'mesh') {    // a solid surface, two triangles a cell, both sides
       const idx = new Uint32Array((n - 1) * (n - 1) * 6); let q = 0;
-      for (let j = 0; j < n - 1; j++) for (let i = 0; i < n - 1; i++) { const a = j * n + i, b = a + 1, c = a + n, d = c + 1; idx[q++] = a; idx[q++] = c; idx[q++] = b; idx[q++] = b; idx[q++] = c; idx[q++] = d; }
-      geo.setIndex(new TH.BufferAttribute(idx, 1));
+      for (let j = 0; j < n - 1; j++) for (let i = 0; i < n - 1; i++) { const q0 = j * n + i, a = at(q0), b = at(q0 + 1), c = at(q0 + n), d = at(q0 + n + 1); idx[q++] = a; idx[q++] = c; idx[q++] = b; idx[q++] = b; idx[q++] = c; idx[q++] = d; }
+      geo.setIndex(new TH.BufferAttribute(byRadius(idx, 3), 1));
       body = new TH.Mesh(geo, new TH.MeshBasicMaterial({ vertexColors: true, side: TH.DoubleSide, transparent: spec.opacity < 1, opacity: spec.opacity }));
     } else {
       body = new TH.Points(geo, new TH.PointsMaterial({ size: spec.size, vertexColors: true, sizeAttenuation: true, transparent: true, opacity: spec.opacity, depthWrite: false }));
@@ -102,6 +120,11 @@ window.FOLD_RELIEF = (function () {
     // the exact position of a point (a, b) of the grid on this sheet, with the value's own height
     group.pointAt = (a, b, lift) => { const val = valueAt(f, a, b, group.userData.t), X = (a / 256 - 0.5) * 2 * half, Y = (b / 256 - 0.5) * 2 * half, h = spec.amp * spec.mult * heightOf(val, spec.height, spec.centred) + (lift || 0); return [o[0] + u[0] * X + v[0] * Y + nm[0] * h, o[1] + u[1] * X + v[1] * Y + nm[1] * h, o[2] + u[2] * X + v[2] * Y + nm[2] * h, val]; };
     group.setT = t => { group.userData.t = t; fill(t); geo.attributes.position.needsUpdate = true; geo.attributes.color.needsUpdate = true; if (group.refreshMarks) group.refreshMarks(); };
+    if (rank) {
+      group.setRadius = r => { const m = within(r); if (!keys) { geo.setDrawRange(0, m); return m; } let lo = 0, hi = keys.length; while (lo < hi) { const c = (lo + hi) >> 1; if (keys[c] < m) lo = c + 1; else hi = c; } geo.setDrawRange(0, lo * per); return m; };
+      group.dimBand = (r0, r1, k) => { const a = within(r0), b = within(r1), c = geo.attributes.color; for (let q = a * 3; q < b * 3; q++) col[q] = col0[q] * k; c.updateRange.offset = a * 3; c.updateRange.count = (b - a) * 3; c.needsUpdate = true; };
+      group.undim = () => { col.set(col0); const c = geo.attributes.color; c.updateRange.offset = 0; c.updateRange.count = -1; c.needsUpdate = true; };
+    }
     return group;
   }
   // ── floor(kind, opts): a form of FORMS as the floor under the player; norm(opts) is floor('norm', opts) ──
@@ -112,13 +135,14 @@ window.FOLD_RELIEF = (function () {
   // relief multipliers, 1 by default: ×2 reaches ±1.2, the horizon is 2.4 up). opts.colour 'dlog' (the default, the relief's hue by
   // dlog, zero black), 'value' or 'vertex'. opts.mode 'points' (default), 'wire' (indexed rows and columns) or 'mesh'. opts.t the
   // time step, v → v·g^t. On the norm the five stars stand at their exact (a, b) with their own heights, white, as the sheet's second
-  // child; opts.stars false leaves them out; the other kinds have none. Vertices: 16641 (+ 5 on the norm).
+  // child; opts.stars false leaves them out; the other kinds have none. opts.order 'radius' sorts the samples by ρ (makeSheet), as the zone
+  // plate needs. Vertices: 16641 (+ 5 on the norm).
   function floor(kind, opts) {
     opts = opts || {}; const TH = T(), f = FORMS[kind]; if (!f) throw new Error('FOLD_RELIEF.floor: no form ' + kind);
     const y = opts.y != null ? opts.y : -2.4;
     const g = makeSheet({ name: kind + '-floor', formName: kind, form: f, n: 129, step: 2, half: opts.half != null ? opts.half : 2, amp: opts.amp != null ? opts.amp : 0.6, mult: mult(opts.mult == null ? 1 : opts.mult),
       centred: true, height: opts.height || 'value', colour: opts.colour || 'dlog', mode: opts.mode || 'points', size: opts.size || 0.035, opacity: opts.opacity != null ? opts.opacity : 0.9, t: opts.t || 0,
-      frame: { o: [0, y, 0], u: [1, 0, 0], v: [0, 0, -1], nrm: [0, 1, 0] } });
+      order: opts.order, frame: { o: [0, y, 0], u: [1, 0, 0], v: [0, 0, -1], nrm: [0, 1, 0] } });
     if (kind === 'norm' && opts.stars !== false) {
       const sp = new Float32Array(STARS.length * 3), sc = new Float32Array(STARS.length * 3);
       const place = () => { STARS.forEach((s, i) => { const p = g.pointAt(s[0], s[1], 0.02); sp[i * 3] = p[0]; sp[i * 3 + 1] = p[1]; sp[i * 3 + 2] = p[2]; const c = i === 0 ? [1, 0.84, 0.47] : [1, 1, 1]; sc[i * 3] = c[0]; sc[i * 3 + 1] = c[1]; sc[i * 3 + 2] = c[2]; }); };
@@ -131,6 +155,39 @@ window.FOLD_RELIEF = (function () {
     return g;
   }
   const norm = opts => floor('norm', opts);
+  // ── plate(opts): THE ZONE-PLATE CLOCK, the circle x² + y² as HALT's floor (R5) ──
+  // floor('circle', opts), 129 × 129, heights centred −amp … +amp, sorted by ρ and drawn to the tenth edge ρ_10 = 49.41
+  // cells (0.772 m at 4/256 m a cell); the ten edges stand at the crest as LineLoops of 64, so every fade has a visible rim (the sampled
+  // terraces 5–10 are under two samples wide). obj.clock(left, total): a terrace a tenth of the time, the outermost one left dimmed over
+  // its share and then cut, so the plate contracts toward the feet and the last disc goes at 0; obj.flare(s), s seconds after a close:
+  // the surviving edges lit white outward over 0.6 s, then held gold; obj.dim(f): the floor at f of its opacity, the edges out;
+  // obj.reset(). Vertices: 16641 + 640.
+  function plate(opts) {
+    opts = opts || {}; const TH = T(), y = opts.y != null ? opts.y : -2.4, half = opts.half != null ? opts.half : 2, amp = opts.amp != null ? opts.amp : 0.6, op = opts.opacity != null ? opts.opacity : 0.9;
+    const g = floor('circle', Object.assign({}, opts, { y, half, amp, mult: 1, opacity: op, order: 'radius' })); g.userData.kind = 'zone-plate';
+    const m = 2 * half / 256, cx = (128.5 / 256 - 0.5) * 2 * half, EDGE = [0.75, 0.95, 0.8], LIT = [1, 0.84, 0.47], E0 = 0.55, rings = [];
+    ZONE.forEach(r => { const p = new Float32Array(64 * 3); for (let k = 0; k < 64; k++) { const a = k / 64 * Math.PI * 2; p[k * 3] = cx + Math.cos(a) * r * m; p[k * 3 + 1] = y + amp; p[k * 3 + 2] = -cx - Math.sin(a) * r * m; }
+      const lg = new TH.BufferGeometry(); lg.setAttribute('position', new TH.BufferAttribute(p, 3));
+      const ring = new TH.LineLoop(lg, new TH.LineBasicMaterial({ color: new TH.Color(EDGE[0], EDGE[1], EDGE[2]), transparent: true, opacity: E0, depthWrite: false })); ring.frustumCulled = false; g.add(ring); rings.push(ring); });
+    g.rings = rings; g.userData.vertices += 640; g.userData.zone = ZONE.slice(); g.userData.terraces = 10;
+    let K = -1, Q = -1, held = false, dimmed = false;
+    g.reset = () => { K = -1; Q = -1; held = false; dimmed = false; g.undim(); g.setRadius(ZONE[9]); g.body.material.opacity = op; rings.forEach(r => { r.visible = true; r.material.opacity = E0; r.material.color.setRGB(EDGE[0], EDGE[1], EDGE[2]); }); g.userData.terraces = 10; };
+    g.clock = (left, total) => {
+      const share = total / 10, k = Math.max(0, Math.min(10, Math.ceil(left / share - 1e-9))), q = k ? Math.round((left - (k - 1) * share) / share * 32) / 32 : 0;
+      if (k > K && K >= 0) g.reset();
+      if (k !== K) { g.setRadius(k ? ZONE[k - 1] : -1); rings.forEach((r, j) => { r.visible = j < k; r.material.opacity = E0; }); }
+      if (k && (q !== Q || k !== K)) { g.dimBand(k > 1 ? ZONE[k - 2] : -1, ZONE[k - 1], q); rings[k - 1].material.opacity = E0 * q; }
+      K = k; Q = q; g.userData.terraces = k; return k;
+    };
+    g.flare = s => {
+      if (held) return; if (s > 1.6) held = true;   // one flare, then the edges held lit until the next level
+      rings.forEach((r, j) => { if (!r.visible) return; const t0 = ZONE[j] / ZONE[9] * 0.6, on = s >= t0, e = on ? Math.exp(-(s - t0) / 0.25) : 0, c = on ? LIT.map(x => x + (1 - x) * e) : EDGE;
+        r.material.color.setRGB(c[0], c[1], c[2]); r.material.opacity = on ? 1 : E0; });
+    };
+    g.dim = f => { if (dimmed) return; dimmed = true; g.body.material.opacity = op * f; rings.forEach(r => { r.visible = false; }); };
+    g.reset();
+    return g;
+  }
   // ── solve(kind, r): the solution set of a conic ≡ r, in point order (x ascending, then y) ──
   // The circle, ellipse and hyperbola have 256 points for r ≠ 0 (p − 1, since −1 is a square and 4 is a square) and 513 for r = 0,
   // the two null lines through the origin; the parabola y ≡ x² + r has 257, one an x; the product x·y ≡ r has 256 for r ≠ 0 and
@@ -254,5 +311,5 @@ window.FOLD_RELIEF = (function () {
   }
   // ── count(obj): the vertices under obj, by the position attributes ──
   function count(obj) { let n = 0; if (obj) obj.traverse(o => { if (o.geometry && o.geometry.attributes && o.geometry.attributes.position) n += o.geometry.attributes.position.count; }); return n; }
-  return { P, DLOG, POW, hue, VTX, COL, FORMS, CONIC_FORMS, MULTS, STARS, valueAt, solve, orbit, floor, norm, conic, turn, sheet, dispose, count };
+  return { P, DLOG, POW, hue, VTX, COL, FORMS, CONIC_FORMS, MULTS, STARS, ZONE, valueAt, solve, orbit, floor, norm, conic, turn, sheet, plate, dispose, count };
 })();

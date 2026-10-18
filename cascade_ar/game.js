@@ -18,11 +18,14 @@ window.GAME = (function () {
     9: { name: 'HALT', tell: 'the clock runs: thirty seconds', clock: 30 },
   };
   const S = {};
+  // the flags: every change of the plan's rules lands behind one, and test.js plays both settings; fold.prefs may carry {flags: {…}}
+  const FLAGS = { dilate: true };   // S3: HALT's clock runs on proper time, slower near the eye
+  try { Object.assign(FLAGS, (JSON.parse(localStorage.getItem('fold.prefs') || '{}') || {}).flags || {}); } catch (e) {}
   // the local date: the plan is built from the local day, so the run is kept by it too (the UTC date runs a day ahead in the evening)
   const today = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
   const key = () => 'fold.run.' + F.dayNumber(new Date()) + '.' + (S.mode || 'daily');
   function load() { try { return JSON.parse(localStorage.getItem(key()) || 'null'); } catch (e) { return null; } }
-  function save() { try { localStorage.setItem(key(), JSON.stringify({ name: S.name, level: (S.done && !S.lost) ? S.level + 1 : S.level, stars: S.stars, line: S.line, closed: S.closed, targets: S.targets, quests: S.quests })); localStorage.setItem('fold.name', S.name); } catch (e) {} }
+  function save() { try { localStorage.setItem(key(), JSON.stringify({ name: S.name, level: (S.done && !S.lost) ? S.level + 1 : S.level, stars: S.stars, line: S.line, closed: S.closed, targets: S.targets, quests: S.quests, borrowed: S.borrowed })); localStorage.setItem('fold.name', S.name); } catch (e) {} }
   const at = o => ((o % (D.pi.length - 4)) + D.pi.length - 4) % (D.pi.length - 4);   // past the tape's end the head wraps, as the plan reads it
   const window4 = o => parseInt(D.pi.slice(at(o), at(o) + 4), 10) % 257;
   // SHIFT: the target is t·3^k after k moves; the shortest road is the least k with a road of k moves from s to t·3^k
@@ -36,6 +39,19 @@ window.GAME = (function () {
     }
     return [];
   }
+  // d(n), the moves from n to the eye 137 by the level's own moves: a reverse BFS over the 258 points (S1's d, brought forward for S3)
+  function toEye(ops) {
+    ops = ops || F.OPS; const d = new Array(258).fill(-1), back = Array.from({ length: 258 }, () => []), q = [137]; d[137] = 0;
+    for (let u = 0; u < 258; u++) for (const o of ops) back[o.f(u)].push(u);
+    for (let i = 0; i < q.length; i++) for (const u of back[q[i]]) if (d[u] < 0) { d[u] = d[q[i]] + 1; q.push(u); }
+    return d;
+  }
+  // HALT's proper time (S3): dτ = dt·rate, rate = f(d)/f(d_start), f(d) = √(1 − 1/(d + 1)) with d floored at 1, so the start runs at 1
+  // and the thirty seconds hold there; standing near the eye slows the clock, ∞ (d = 6) runs it fastest. Flag off: τ is the wall clock
+  const fEye = d => Math.sqrt(1 - 1 / (Math.max(1, d) + 1));
+  const rateAt = n => FLAGS.dilate && S.toEye ? fEye(S.toEye[n]) / fEye(S.toEye[S.start]) : 1;
+  // the effort (H2): the solver's distance from where you stand to the target, the level's own way of counting
+  const dist = () => S.target == null ? null : S.shift ? solveShift(S.current, S.target).length : S.countFree ? (F.solve(S.current, S.target, null, S.opsList) || []).length : F.cost(F.solve(S.current, S.target, S.free, S.opsList) || [], S.free);
   // a level read plainly from the tape, when no plan is loaded
   function tapeSpec(L) {
     const o = S.head + (L - 1) * 4, digit = +D.pi[at(o)], rule = RULES[digit];
@@ -48,7 +64,7 @@ window.GAME = (function () {
     S.day = F.dayNumber(new Date()); S.head = S.day + 13; S.plan = plan || null;
     S.goldDay = S.day % 128 === 0; S.tabletDay = S.day % 258 === 0; S.dayCell = S.day % 257;   // the day table: cell = day mod 66048, gold every 128th, a tablet cell every 258th
     const kept = S.mode === 'daily' ? load() : null; const mine = kept && kept.name === S.name;
-    S.level = mine ? kept.level : 1; S.stars = mine ? kept.stars : []; S.line = mine ? kept.line : []; S.closed = mine ? kept.closed : 0; S.targets = mine ? (kept.targets || []) : []; S.quests = mine ? (kept.quests || []) : [];
+    S.level = mine ? kept.level : 1; S.stars = mine ? kept.stars : []; S.line = mine ? kept.line : []; S.closed = mine ? kept.closed : 0; S.targets = mine ? (kept.targets || []) : []; S.quests = mine ? (kept.quests || []) : []; S.borrowed = mine ? (kept.borrowed || 0) : 0;
     level(S.level); save(); return S;
   }
   function level(L) {
@@ -61,29 +77,35 @@ window.GAME = (function () {
     S.opsList = S.flip ? F.OPS.concat([F.FLIP]) : F.OPS;
     S.start = spec.start; S.target0 = spec.target; S.target = spec.target; S.current = S.start; S.road = [S.start]; S.moves = 0; S.ops = []; S.visited = new Set([S.start]);
     S.par = spec.target == null ? null : S.shift ? solveShift(S.start, S.target).length : (spec.par != null && !S.flip && !(S.goldDay && S.mode === 'daily' && !S.shift)) ? spec.par : F.cost(F.solve(S.start, S.target, S.free, S.opsList), S.free);
+    S.toEye = toEye(S.opsList); S.dist = dist(); S.climb = []; S.tau = 0; S.real = 0; S.rate = 1;
     S.t0 = performance.now(); S.armed = false; S.done = false; S.lost = false; S.seen = false; S._lostShown = false; S.ended = false;
     S.hints = 0; S.hinted = null;   // HINT: the presses on this level, and the last road it gave ({at: the moves made then, from, road})
     return S;
   }
   // the level is in play: the page calls this when the cards are down; HALT's thirty seconds run from here
-  function arm() { if (!S.armed) { S.armed = true; S.t0 = performance.now(); } }
+  function arm() { if (!S.armed) { S.armed = true; S.t0 = S.tLast = performance.now(); S.tau = 0; S.real = 0; } }
+  // the clock brought up to now at the rate of the cell stood on since the last call; apply() calls it before the cell changes
+  function advance() { if (!S.clock || !S.armed || S.done || S.lost) return; const t = performance.now(); S.real = (t - S.t0) / 1000; S.rate = rateAt(S.current); S.tau = FLAGS.dilate ? S.tau + (t - S.tLast) / 1000 * S.rate : S.real; S.tLast = t; }
   function reach() { const r = new Set(); for (const o of S.opsList || F.OPS) r.add(o.f(S.current)); return r; }
   function apply(id) {
     if (S.done || S.lost) return null; const o = F.OP[id]; if (!o || (id === 'flip' && !S.flip)) return null; const v = o.f(S.current); if (v === S.current && id === 'flip') return null;
-    arm(); S.ops.push(id); S.current = v; S.road.push(v); S.visited.add(v); if (!S.free.has(id) || S.countFree) S.moves++;
+    arm(); tick(); if (S.lost) return null; const d0 = S.dist; S.ops.push(id); S.current = v; S.road.push(v); S.visited.add(v); if (!S.free.has(id) || S.countFree) S.moves++;
     if (S.shift) S.target = F.mul(S.target0, F.POW[S.moves % 256]);
+    S.dist = dist(); S.climb.push([id, d0, S.dist]); S.rate = rateAt(v);
     if (S.target == null) return v;
     if (v === S.target) {
+      if (S.clock) S.borrowed += S.real - S.tau;
       S.done = true; S.stars[S.level - 1] = Math.min(S.hints > 1 ? 2 : 3, S.moves <= S.par + S.slack ? 3 : S.moves <= S.par + 1 + S.slack ? 2 : 1);   // STORE's slack: par + 1 still closes; a second HINT caps at ★★
       if (S.strict && S.moves > S.par) { S.stars[S.level - 1] = 0; S.lost = true; } else { S.closed++; S.line.push(D.cells[S.target].w); S.targets.push(S.target); }
       save();
     } else if (S.strict && S.moves > S.par) { S.lost = true; S.stars[S.level - 1] = 0; save(); }
     return v;
   }
-  function undo() { if (!S.ops || S.done || S.lost || !S.ops.length) return null; const id = S.ops.pop(); S.road.pop(); S.current = S.road[S.road.length - 1]; if (!S.free.has(id) || S.countFree) S.moves--; if (S.shift) S.target = F.mul(S.target0, F.POW[S.moves % 256]); return id; }
+  function undo() { if (!S.ops || S.done || S.lost || !S.ops.length) return null; advance(); const id = S.ops.pop(); S.road.pop(); S.current = S.road[S.road.length - 1]; if (!S.free.has(id) || S.countFree) S.moves--; if (S.shift) S.target = F.mul(S.target0, F.POW[S.moves % 256]); S.climb.pop(); S.dist = dist(); S.rate = rateAt(S.current); return id; }
   function reset() { level(S.level); }
   function next() { level(S.level + 1); save(); }
-  function tick() { if (S.clock && S.armed && !S.done && !S.lost && S.target != null) { const left = S.clock - (performance.now() - S.t0) / 1000; if (left <= 0) { S.lost = true; S.stars[S.level - 1] = 0; save(); } return Math.max(0, left); } return null; }
+  // the clock: the proper seconds left, and the level lost when τ reaches the thirty
+  function tick() { if (S.clock && S.armed && !S.done && !S.lost && S.target != null) { advance(); const left = S.clock - S.tau; if (left <= 0) { S.lost = true; S.stars[S.level - 1] = 0; S.borrowed += S.real - S.tau; save(); } return Math.max(0, left); } return null; }
   function lineInfo() { const txt = S.line.join(' '); const s = F.letterSum(txt), k = F.letterCount(txt); const cell = s % 257; return { txt, sum: s, k, cell, word: D.cells[cell].w, mirror: ((27 * k - s) % 257 + 257) % 257 }; }
   function cellInfo(n) {
     if (n === F.INF) return { n, glyphs: '∞', word: 'the open circuit', words: ['Γ(∞) = 1: the base reads its missing point as I AM'], dlog: '—', inv: 0, fold: '∞', gam: 1, ray: '—', ch: 'the point at infinity', k: 1 };
@@ -99,5 +121,5 @@ window.GAME = (function () {
   function hintLeft() { const h = S.hinted; if (!h || S.road[h.at] !== h.from) return null; const did = S.ops.slice(h.at); return did.every((id, j) => id === h.road[j]) ? h.road.slice(did.length) : null; }
   // the quest of the chapter: a cell to find by its words; done by a tap on it
   function questDone(n) { const q = S.quest; if (!q || S.quests.includes(q.cell)) return false; if (n === q.cell) { S.quests.push(q.cell); save(); return true; } return false; }
-  return { S, RULES, start, level, arm, apply, undo, reset, next, tick, reach, lineInfo, cellInfo, hint, askHint, hintLeft, roadTo, today, solveShift, tapeSpec, questDone };
+  return { S, RULES, FLAGS, toEye, start, level, arm, apply, undo, reset, next, tick, reach, lineInfo, cellInfo, hint, askHint, hintLeft, roadTo, today, solveShift, tapeSpec, questDone };
 })();
