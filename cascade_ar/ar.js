@@ -159,8 +159,10 @@ window.AR = (function () {
   }
   function resize() { const w = window.innerWidth, h = window.innerHeight; A.renderer.setSize(w, h, false); A.camera.aspect = w / h; A.camera.updateProjectionMatrix(); }
   const now = () => (performance.now() - A.t0) / 1000;
-  // ── the bloom at entry: the cells born one by one along the generator's cycle from SEED ──
+  // ── the bloom at entry: the cells born one by one along the generator's cycle from SEED; under CALM (A.calm, set by the page) they
+  // stand at once, a still ──
   function bloom(dur) {
+    if (A.calm) { A.cellB.born.fill(-10); A.tapeB.born.fill(-10); flag(A.cellB); flag(A.tapeB); return; }
     const t = now(); A.cellB.born[0] = t; A.cellB.born[257] = t + dur;
     for (let k = 0; k < 256; k++) A.cellB.born[F.POW[k]] = t + 0.15 + k / 256 * dur;
     for (let i = 0; i < 48; i++) A.tapeB.born[i] = t + dur * 0.5 + i / 48 * 0.6;
@@ -229,7 +231,7 @@ window.AR = (function () {
   function pick(nx, ny) { A.rig.updateMatrixWorld(true); let best = null, bd = 0.06; const s = {}; for (let n = 0; n < 258; n++) { onScreen(n, s); if (!s.front) continue; const d = (s.x - nx) ** 2 + ((s.y - ny) * (window.innerHeight / window.innerWidth)) ** 2; if (d < bd) { bd = d; best = n; } } return best; }
   function frame() {
     const t = now(); A.cellB.mesh.material.uniforms.time.value = t; A.tapeB.mesh.material.uniforms.time.value = t;
-    const f = Math.min(1, (t - A.flowT0) / A.flowDur); A.cellB.mesh.material.uniforms.flow.value = f;
+    const f = Math.min(1, (t - A.flowT0) / A.flowDur); A.cellB.mesh.material.uniforms.flow.value = A.calm ? 1 : f;   // CALM pins the flow: no cell travels, the threads only fade
     const live = f < 1 ? 1 - f : 0;
     A.threads.material.opacity = A.flowOp === 'fold' ? 0.45 * live : 0; A.ladder.material.opacity = A.showLadder ? 0.35 : 0; A.orbit.material.opacity = A.showOrbit ? 0.35 : (A.flowOp === 'gam' ? 0.5 * live : 0);
     if (!A.renderer.xr.isPresenting) look(); A.renderer.render(A.scene, A.camera);
