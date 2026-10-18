@@ -44,8 +44,9 @@ the Atbash mirror and the Heisenberg joining of words. One page, no build step, 
 - GLOW: the field through one post pass — bloom in each source's own colour (cells in their rays, the rain in phosphor green, the ring
   and the quarter turns in gold), god rays from three lights: the eye's ring in gold, the floor's twelve spokes in their colours, and
   the field's own light, where the TRACE tracer says the light arrives at your cell, in the colour it arrives in, eased between moves;
-  slow glitter on the brightest points, a 1–2 px colour split at the edges and a grade that deepens the blacks and lifts the
-  saturation a fifth, the palette kept. Full on desktops and phones, bloom alone on a low-end GPU, off on a Pi and in the room; GLOW
+  slow glitter on the brightest points, a colour split of at most 1 px in the screen's outer third and a grade that deepens the blacks
+  and lifts the saturation a fifth, the palette kept; the scene itself is drawn at the screen's own resolution, only the light at a
+  quarter. Full on desktops and phones, bloom alone on a low-end GPU (the scene at half res there), off on a Pi and in the room; GLOW
   (or b) toggles it, kept in fold.prefs. Under reduced motion the shafts and the glitter are stills.
 - TRACE: the field's own ray tracer, every number an integer mod 257 — 256 rays from your cell along THE TURN's 256 directions, hits on
   the chapter's sheet and four more where the discriminant is a residue (the character), four bounces by Γ = (Z − 120)/(Z + 120) off the

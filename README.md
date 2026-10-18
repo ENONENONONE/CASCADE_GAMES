@@ -47,7 +47,8 @@ Level 56, THE EYE: 137's shadow in its gold photon ring at full lens tier, the s
 ![The glow](docs/screenshots/glow.png)
 
 GLOW on THE EYE: the ring's golden shafts over the field, every cell blooming in its ray's colour, the rain in phosphor green, the
-brightest points glittering — one post pass over the half-res scene (bloom, god rays, glitter, a grade), the palette unchanged.
+brightest points glittering — one post pass over the scene at the screen's own resolution (bloom, god rays, glitter, a grade, the
+light at a quarter), the palette unchanged.
 
 ![The trace](docs/screenshots/trace.png)
 

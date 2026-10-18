@@ -1,17 +1,22 @@
 // THE FOLD — the glow (parts/glow): bloom, god rays, glitter and a grade as one post pass over the scene, the look of "ray tracing" with
-// no ray traced. window.FOLD_GLOW. The scene is drawn into a half-resolution render target (RGBA bytes: WebGL1-safe), then at a quarter of
-// the screen a bright pass (threshold with a soft knee, so each source keeps its own colour: the cells their ray, the rain its phosphor,
-// the ring and the quarter turns their gold) and the glitter (a hash-seeded sparkle on the brightest points, twinkling with a period of
-// 1.5–3 s), a separable 9-tap blur that also streaks the sparkles into star crosses, radial shafts from three lights (the eye's ring in
-// gold, SEED at the floor's centre in the spokes' colours, and the field's own light: where parts/trace's tracer says the light arrives at
-// the player's cell, in the colour it arrives in; 16 samples each, 48 in all), and one full-screen composite: the half-res scene sharpened on
-// the way up (an unsharp mask), a 1–2 px RGB split at the edges and on the brightest edges, the grade (blacks crushed, saturation lifted
-// 20 %: a tone pass over the same palette, no recolour), the bloom, the shafts and the glitter added. The CRT overlay is drawn after it.
-// Everything is GLSL ES 1.00 for three.js r128, precision mediump by default with highp on the clock and the composite's uv alone, loops
-// of 9 and 16, no derivative, no float texture needed (the quarter-res targets take half floats where the extension exists, against
-// banding in the blur's tails). Tiers: 'full', 'bloom' (bloom and the grade alone: no shafts, no glitter, no split), 'off'. Its clock
-// wraps at 30 s, which every twinkle period divides, and stands still under CALM, so the shafts and the glitter are stills there. The
-// third light eases between moves over the toggle's 600 ms (a step under CALM), so a move never flashes it.
+// no ray traced. window.FOLD_GLOW. The scene is drawn at the screen's own resolution into a render target (RGBA bytes: WebGL1-safe; a
+// texel a device pixel, so the cells, the lines and the rain's glyphs stay as crisp as they are drawn), then at a quarter of the screen a
+// bright pass (a 4-tap box over the 4 × 4 screen pixels it covers, then a threshold with a soft knee, so each source keeps its own colour:
+// the cells their ray, the rain its phosphor, the ring and the quarter turns their gold) and the glitter (a hash-seeded sparkle on the
+// brightest points, twinkling with a period of 1.5–3 s), a separable 9-tap blur that also streaks the sparkles into star crosses, radial
+// shafts from three lights (the eye's ring in gold, SEED at the floor's centre in the spokes' colours, and the field's own light: where
+// parts/trace's tracer says the light arrives at the player's cell, in the colour it arrives in; 16 samples each, 48 in all), and one
+// full-screen composite: the scene as drawn (no sharpening at scale 1: there is nothing to put back), the quarter-res light brought up
+// bilinear (every target LinearFilter, so no block reaches the screen), an RGB split of at most 1 px in the outer third of the screen
+// alone (none at the centre, none keyed to brightness, so no glyph or cell splits), the grade (blacks crushed, saturation lifted 20 %: a
+// tone pass over the same palette, no recolour), the bloom, the shafts and the glitter added. The CRT overlay is drawn after it. The
+// `scale` option (1 on the full tier) draws the scene smaller — 0.5 on the lowEnd `bloom` tier, where a half-res scene saves the sky's
+// samples; there the composite sharpens it on the way up (an unsharp mask), the one case the mask is compiled in. Everything is GLSL
+// ES 1.00 for three.js r128, precision mediump by default with highp on the clock and the composite's uv alone, loops of 9 and 16, no
+// derivative, no float texture needed (the quarter-res targets take half floats where the extension exists, against banding in the
+// blur's tails). Tiers: 'full', 'bloom' (bloom and the grade alone: no shafts, no glitter, no split), 'off'. Its clock wraps at 30 s,
+// which every twinkle period divides, and stands still under CALM, so the shafts and the glitter are stills there. The third light eases
+// between moves over the toggle's 600 ms (a step under CALM), so a move never flashes it.
 window.FOLD_GLOW = (function () {
   'use strict';
   const TAU = 6.283185307;
@@ -22,9 +27,11 @@ window.FOLD_GLOW = (function () {
   // lights: 48 in all, the same count the two lights had at 24, so the budget holds under 6 ms by construction; 3 × 20 would be 6.15 ms
   // and 3 × 24 6.45 by budget()), the grade, and the third light's reference energy: parts/trace's lightAt sums the light over the 256
   // directions, 265 … 780 over every cell, sheet and target of its default scene (median 545, p90 581, 3096 renders), so traceRef 640 lights a
-  // typical cell's shaft at ~0.85 and the brightest at 1 (traceStrength clamps)
+  // typical cell's shaft at ~0.85 and the brightest at 1 (traceStrength clamps); the split's ca (1 px at most, in the outer third alone)
+  // and the mask's sharp (compiled in at scale < 1 alone); scale the full tier's (1: the scene at the screen's size), scaleLow the bloom
+  // tier's (0.5: the scene at half res, the sky's samples on a quarter of the pixels)
   const K = { lo: 0.18, hi: 0.38, glitLo: 0.45, glitHi: 0.75, taps: 9, stride: 1.5, sigma: 2.3, cross: 2, samples: 16, lights: 3, density: 0.92, decay: 0.955,
-    bloom: 0.55, rays: 0.9, raysRoom: 0.3, glitter: 0.6, sat: 1.20, crush: 0.015, ca: 1.5, sharp: 0.4, scale: 0.5, wrap: 30, periods: [1.5, 2, 2.5, 3], traceRef: 640, ease: 600 };
+    bloom: 0.55, rays: 0.9, raysRoom: 0.3, glitter: 0.6, sat: 1.20, crush: 0.015, ca: 1.0, sharp: 0.25, scale: 1, scaleLow: 0.5, wrap: 30, periods: [1.5, 2, 2.5, 3], traceRef: 640, ease: 600 };
   const PRECISION = `precision mediump float;
 #ifdef GL_FRAGMENT_PRECISION_HIGH
 #define HP highp
@@ -38,14 +45,17 @@ void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`;
   const HASH = `float hash2(vec2 c) { return fract(fract(c.x * 0.618034) + fract(c.y * 0.381966) + fract(mod(c.x, 32.0) * mod(c.y, 32.0) * 0.0157)); }
 `;
   // ═══ 1. the bright pass and the glitter, at a quarter of the screen: rgb the light above the knee, a the sparkle ═══
+  // A quarter-res texel covers 4 × 4 screen pixels; one bilinear fetch at its centre would read the middle 2 × 2 of them and miss the rest
+  // (a 1-px glyph stroke would bloom or not by where it fell), so four fetches at ±qx — a quarter of the texel, one scene texel at scale
+  // 1, half of one at 0.5 — each bilinear over 2 × 2, box the whole block: no shimmer, and the knee reads a mean, not a lucky sample
   function brightGL(glitter) {
     return PRECISION + `
-uniform sampler2D scene; uniform HP float time;
+uniform sampler2D scene; uniform vec2 qx; uniform HP float time;
 varying vec2 vUv;
 const float TAU = 6.2831853;
 ` + HASH + `
 void main() {
-  vec3 c = texture2D(scene, vUv).rgb;                              // premultiplied: a transparent pixel is black and lights nothing
+  vec3 c = 0.25 * (texture2D(scene, vUv + qx).rgb + texture2D(scene, vUv - qx).rgb + texture2D(scene, vUv + vec2(qx.x, -qx.y)).rgb + texture2D(scene, vUv - vec2(qx.x, -qx.y)).rgb);   // premultiplied: a transparent pixel is black and lights nothing
   float L = max(c.r, max(c.g, c.b));
   vec3 b = c * smoothstep(${K.lo.toFixed(2)}, ${K.hi.toFixed(2)}, L);
   float a = 0.0;
@@ -116,9 +126,9 @@ void main() {
   gl_FragColor = vec4(col, 1.0);
 }`;
   }
-  // ═══ 4. the composite, at the screen's size: the scene up from half res, sharpened; the split; the grade; the light added ═══
-  function compositeGL(tier) {
-    const full = tier === 'full';
+  // ═══ 4. the composite, at the screen's size: the scene (sharpened on the way up at scale < 1 alone); the split; the grade; the light added ═══
+  function compositeGL(tier, scale) {
+    const full = tier === 'full', sharp = (scale || K.scale) < 1;
     return PRECISION + `
 uniform sampler2D scene; uniform sampler2D bloom; uniform sampler2D rays;
 uniform vec2 res;           // the screen in device pixels
@@ -128,16 +138,21 @@ uniform float bloomK; uniform float rayK; uniform float glitK; uniform float sat
 varying HP vec2 vUv;        // a texel of the screen is 2^-11 at 1280: the one place this pass wants highp
 #define RAYS ${full ? 1 : 0}
 #define SPLIT ${full ? 1 : 0}
+#define SHARP ${sharp ? 1 : 0}
 float lum(vec3 c) { return dot(c, vec3(0.2126, 0.7152, 0.0722)); }
 void main() {
   vec4 g = texture2D(bloom, vUv);
-  vec4 c = texture2D(scene, vUv);
+  vec4 c = texture2D(scene, vUv);                                  // at scale 1 a texel a pixel: the scene as it was drawn
+#if SHARP
   vec3 n = texture2D(scene, vUv + tx).rgb + texture2D(scene, vUv - tx).rgb;
-  vec3 s = max(c.rgb + sharp * (c.rgb - 0.5 * n), 0.0);           // the unsharp mask on a diagonal pair: the half-res scene's edges back
+  vec3 s = max(c.rgb + sharp * (c.rgb - 0.5 * n), 0.0);           // the unsharp mask on a diagonal pair: a half-res scene's edges back
+#else
+  vec3 s = c.rgb;
+#endif
 #if SPLIT
   vec2 d = vUv - 0.5; float e = dot(d, d) * 4.0;                   // 0 at the centre, 1 at the sides' middles, 2 at the corners
-  float off = caK * min(e * 0.6 + 1.2 * lum(g.rgb), 1.0);          // in pixels: the edges and the brightest edges, at most caK
-  float wca = smoothstep(0.15, 0.6, off);
+  float off = caK * smoothstep(0.5, 1.0, e);                       // in pixels: none inside 0.71 of the way out, caK (1 px) from the sides' middles to the corners; never by brightness
+  float wca = smoothstep(0.0, 0.35, off);
   vec2 o = normalize(d + 0.0001) * off / res;
   s.r = mix(s.r, texture2D(scene, vUv + o).r, wca); s.b = mix(s.b, texture2D(scene, vUv - o).b, wca);
 #endif
@@ -153,7 +168,9 @@ void main() {
   gl_FragColor = vec4(col, a);
 }`;
   }
-  const shaders = tier => ({ bright: brightGL(tier === 'full'), blurH: blurGL(false), blurV: blurGL(true), rays: raysGL(), composite: compositeGL(tier || 'full') });
+  // the scene's scale by tier: the full tier draws it at the screen's size, the bloom tier (lowEnd) at half, where the sky's samples matter
+  const scaleFor = tier => tier === 'bloom' ? K.scaleLow : K.scale;
+  const shaders = (tier, scale) => ({ bright: brightGL(tier === 'full'), blurH: blurGL(false), blurV: blurGL(true), rays: raysGL(), composite: compositeGL(tier || 'full', scale || scaleFor(tier || 'full')) });
 
   // ═══ the tier by the page's flags and the pref: 'auto' leaves `tiny` off and `lowEnd` with bloom alone; 'on' is the full pass anywhere ═══
   function tierFor(pref, dev) { dev = dev || {}; if (pref === 'off') return 'off'; if (pref === 'on') return 'full'; return dev.tiny ? 'off' : dev.lowEnd ? 'bloom' : 'full'; }
@@ -166,32 +183,38 @@ void main() {
   // 0 … 1, so a typical cell (~545) gives ~0.85, the brightest (≥ 640) 1, the eye at ∞ (no light) 0
   const traceStrength = e => Math.min(1, Math.max(0, (e || 0) / K.traceRef));
   // the budget: texture fetches and arithmetic a frame at w × h, by the tiers' own tap counts; a mid phone's GPU at ~4 G bilinear fetches
-  // and ~50 G scalar ops a second (an Adreno 6xx or a Mali-G5x), the five target switches ~0.1 ms each. The shafts: K.lights lights of
-  // K.samples each, 7 ops a sample, the floor's twelve-spoke tint 12 × 8 and the drifts 40
+  // and ~50 G scalar ops a second (an Adreno 6xx or a Mali-G5x), the five target switches ~0.1 ms each. The quarter targets are always a
+  // quarter of the screen. The bright pass boxes 4 fetches; the shafts: K.lights lights of K.samples each, 7 ops a sample, the floor's
+  // twelve-spoke tint 12 × 8 and the drifts 40; the composite: the scene 1 (+ 2 for the mask at scale < 1), the split 2, the bloom 1, the
+  // shafts 1. sceneBytes is the scene target's traffic: written once (4 B a texel) and read by the composite's scene fetches and the
+  // bright pass's box (4 fetches over a quarter: one read of the whole); skyOps is what the scene's own sky saves at scale < 1 — 0 at 1
   function budget(w, h, tier, scale) {
-    scale = scale || K.scale; const full = (tier || 'full') === 'full', hp = Math.round(w * scale) * Math.round(h * scale), q = Math.round(w * scale / 2) * Math.round(h * scale / 2), screen = w * h, S = K.samples * K.lights;
-    const f = { bright: q * 1, blurH: q * K.taps, blurV: q * (K.taps + 2 * K.cross + 1), rays: full ? q * S : 0, composite: screen * (3 + (full ? 2 : 0) + 1 + (full ? 1 : 0)) };
-    const o = { bright: q * (full ? 45 : 12), blurH: q * (K.taps * 8), blurV: q * (K.taps * 8 + (2 * K.cross + 1) * 4), rays: full ? q * (S * 7 + 12 * 8 + 40) : 0, composite: screen * (full ? 75 : 45) };
+    tier = tier || 'full'; scale = scale || scaleFor(tier); const full = tier === 'full', sharp = scale < 1, hp = Math.round(w * scale) * Math.round(h * scale), q = Math.round(w / 4) * Math.round(h / 4), screen = w * h, S = K.samples * K.lights;
+    const sceneReads = 1 + (sharp ? 2 : 0) + (full ? 2 : 0);
+    const f = { bright: q * 4, blurH: q * K.taps, blurV: q * (K.taps + 2 * K.cross + 1), rays: full ? q * S : 0, composite: screen * (sceneReads + 1 + (full ? 1 : 0)) };
+    const o = { bright: q * (full ? 48 : 15), blurH: q * (K.taps * 8), blurV: q * (K.taps * 8 + (2 * K.cross + 1) * 4), rays: full ? q * (S * 7 + 12 * 8 + 40) : 0, composite: screen * ((full ? 65 : 35) + (sharp ? 10 : 0)) };
     const fetches = Object.values(f).reduce((a, b) => a + b, 0), ops = Object.values(o).reduce((a, b) => a + b, 0), passes = full ? 5 : 4;
-    return { w, h, scale, scenePx: hp, quarterPx: q, fetches, ops, passes, samples: full ? S : 0, f, o, ms: +(fetches / 4e9 * 1e3 + ops / 50e9 * 1e3 + passes * 0.1).toFixed(2), skyOps: Math.round(1500 * (screen - hp)) };
+    return { w, h, scale, scenePx: hp, quarterPx: q, fetches, ops, passes, samples: full ? S : 0, sceneReads, f, o, ms: +(fetches / 4e9 * 1e3 + ops / 50e9 * 1e3 + passes * 0.1).toFixed(2), sceneBytes: hp * 4 * (2 + sceneReads), skyOps: Math.round(1500 * (screen - hp)) };
   }
 
-  // ═══ mount: the targets, the five materials, the clock; begin() aims the scene at the half-res target, end(state) runs the passes ═══
-  // opts: tier, scale (0.5), FX (for CALM), scene (its Points are sized by the canvas's height in three r128, so each is scaled down for the
-  // half-res draw and put back). Returns G: {tier, begin, end, setTier, resize, dispose, u (the composite's uniforms), rays (the shafts'
+  // ═══ mount: the targets, the five materials, the clock; begin() aims the scene at its target, end(state) runs the passes ═══
+  // opts: tier, scale (by the tier when unset: 1 full, 0.5 bloom; set, it holds whatever the tier), FX (for CALM), scene (its Points are
+  // sized by the canvas's height in three r128, so at a scale under 1 each is scaled down for the draw and put back). Returns G: {tier,
+  // scale, begin, end, setTier, resize, dispose, u (the composite's uniforms), rays (the shafts'
   // uniforms), rt, hdr, level, trace (the third light as eased)}. state for end(): {eye: [u, v], eyeA, floor: [u, v], floorA, spokes: 24
   // floats (the twelve screen directions from the floor's centre, aspect-true, unit), spokeCol: 36 floats, trace: {pos: [u, v], a, rgb: [r, g,
   // b], key} or null (the field's light: its cell's screen place this frame, its strength by traceStrength and the edge fade, its colour, and
   // a key that changes when the tracer's answer does — a move, a level, a law), room, calm}
   function mount(THREE, renderer, opts) {
-    opts = opts || {}; const G = { tier: 'off', want: 'off', level: 0, t0: 0, scale: opts.scale || K.scale, hdr: false, rt: {}, clock: 0, last: -1, calm: false };
+    opts = opts || {}; const G = { tier: 'off', want: 'off', level: 0, t0: 0, scale: opts.scale || scaleFor(opts.tier || 'full'), hdr: false, rt: {}, clock: 0, last: -1, calm: false };
     // the third light as eased: `to` is the live target each frame (the cell's place moves with the camera), `from` a snapshot of what was
     // shown when the key last changed, `cur` the mix by smoothstep((now − t0) / 600 ms), a step under CALM; u, v, strength, r, g, b
     const LC = { key: null, t0: -1e9, from: [0, 0, 0, 0, 0, 0], cur: [0, 0, 0, 0, 0, 0], to: [0, 0, 0, 0, 0, 0], x: 1 }; G.trace = LC;
     const gl = renderer.getContext(), FX = opts.FX || window.FOLD_FX || null, scene = opts.scene || null, scaled = [];
-    const points = down => { if (!scene) return; if (down) scene.traverse(o => { const m = o.isPoints && o.material; if (m && m.size != null) { scaled.push([m, m.size]); m.size *= G.scale; } }); else { for (const [m, s] of scaled) m.size = s; scaled.length = 0; } };
+    const points = down => { if (!scene || G.scale === 1) return; if (down) scene.traverse(o => { const m = o.isPoints && o.material; if (m && m.size != null) { scaled.push([m, m.size]); m.size *= G.scale; } }); else { for (const [m, s] of scaled) m.size = s; scaled.length = 0; } };
     // half floats for the quarter-res targets where they can be rendered to and sampled linearly; the scene target stays bytes (it is LDR,
-    // and bytes are half the bandwidth); a target that comes out incomplete falls back to bytes
+    // and bytes are half the bandwidth); a target that comes out incomplete falls back to bytes. Every target is LinearFilter both ways, so
+    // the quarter-res light comes up to the screen bilinear
     const halfOk = renderer.capabilities.isWebGL2 ? !!(gl.getExtension('EXT_color_buffer_float') || gl.getExtension('EXT_color_buffer_half_float'))
       : !!(gl.getExtension('OES_texture_half_float') && gl.getExtension('OES_texture_half_float_linear') && gl.getExtension('EXT_color_buffer_half_float'));
     const target = (w, h, depth, half) => new THREE.WebGLRenderTarget(Math.max(1, w), Math.max(1, h), { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, format: THREE.RGBAFormat, type: half ? THREE.HalfFloatType : THREE.UnsignedByteType, depthBuffer: depth, stencilBuffer: false, generateMipmaps: false });
@@ -201,7 +224,7 @@ void main() {
     const mat = (fs, uniforms) => new THREE.ShaderMaterial({ vertexShader: QUAD_VS, fragmentShader: fs, uniforms, depthTest: false, depthWrite: false, transparent: false, blending: THREE.NoBlending });
     const spokeDir = [], spokeCol = []; for (let i = 0; i < 12; i++) { spokeDir.push(new THREE.Vector2(Math.sin(i / 12 * TAU), -Math.cos(i / 12 * TAU))); spokeCol.push(new THREE.Vector3(GOLD[0], GOLD[1], GOLD[2])); }
     const U = {
-      bright: { scene: { value: null }, time: { value: 0 } },
+      bright: { scene: { value: null }, qx: { value: new THREE.Vector2() }, time: { value: 0 } },
       blurH: { src: { value: null }, px: { value: new THREE.Vector2() } },
       blurV: { src: { value: null }, bright: { value: null }, px: { value: new THREE.Vector2() } },
       rays: { bright: { value: null }, aspect: { value: 1 }, time: { value: 0 }, lightA: { value: new THREE.Vector3() }, colA: { value: new THREE.Vector3(GOLD[0], GOLD[1], GOLD[2]) }, lightB: { value: new THREE.Vector3() }, spokeDir: { value: spokeDir }, spokeCol: { value: spokeCol },
@@ -210,24 +233,26 @@ void main() {
         bloomK: { value: K.bloom }, rayK: { value: K.rays }, glitK: { value: K.glitter }, sat: { value: K.sat }, crush: { value: K.crush }, caK: { value: K.ca }, sharp: { value: K.sharp } },
     };
     let M = null;
-    function build(tier) { const S = shaders(tier); if (M) for (const k in M) M[k].dispose(); M = { bright: mat(S.bright, U.bright), blurH: mat(S.blurH, U.blurH), blurV: mat(S.blurV, U.blurV), rays: mat(S.rays, U.rays), composite: mat(S.composite, U.composite) }; }
+    function build(tier) { const S = shaders(tier, G.scale); if (M) for (const k in M) M[k].dispose(); M = { bright: mat(S.bright, U.bright), blurH: mat(S.blurH, U.blurH), blurV: mat(S.blurV, U.blurV), rays: mat(S.rays, U.rays), composite: mat(S.composite, U.composite) }; }
+    // the scene target at scale × the drawing buffer (hw × hh: the screen itself at 1), the four quarter targets at a quarter of the screen
+    // whatever the scale; the bright pass's qx is a quarter of a quarter texel in the scene's uv (one scene texel at scale 1, half at 0.5)
     function resize() {
-      renderer.getDrawingBufferSize(size); const w = size.x, h = size.y; if (G.rt.w === w && G.rt.h === h && G.rt.scene) return;
-      dispose(true); const hw = Math.max(2, Math.round(w * G.scale)), hh = Math.max(2, Math.round(h * G.scale)), qw = Math.max(1, Math.round(hw / 2)), qh = Math.max(1, Math.round(hh / 2));
-      G.rt = { w, h, hw, hh, qw, qh, scene: target(hw, hh, true, false), bright: null, a: null, b: null, rays: null };
+      renderer.getDrawingBufferSize(size); const w = size.x, h = size.y; if (G.rt.w === w && G.rt.h === h && G.rt.scale === G.scale && G.rt.scene) return;
+      dispose(true); const hw = Math.max(2, Math.round(w * G.scale)), hh = Math.max(2, Math.round(h * G.scale)), qw = Math.max(1, Math.round(w / 4)), qh = Math.max(1, Math.round(h / 4));
+      G.rt = { w, h, scale: G.scale, hw, hh, qw, qh, scene: target(hw, hh, true, false), bright: null, a: null, b: null, rays: null };
       const Q = ['bright', 'a', 'b', 'rays'], make = () => { for (const k of Q) G.rt[k] = target(qw, qh, false, G.hdr); };
       G.hdr = halfOk; make(); if (G.hdr && !Q.every(k => complete(G.rt[k]))) { for (const k of Q) G.rt[k].dispose(); G.hdr = false; make(); }   // all four of one kind
-      U.blurH.px.value.set(1 / qw, 0); U.blurV.px.value.set(0, 1 / qh); U.composite.res.value.set(w, h); U.composite.tx.value.set(1 / hw, 1 / hh); U.rays.aspect.value = w / h;
+      U.bright.qx.value.set(0.25 / qw, 0.25 / qh); U.blurH.px.value.set(1 / qw, 0); U.blurV.px.value.set(0, 1 / qh); U.composite.res.value.set(w, h); U.composite.tx.value.set(1 / hw, 1 / hh); U.rays.aspect.value = w / h;
       U.bright.scene.value = G.rt.scene.texture; U.blurH.src.value = G.rt.bright.texture; U.blurV.src.value = G.rt.a.texture; U.blurV.bright.value = G.rt.bright.texture; U.rays.bright.value = G.rt.bright.texture;
       U.composite.scene.value = G.rt.scene.texture; U.composite.bloom.value = G.rt.b.texture; U.composite.rays.value = G.rt.rays.texture;
     }
     function dispose(targetsOnly) { for (const k of ['scene', 'bright', 'a', 'b', 'rays']) if (G.rt[k]) { G.rt[k].dispose(); G.rt[k] = null; } if (!targetsOnly && M) { for (const k in M) M[k].dispose(); M = null; quad.geometry.dispose(); } }
     // the tier wanted: on ramps the mix up over 600 ms (a step under CALM), off ramps it down and then stops the pass; a change of tier
-    // between bloom and full rebuilds the materials
+    // between bloom and full rebuilds the materials and, with no scale fixed by opts, takes the tier's own scale (the targets remade)
     function setTier(t) {
       t = TIERS.includes(t) ? t : 'off'; const now = performance.now();
       if (t === 'off') { if (G.tier !== 'off') { G.want = 'off'; G.t0 = now; } return; }
-      if (G.tier !== t) { build(t); G.tier = t; } G.want = t; if (G.level < 1) G.t0 = now;
+      if (G.tier !== t) { if (!opts.scale) G.scale = scaleFor(t); build(t); G.tier = t; } G.want = t; if (G.level < 1) G.t0 = now;
     }
     function ramp(now) {
       const calm = G.calm || !!(FX && FX.calm && FX.calm()), x = calm ? 1 : Math.min(1, (now - G.t0) / 600), s = x * x * (3 - 2 * x);
@@ -246,7 +271,7 @@ void main() {
       for (let i = 0; i < 6; i++) cur[i] = from[i] + (to[i] - from[i]) * s;
       U.rays.lightC.value.set(cur[0], cur[1], cur[2]); U.rays.colC.value.set(cur[3], cur[4], cur[5]);
     }
-    // before the scene is drawn: aim the renderer at the half-res target (the scene's own render clears it)
+    // before the scene is drawn: aim the renderer at the scene target (the scene's own render clears it)
     function begin() { if (G.tier === 'off') return false; resize(); points(true); renderer.setRenderTarget(G.rt.scene); return true; }
     const run = (m, rt) => { quad.material = m; renderer.setRenderTarget(rt); renderer.render(pass, cam); };
     // after it: the passes, then the composite to the screen; the clock runs by its own dt, wrapped at 30 s, still under CALM
@@ -274,5 +299,5 @@ void main() {
     Object.assign(G, { begin, end, setTier, resize, dispose: () => dispose(false), u: U.composite, rays: U.rays, bright: U.bright, materials: () => M, halfOk, K });
     return G;
   }
-  return { mount, tierFor, shaders, budget, twinkle, period, grade, lum, traceStrength, K, TIERS, GOLD, PRECISION, QUAD_VS };
+  return { mount, tierFor, scaleFor, shaders, budget, twinkle, period, grade, lum, traceStrength, K, TIERS, GOLD, PRECISION, QUAD_VS };
 })();
