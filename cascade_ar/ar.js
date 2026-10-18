@@ -82,7 +82,7 @@ window.AR = (function () {
           if (iState > 1.5 && iState < 2.5) s = 1.3 + 0.08 * sin(time * 3.0 + 1.0);
           if (iState > 2.5 && iState < 3.5) s = 1.1;
           if (iState > 3.5 && iState < 4.5) vA = 0.6;
-          if (iState > 4.5) s = 1.15;
+          if (iState > 4.5 && iState < 5.5) s = 1.15;   // 1 current, 2 target, 3 home, 4 visited, 5 reach, each in its own bracket: a state 6 or above draws plain until it has a line
           float b = clamp((time - iBorn) / 0.5, 0.0, 1.0); s *= 0.2 + 0.8 * b; vA *= b;   // born: a cell blooms in
           // the flow: along the chord from where the cell came to where it stands, lifted so it rides the sphere, eased
           float t = clamp(flow, 0.0, 1.0); float e = t * t * (3.0 - 2.0 * t);

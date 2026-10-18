@@ -7,7 +7,7 @@ window.FIELD = (function () {
   const P = 257, INF = 257;
   const DLOG = new Array(P).fill(-1), POW = new Array(256);
   { let x = 1; for (let k = 0; k < 256; k++) { POW[k] = x; DLOG[x] = k; x = x * 3 % P; } }
-  const G16 = 'Φ∂φ∞⊟⊗♯⅗εδΩΓQΣψ𝟙';
+  const G16 = Array.from('Φ∂φ∞⊟⊗♯⅗εδΩΓQΣψ𝟙');   // by code point: 𝟙 is two UTF-16 units, so a string index would cut it in half
   const OPCODES = ['NOP', 'IDENT', 'EXIST', 'SEED', 'SHIFT', 'STORE', 'FOLD', 'JUMP', 'SYNC', 'HALT'];
   const inv = n => n === 0 ? INF : n === INF ? 0 : POW[(256 - DLOG[n]) % 256];
   const mul = (a, b) => (a === INF || b === INF) ? INF : a * b % P;
@@ -30,9 +30,9 @@ window.FIELD = (function () {
     { id: 'gam', label: 'Γ', name: 'the reflection', tell: '(Z − 120)/(Z + 120): the Möbius turn, ×153 in w', f: gamma, hue: 0 },
   ];
   // the 6 ↔ 9 flip: the digits of the cell's number turned, 6 for 9 and 9 for 6; an involution where it lands inside the field, else the
-  // cell stays; the one move that can cross between Γ's two orbits: of the 82 cells it moves, 36 cross (it equals Γ only at 36 → 39)
+  // cell stays; Γ never crosses its two sides; the flip crosses for 36 of the 82 cells it moves (it equals Γ only at 36 → 39)
   const flip69 = n => { if (n === INF) return n; const m = +String(n).replace(/[69]/g, d => d === '6' ? '9' : '6'); return m <= 256 ? m : n; };
-  const FLIP = { id: 'flip', label: '6↔9', name: 'the flip', tell: '6 for 9 and 9 for 6 in the number: the one move that can cross Γ\'s sides (36 of the 82 cells it moves do)', f: flip69, hue: 320 };
+  const FLIP = { id: 'flip', label: '6↔9', name: 'the flip', tell: '6 for 9 and 9 for 6 in the number: Γ never crosses its two sides; the flip crosses for 36 of the 82 cells it moves', f: flip69, hue: 320 };
   const OP = Object.fromEntries(OPS.concat([FLIP]).map(o => [o.id, o]));
   // shortest road from s to t, free ops costing nothing (0-1 BFS over 258 points); returns the op ids, or null
   function solve(s, t, free, ops) {

@@ -2,7 +2,8 @@
 // Asserts: every chapter epigraph is a word of its cell; every key of cells[] and doors[] is a cell (257 the open point);
 // every word in capitals in a voice is one of that cell's own words; every "dlog N / inverse N / fold N / Γ N / ×i N / ×g N"
 // and every "… of N" in a voice is true of that cell; every entry of facts[] recomputes; every letter sum in sums[] is right;
-// the word limits hold; no exclamation mark anywhere; days[] covers the ten opcodes; ops[] the six moves and undo.
+// the word limits hold; no exclamation mark anywhere; days[] covers the ten opcodes; ops[] the six moves and undo; every cell's
+// glyphs are whole code points, two a cell.
 'use strict';
 const fs = require('fs'), path = require('path');
 const root = path.resolve(__dirname, '..', '..');
@@ -66,6 +67,9 @@ for (const f of S.facts) {
   }[k];
   ok(got, 'unknown fact kind ' + k); const v = got(); ok(JSON.stringify(v) === JSON.stringify(want), 'fact ' + JSON.stringify(f) + ' recomputes to ' + JSON.stringify(v));
 }
+// glyphs: sixteen of one code point each (𝟙 takes two UTF-16 units), so a cell writes two code points, 256 three, ∞ one, none cut in half
+ok(F.G16.length === 16 && F.G16.every(g => Array.from(g).length === 1), 'G16 is sixteen glyphs of one code point each');
+for (let c = 0; c <= INF; c++) { const g = F.glyphs(c), k = c === INF ? 1 : c === 256 ? 3 : 2; ok(Array.from(g).length === k && !/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?:^|[^\uD800-\uDBFF])[\uDC00-\uDFFF]/.test(g), 'glyphs(' + show(c) + ') ' + JSON.stringify(g) + ' is not ' + k + ' whole code points'); }
 // letter sums
 for (const [w, s] of Object.entries(S.sums)) ok(F.letterSum(w) === s, 'letter sum of ' + w + ' is ' + F.letterSum(w) + ', not ' + s);
 for (const [w] of Object.entries(S.sums)) ok(words.has(w), w + ' is on the tablet');

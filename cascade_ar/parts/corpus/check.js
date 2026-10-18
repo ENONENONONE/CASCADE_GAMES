@@ -1,12 +1,14 @@
 // THE FOLD — parts/corpus/check.js: parses material.js and data.js under node, re-adds every letter sum the catalogue cites
-// (A = 1 … Z = 26), recomputes the chains and rules, and says what failed. Run: node check.js
+// (A = 1 … Z = 26), recomputes the chains and rules, keeps the tablet's two name-words out of the game, holds index.html's scripts to
+// sw.js's SHELL, and says what failed. Run: node check.js
 'use strict';
 const fs = require('fs'), path = require('path'), vm = require('vm');
 const here = __dirname, root = path.join(here, '..', '..');
 const ctx = { window: {} }; ctx.window.window = ctx.window; vm.createContext(ctx);
 vm.runInContext(fs.readFileSync(path.join(here, 'material.js'), 'utf8'), ctx, { filename: 'material.js' });
 vm.runInContext(fs.readFileSync(path.join(root, 'data.js'), 'utf8'), ctx, { filename: 'data.js' });
-const M = ctx.window.FOLD_MATERIAL, D = ctx.window.CASCADE_DATA, P = 257;
+vm.runInContext(fs.readFileSync(path.join(root, 'field.js'), 'utf8'), ctx, { filename: 'field.js' });
+const M = ctx.window.FOLD_MATERIAL, D = ctx.window.CASCADE_DATA, FD = ctx.window.FIELD, P = 257;
 let fails = 0, checks = 0;
 const ok = (c, msg) => { checks++; if (!c) { fails++; console.log('FAIL', msg); } };
 const S = w => { let t = 0; for (const ch of w.toUpperCase()) { const c = ch.charCodeAt(0) - 64; if (c >= 1 && c <= 26) t += c; } return t; };
@@ -34,7 +36,7 @@ const kap = n => { const a = String(n).padStart(4, '0').split('').sort(); return
 for (const [door, sp] of Object.entries(M.doors.spines)) { for (let i = 0; i + 1 < sp.length; i++) ok(kap(sp[i]) === sp[i + 1], 'spine ' + door + ' step ' + i); ok(sp[sp.length - 1] === 6174, 'spine ends 6174'); ok(sp[sp.length - 2] === +door, 'door ' + door); ok(JSON.stringify(sp.map(v => v % P)) === JSON.stringify(M.doors.spine_cells[door]), 'spine cells ' + door); }
 ok(kap(M.doors.sub_thousand_door) === 6174, '0062'); ok(M.doors.seed_2357.length === 8 && kap(2357) === 5175, '2357 seven steps'); ok(JSON.stringify(M.doors.year_2000) === JSON.stringify([2000, 1998, 8082, 8532, 6174]), '2000'); ok(JSON.stringify(M.doors.day_9384) === JSON.stringify([9384, 6354, 3087, 8352, 6174]), '9384');
 // tunnel, ladders, staircase, gamma, flip, order 4, halts, matrix, pisano
-{ const t = M.tunnel.cells; ok(t[1] === t[0] * 140 % P && t[2] === (P - t[1]) % P && t[3] === t[2] * 2 % P && t[4] === t[3] * 87 % P && t[4] === 55, 'tunnel chain'); }
+{ const t = M.tunnel.cells; ok(t[1] === t[0] * 140 % P && t[2] === (P - t[1]) % P && t[3] === t[2] * 2 % P && t[4] === t[3] * 87 % P && t[4] === 55, 'tunnel chain'); ok(M.tunnel.glyphs.join() === t.map(FD.glyphs).join(), 'tunnel glyphs are its cells\' own'); }
 for (const [k, L] of Object.entries(M.ladders)) { ok(L.length === 16 && L[0] === +k, 'ladder ' + k); for (let i = 0; i < 16; i++) ok(L[(i + 1) % 16] === L[i] * 129 % P, 'ladder ' + k + ' rung ' + i); }
 ok(M.five_staircase.first.every((v, i) => v === POW[55 * i % 256]), 'staircase'); ok(POW[55 * 33 % 256] === 237 && POW[55 * 34 % 256] === 157, '5^33, 5^34');
 { const o = M.gamma.orbit_of_1_first16; for (let i = 0; i + 1 < o.length; i++) ok(gam(o[i]) === o[i + 1], 'Γ orbit step ' + i); ok(gam(46) === 46 && gam(92) === 92 && gam(120) === 0 && gam(137) === Infinity, 'Γ fixed, zero, pole'); let z = 1; for (let i = 0; i < 128; i++) z = gam(z); ok(z === 1, 'Γ order 128'); }
@@ -61,5 +63,21 @@ for (const [w, v] of [['TRUTH', 87], ['JAMES', 48], ['WHO AM I', 69], ['MIRROR S
 ok(gam(27) === 120 && gam(45) === 93 && gam(57) === 4 && gam(119) === 100 && gam(74) === 66 && gam(103) === 129 && gam(63) === 164 && gam(66) === 8, 'Γ values typed in the catalogue');
 ok(79 * 244 % P === 1 && 63 * 63 % P === 114 && 56 * 179 % P === 1 && 46 * 95 % P === 1 && 103 * 63 % P === 64 && 45 * 12 % P === 26 && 150 * 12 % P === 1 && 47 * 93 % P === 2 && 153 * 153 % P === 22 && 117 * 117 % P === 68 && 62 * 228 % P === 1, 'products typed in the catalogue');
 ok(POW[57] === 45 && DLOG[216] === 147 && DLOG[153] === 122 && DLOG[134] === 148 && DLOG[5] === 55, 'dlogs typed in the catalogue');
+// the name-words: the tablet's two (44's first word, 62's third) are known here by a hash only, so this check names them nowhere; none
+// stands in data.js, material.js or any text file of the game, alone or inside an entry
+{ const crypto = require('crypto'), NAMES = new Set(['77a741f7c013d0df', '9439168d7d5375d6']), hash = w => crypto.createHash('sha256').update(w).digest('hex').slice(0, 16);
+  const named = s => [...new Set(s.toUpperCase().match(/[A-Z]+/g) || [])].some(w => NAMES.has(hash(w)));
+  for (const c of D.cells) ok(!c.ws.some(named), 'a name-word among the words of cell ' + c.n); ok(!D.mirrors.some(p => p.some(named)), 'a name-word in a mirror pair');
+  const walk = d => fs.readdirSync(d, { withFileTypes: true }).flatMap(e => e.isDirectory() ? (e.name === 'vendor' ? [] : walk(path.join(d, e.name))) : /\.(js|html|md|json|svg|webmanifest)$/.test(e.name) ? [path.join(d, e.name)] : []);
+  for (const f of walk(root)) ok(!named(fs.readFileSync(f, 'utf8')), 'a name-word in ' + path.relative(root, f)); }
+ok(D.cells[44].w === 'SPACE' && D.cells[62].w === 'FIBONACCI' && D.cells[70].w === 'LILITH', 'first words 44 SPACE, 62 FIBONACCI, 70 LILITH');
+for (const [c, w] of M.kaprekar_families.outer.concat(M.kaprekar_families.inner)) ok(D.cells[c].w === w, 'family word ' + w + ' is not the first word of ' + c);
+ok(M.tablet_entries === D.entries && D.entries === D.cells.reduce((a, c) => a + c.ws.length, 0), 'tablet_entries ' + M.tablet_entries + ' = data.js entries ' + D.entries);
+ok(M.atbash.mirror_pairs_on_tablet === D.mirrors.length, 'mirror_pairs_on_tablet ' + M.atbash.mirror_pairs_on_tablet + ' = data.js mirrors ' + D.mirrors.length);
+// the shell: index.html's scripts are SHELL's .js entries, every SHELL path exists, and no node check is served
+{ const shell = JSON.parse(fs.readFileSync(path.join(root, 'sw.js'), 'utf8').match(/const SHELL = (\[[^\]]*\]);/)[1].replace(/'/g, '"')), js = shell.filter(u => u.endsWith('.js')).map(u => u.replace(/^\.\//, ''));
+  const srcs = [...fs.readFileSync(path.join(root, 'index.html'), 'utf8').matchAll(/<script src="([^"]+)"/g)].map(m => m[1]);
+  ok(srcs.slice().sort().join() === js.slice().sort().join(), 'index.html loads ' + srcs.length + ' scripts, SHELL caches ' + js.length + ' .js files: ' + srcs.filter(u => !js.includes(u)).concat(js.filter(u => !srcs.includes(u))).join(' '));
+  for (const u of shell) ok(fs.existsSync(path.join(root, u)), 'SHELL path ' + u + ' is missing'); ok(!shell.some(u => /(check|test)\.js$/.test(u)), 'a node check in SHELL'); }
 console.log(fails ? 'FAILED ' + fails + ' of ' + checks : 'OK · ' + checks + ' checks, none failed · material.js ' + fs.statSync(path.join(here, 'material.js')).size + ' bytes · tablet ' + M.tablet_entries + ' entries');
 process.exit(fails ? 1 : 0);

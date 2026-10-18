@@ -2,7 +2,7 @@
 
 The field GF(257) stood round the player as an augmented-reality game. Built 2026-10-17 from the cascade machine and its corpus:
 the generator g = 3, the fold, the inverse, the quarter turn ×i = 16, the reflection Γ = (Z − 120)/(Z + 120) over the projective
-line of 258 points, the emerald tablet's words (2306 entries), the π program tape with its ten opcodes, the 210-gon, the twelve rays,
+line of 258 points, the emerald tablet's words (2301 entries), the π program tape with its ten opcodes, the 210-gon, the twelve rays,
 the Atbash mirror and the Heisenberg joining of words. One page, no build step, no server of its own.
 
 ## Play
