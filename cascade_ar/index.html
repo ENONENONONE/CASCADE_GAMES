@@ -77,6 +77,7 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 #quest[hidden]{display:none} #quest.done{color:var(--green);border-color:var(--green)}
 @media (max-width:420px){#ops button{font-size:13px;padding:12px 2px}.stand .g{font-size:24px}.stand .n{font-size:18px}#quest{bottom:196px}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+html.calm *{transition:none!important;animation:none!important}
 </style>
 </head>
 <body>
@@ -107,7 +108,7 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
     <div class="row"><span id="date"></span><span class="pill" id="daypill"></span><span class="pill rule" id="rulepill"></span><span class="pill ch" id="chpill"></span><span class="pill" id="lvl"></span><span id="clock"></span></div>
     <div class="stand"><span class="g" id="cur-g"></span><span class="n" id="cur-n"></span><span class="w" id="cur-w"></span></div>
     <div class="tgt" id="tgtrow">→ <span class="g" id="tg-g"></span><span id="tg-n"></span><span id="tg-w"></span><span class="pill" id="moves"></span></div>
-    <div class="voice" id="voice"></div>
+    <div class="voice" id="voice" role="status" aria-live="polite"></div>
   </div>
   <div id="quest" hidden></div>
   <div id="cross" hidden></div>
@@ -117,7 +118,7 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
   <div id="ops" hidden></div>
   <div id="chap" hidden><div class="card" id="chapbody"></div></div>
   <div id="won" hidden><div class="card" id="wonbody"></div></div>
-  <div id="toast"></div>
+  <div id="toast" role="status" aria-live="polite"></div>
 </div>
 <script src="vendor/three.min.js"></script>
 <script src="data.js"></script>
@@ -160,6 +161,13 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
   let mode = 'daily';
   for (const b of document.querySelectorAll('.modes button')) b.onclick = () => { mode = b.dataset.mode; for (const x of document.querySelectorAll('.modes button')) x.setAttribute('aria-pressed', x === b); $('digits').hidden = mode !== 'doors'; };
   const dn = F.dayNumber(new Date()); $('daynote').textContent = 'day ' + dn + ' from 2000-12-31 · tape head ' + (dn + 13) + ' · π[' + (dn + 13) + '] = ' + D.pi[dn + 13] + ' ' + F.OPCODES[+D.pi[dn + 13]] + (dn % 128 === 0 ? ' · A GOLD DAY: the quarter turn is free' : dn % 258 === 0 ? ' · a tablet day: the day\'s cell is ' + (dn % 257) + ' ' + D.cells[dn % 257].w : '');
+  // ── CALM (U3): the system's reduced motion, or the MOTION pref, read live and set before the scene is built; the page keeps its own flag,
+  // since FX may be null. fold.prefs is the one prefs object: {motion: 'system' | 'full' | 'reduced', strobe: 'on' | 'off', …} ──
+  const PREFS = (() => { try { return JSON.parse(LS.get('fold.prefs')) || {}; } catch (e) { return {}; } })(), STROBE = PREFS.strobe !== 'off';
+  const rmq = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
+  let calm = false;
+  function setCalm() { calm = PREFS.motion === 'reduced' || (PREFS.motion !== 'full' && !!(rmq && rmq.matches)); document.documentElement.classList.toggle('calm', calm); A.A.calm = calm; if (FX && FX.calm) FX.calm(calm); }
+  setCalm(); if (rmq) { if (rmq.addEventListener) rmq.addEventListener('change', setCalm); else if (rmq.addListener) rmq.addListener(setCalm); }   // old Safari has addListener only
   // ── the scene ──
   const canvas = $('c'); A.init(canvas, D.cells);
   const gpu = (() => { try { const gl = A.A.renderer.getContext(), x = gl.getExtension('WEBGL_debug_renderer_info'); return x ? String(gl.getParameter(x.UNMASKED_RENDERER_WEBGL)) : ''; } catch (e) { return ''; } })();
@@ -230,18 +238,25 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
     paint(); voiceOf(v);
     if (S.done || S.lost) { S._lostShown = true; setTimeout(() => { if (!mine()) return; if (S.done && !S.lost) snd.win(S.target, S.stars[S.level - 1]); else snd.lose(); won(); }, A.A.flowDur * 1000 + 150); }
   }
+  // the room's moves pass the one flash gate (U3): Γ's inversion and the FOLD, INV and ×i flips change the whole screen, 0.652 over a
+  // grey-0.2 room, so each asks FX.strobe first. Refused, under CALM or with no gate loaded, the room holds still (Γ a hue turn without
+  // the inversion) and the phosphor's fade stands in; STROBE off drops the inversion itself, so Γ's room asks nothing
+  const ROOM = { dL: 0.652, area: 1 };
   function roomFx(id) {
     const v = $('video'); if (v.style.display === 'none') { crtPulse(id); return; }
-    const css = FX && FX.cssFilter ? FX.cssFilter(id) : { fold: 'scaleX(-1)', inv: 'scaleY(-1)', i: 'rotate(90deg) scale(1.6)', gam: 'scale(1.08)', g: 'rotate(1.4deg)', ig: 'rotate(-1.4deg)' }[id];
-    if (typeof css === 'string') v.style.transform = css; else if (css && css.transform) { v.style.transform = css.transform; v.style.filter = css.filter || ''; }
-    if (id === 'gam') v.style.filter = 'saturate(.75) brightness(.8) invert(1) hue-rotate(180deg)';
-    setTimeout(() => { v.style.transform = ''; v.style.filter = 'saturate(.75) brightness(.8)'; }, A.A.flowDur * 1000 * 0.8); crtPulse(id);
+    const big = id === 'fold' || id === 'inv' || id === 'i' || (id === 'gam' && STROBE), ok = !calm && (!big || !!(FX && FX.strobe && FX.strobe(ROOM)));
+    const css = FX && FX.cssFilter ? FX.cssFilter(id, { still: !ok, invert: STROBE }) : { filter: 'saturate(.75) brightness(.8)' + (id === 'gam' ? ' hue-rotate(180deg)' : ''), transform: ok && { gam: 'scale(1.08)', g: 'rotate(1.4deg)', ig: 'rotate(-1.4deg)' }[id] || 'none' };
+    v.style.transform = css.transform; v.style.filter = css.filter;
+    setTimeout(() => { v.style.transform = ''; v.style.filter = 'saturate(.75) brightness(.8)'; }, A.A.flowDur * 1000 * 0.8); crtPulse(id, big ? ok : null);
   }
-  function crtPulse(id) {
+  // the tube's pulse: Γ's tint, R/(R + G + B) = 0.82 on linear light, is a saturated red, so it rides an admitted room flash or asks the
+  // gate itself; refused, the phosphor's own green fades by the persistence law over 600 ms. STROBE off caps the pulse at 0.42 and drops
+  // the warp; under CALM fx.js stills both
+  function crtPulse(id, room) {
     if (A.A.renderer.xr.isPresenting) return;   // no tube in the room
-    if (crtU && FX.pulse) { const o = id && F.OP[id]; const c = o ? new THREE.Color().setHSL(o.hue / 360, 0.7, 0.6) : null; FX.pulse(crtU, c ? [c.r, c.g, c.b] : null, id === 'gam' ? 1 : 0.6, id === 'gam' ? 1100 : 600); }
-    else { const e = $('crt'); e.style.opacity = '.85'; setTimeout(() => e.style.opacity = '.55', 180); }
-    if (id === 'gam' && warpU && FX.warpRun) FX.warpRun(warpU, 0.35, 1100);   // Γ: the screen bends through the Möbius map
+    if (crtU && FX.pulse) { const o = id && F.OP[id]; const c = o ? new THREE.Color().setHSL(o.hue / 360, 0.7, 0.6) : null, rgb = c ? [c.r, c.g, c.b] : null, ok = room || !FX.strobe || FX.strobe({ dL: 0.033, area: 1, rgb }); FX.pulse(crtU, ok ? rgb : FX.GREEN, Math.min(id === 'gam' ? 1 : 0.6, STROBE ? 1 : 0.42), id === 'gam' && ok ? 1100 : 600); }
+    else if (!calm) { const e = $('crt'); e.style.opacity = '.85'; setTimeout(() => e.style.opacity = '.55', 180); }
+    if (id === 'gam' && warpU && FX.warpRun && STROBE) FX.warpRun(warpU, 0.35, 1100);   // Γ: the screen bends through the Möbius map
   }
   function voiceOf(n) { if (STORY && STORY.cells && STORY.cells[n]) { const lv = G.S.level; setTimeout(() => { if (G.S.level === lv) say(STORY.cells[n]); }, A.A.flowDur * 1000); } }
   function won() {
