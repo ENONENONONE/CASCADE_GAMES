@@ -23,7 +23,7 @@ One rule holds for every effect below: anything that moves on screen is a comput
 - **T3, M6 · two side goals read from the code.** AMBER, each level's proof-of-work cells as an optional second goal; THE AUTOPILOT, the tape running a closed cell through its opcodes while the player bets where it halts. Phase 3.
 - **Q1, Q3 · THE BOOK and the tier ladder.** A record that survives midnight, and a picture for every reward from a shortest-road move to a perfect day. Phase 3.
 
-The ask, item by item: conic relief R1–R7; Enter the Void V1–V4; Matrix M1–M6; singularity S1–S5; Twelve Rays T1–T5; Sisyphean Heat H1–H3; challenges Q1–Q6 with T3, R3, S5 and M6; rewarding visuals Q3's ladder and every entry's *Gets*; UI elements U1–U6; fixes found on the way F1–F15; enrichments from material.md in every *Refs*.
+The ask, item by item: conic relief R1–R7; Enter the Void V1–V4; Matrix M1–M7; singularity S1–S5; Twelve Rays T1–T5; Sisyphean Heat H1–H3; challenges Q1–Q6 with T3, R3, S5 and M6; rewarding visuals Q3's ladder and every entry's *Gets*; UI elements U1–U6; fixes found on the way F1–F15; enrichments from material.md in every *Refs*.
 
 **What this builds on.**
 - relief.js is loaded (index.html:131) and the norm floor is on by default (index.html:187–188). It is never stepped: monStep (index.html:201) steps only THE TURN and the ceiling, by move count, not by the player's cell.
@@ -125,7 +125,7 @@ The ask, item by item: conic relief R1–R7; Enter the Void V1–V4; Matrix M1�
   - index.html:188 always builds the norm.
 - *Changes.*
   - **S.**
-    - levels.js gets CHAPTER_SHEETS *new* = ['product', 'hyperbola', 'circle', 'ellipse', 'parabola', 'room', 'norm', 'norm'], and every spec gets sp.sheet (HALT levels use 'circle', R5).
+    - levels.js gets CHAPTER_SHEETS *new* = ['product', 'hyperbola', 'circle', 'ellipse', 'parabola', 'room', 'norm', 'norm'], and every spec gets sp.sheet (HALT levels use 'circle', R5; in THE MIRROR the room, with the circle as its floor, R4).
     - test.js asserts that each sp.sheet is in that list.
     - monFloor builds sheet(sp.sheet, 1, {place: 'floor', half: 2}) for the five conics and rebuilds only when the sheet changes. 'norm' keeps norm(), since sheet() would give 65 × 65 with no stars. 'room' keeps the norm until R4, since sheet() throws on a kind outside FORMS (relief.js:227). half: 2 keeps the corners inside the 210-gon's radius 3 (ar.js:137); the default 2.2 puts them at 3.11.
   - **M.**
@@ -153,7 +153,7 @@ The ask, item by item: conic relief R1–R7; Enter the Void V1–V4; Matrix M1�
   - FOLD: a half turn; ×i: three quarters.
   - INV: the mirror y → −y.
   - Γ and the 6↔9 flip are not motions of the ring; their markers cross as chords.
-- *Does.* Plays. A new level kind, 'turn', closes THE QUARTER TURN. Its target walks the orbit: after k moves it is t0·216^k, and its marker jumps 147 ticks (206.72°) per move. The player has to catch it.
+- *Does.* Plays. A new level kind, 'turn', closes THE QUARTER TURN. Its target walks the orbit: after k moves it is t0·216^k, and its marker jumps 147 ticks (206.72°) per move. The player has to catch it. The level opens on GO or TAPE. TAPE plays its fallback instead, the tape level it stands in front of (today SEED 0 → 181, par 5). THE TURN cannot be lost (no clock, not strict), so TAPE on the opening card is the only way the slot falls back.
 - *Gets.*
   - On a close, the arc from P(start) to P(target), in the direction the road went, lights in the orbit's hue and stays lit all day.
   - A pill 'circle n/256' counts the circle points stood on today. SCRIBE's par roads on 9422 stand on 184 of them, 181 counting road moves only.
@@ -168,12 +168,32 @@ The ask, item by item: conic relief R1–R7; Enter the Void V1–V4; Matrix M1�
     - test.js:17–19 and :47.
 
     save() keeps 'circle' as 64 hex digits *new*.
-  - levels.js: SPECIAL[24] = 'turn' *new*. turnSpec() takes a nonzero start and target, since P(0) does not exist and SEED windows occur (11 today). Slot 24 shows a re-sorted level (levels.js:165–167): today it is SEED 0 → 181, par 5, from window 22. turnSpec would read window 24, today JUMP 160 → 46, shown at slot 18. Making 24 special drops window 24, and the SEED level re-sorts into 17–23. It carries shift: true for test.js:39.
-  - test.js plays the level by its road and asserts par.
+  - levels.js: EXTRA = {24: 'turn', 47: 'clock', 52: 'other'} *new*, applied by plan(day, name, {extra: true}) (opts.extra *new*) in its own pass after each chapter's sort. THE CLOCK is R5's and THE OTHER SIDE S5's.
+    - The sort (levels.js:165–167) is left as it is. A special overlays the tape level plan() sorted into its slot, reads that level's window, takes its offset and window, and keeps the level whole as spec.fallback *new*.
+    - EXTRA is not in SPECIAL, so the slot lists (:163) and levels.js:176 are unchanged.
+    - Slot 24 is chapter 3's last, so it holds the chapter's highest par; today that is window 22, SEED 0 → 181, par 5. turnSpec(day, name, w) *new* reads the window's own start figures, 3302 ≡ 218 QUANTUM COMPUTER, which SEED sets aside, and its target 7634 ≡ 181 SATOSHI NAKAMOTO.
+    - Start and target must be nonzero and distinct, since P(0) does not exist: a figure ≡ 0 slides a digit along the tape, as tapeSpec's target does (levels.js:91). Reading the figures, not the rule, keeps the SEED windows (11 today) off 0. Over the 100 days from 9422 neither slid, though 63 of those days' 6400 windows start on a figure ≡ 0.
+    - Today THE TURN is 218 → 181, par 3 (×g Γ FOLD). It carries shift: true for test.js:39.
+  - Falling back. Completed means closed, at any stars, a reborn close (V3) included. A special that is not completed plays its fallback at its slot.
+    - game.js: S.fell *new* holds the slots that fell back. It is saved as 'fell' and restored by start() with the kept fields (game.js:51).
+    - level(L) (game.js:55) takes S.plan[L − 1].fallback when L is in S.fell, so a reload on a fallen slot reopens the fallback.
+    - fall() *new* pushes S.level and reruns level(), which clears S.lost, the moves and the clock (game.js:62–64). It refuses once the special is closed (S.done && !S.lost).
+    - index.html: a spec with a fallback opens on V4's small slam of spec.title with GO and TAPE *(design)*, in place of the toast (index.html:270). GO arms the level, as the chapter card's GO does (:278); TAPE calls G.fall() and then openLevel().
+    - A lost special's card shows TAPE beside AGAIN and REBIRTH (index.html:259, V3). After GO, TAPE comes back only on a loss.
+    - The fallback is a plain tape level: AGAIN and REBIRTH on its own loss, no fallback of its own, and stars uncapped, because it is the window's own level, not a second life. The special's keepsakes need the special: this arc, S5's throat, THE CLOCK's rings left (R5). The circle pill counts the fallback's road as it counts every road.
+    - S.stars, S.line and S.targets keep one entry per slot, the special's or its fallback's, so V4's shards and the seal (F8) take whichever level closed.
+    - Saves: with every special fallen the plan is plan(day, name) itself, so the specials need no run-key version of their own. A run saved before the flag resumes on the same level, or on the special that now stands in its slot.
+  - test.js runs check() with and without {extra: true}. Under the flag:
+    - :34 reads EXTRA[sp.n] || SPECIAL[sp.n] || 'tape', and :35–48 run on each special and on its fallback; the turn plays by shiftStep 147 (:17–19, :47).
+    - For each EXTRA slot, sp.fallback is JSON-equal to plan(day, name)[n − 1], with sp.offset === sp.fallback.offset.
+    - The day with every special swapped back is JSON-equal to plan(day, name): no window is dropped and no level moves. That holds on all 100 days from 9422.
+    - The curve check (:64) is unchanged: it filters kind 'tape', and both outcomes are sorted.
+    - A scratch test.js with these assertions passes on test.js's own days and names plus SCRIBE on 9422, with 0 failed.
 - *Numbers.*
   - c = 155 ≡ 4/5, s = 52 ≡ 3/5, u = 216, dlog 216 = 147 (B1); 147⁻¹ ≡ 155 (mod 256).
   - Turn-level pars over 22016 (start, t0) pairs with start 1..256 (turnSpec's nonzero start), t0 = 1, 4, …, 256 and k ≥ 1: par 1: 512, 2: 1946, 3: 5467, 4: 9712, 5: 4273, 6: 106. Mean 3.71; every pair is solvable. SHIFT ×3 on the same pairs has mean 3.95, max 7.
   - The ring is 515 vertices (relief notes:16).
+  - Over the 100 days from 9422 (SCRIBE), THE TURN's par: 1: 6, 3: 29, 4: 47, 5: 18 (mean 3.71). The level it holds: SEED 62, SYNC 25, HALT 7, NOP 6; par 4: 9, 5: 42, 6: 49 (mean 5.40). 32 of those are losable.
 - *Refs* B1, A4, B32; relief notes "Three ways" #2.
 - *Risks.* Three circles sit near the horizon: ar.js:144's horizon at 6, the door conic at 4.5, and this ring at 5. Dim the horizon line while the ring stands.
 
@@ -191,7 +211,7 @@ The ask, item by item: conic relief R1–R7; Enter the Void V1–V4; Matrix M1�
 - *Changes.*
   - relief.js room(opts) *new* returns {floor, ceiling, walls[4], setYaw, setRatio, contour}.
   - sheet() takes opts.n and opts.step *new* (today 65 and 4 are hard-coded at relief.js:238), giving 33 × 33 walls on `lowEnd`.
-  - CHAPTER_SHEETS[5] = 'room'.
+  - CHAPTER_SHEETS[5] = 'room'. On a rule-9 level room() takes {floor: 'circle', left: 'norm'} *new* (R5).
   - relStep eases the yaw over the flow.
 - *Numbers.*
   - Floor 16646 + five panels at 5 × 4225 = 37771 vertices; contours 4 × 256 + 257 + 258 = 1539. R1's lerp on all six panels uploads 37766 × 12 = 453192 B per attribute per frame during a flow, 2.3 times the floor alone.
@@ -202,26 +222,47 @@ The ask, item by item: conic relief R1–R7; Enter the Void V1–V4; Matrix M1�
 - *Risks.*
   - There is no budget left in this chapter for THE TURN or the crowd's 3584 tier.
   - Panels 4.4 m wide sweeping 180° in 0.8 s are strong vection. Never rotate in XR or under gyro; cross-fade instead, and swap instantly under CALM.
-  - Level 41 is HALT today (open question 8).
+  - HALT levels stand in the room on R5's plate. That is THE CLOCK at 47 every day, plus any HALT tape level of the chapter (today 41).
+    - The circle floor (16641, R2's floor(kind)) and five panels come to 16641 + 5 × 4225 = 37766 vertices.
+    - With the six contours (1539) and the plate's ten rings (640), that is 39945, 55 under the 40k.
+    - Your ring is left out, since it would make 40201: on the plate the floor's only rings are the clock's ten.
 
 **R5 · THE ZONE-PLATE CLOCK: HALT's thirty seconds as the circle's rings going dark.** *S*
 - *Sees.* On a HALT level (30 s, game.js:18) the floor is the circle sheet, a zone plate under the player. Because (128 + e)² ≡ 193 + e(e − 1), the value is 128.5 + ρ² about the middle, and the terraces break at ρ_k = √(257k − 128.5) cells. The ten innermost terraces are the clock:
   - every 3 s the outermost remaining terrace fades out, so the plate contracts toward the feet;
   - the last disc goes at 30 s.
 
-  This is A2's hook read from the outside in. The red seconds stay (index.html:324). In the MATRIX skin, the rain (M1) freezes column by column outward from the head's column, at 256/30 = 8.53 columns a second. With S3, the rings count proper time.
-- *Does.* Plays the HALT level against the shrinking plate.
-- *Gets.* Close in time and the surviving rings flare once outward, then stay lit until the next level; the card reads 'closed with N rings left'. A lost level dims the floor and goes to the bardo (V3).
+  This is A2's hook read from the outside in. The red seconds stay (index.html:324). The rain (M1) freezes column by column outward from the head's column, at 256/30 = 8.53 columns a second. It does so in every skin, because it is M1's HALT pattern (M1's rain table), not a MATRIX ornament. Skins follow the chapter (U1), and MATRIX's chapters 4–5 hold only 121 of the 437 HALT levels over the 100 days from 9422 (RELIEF 253, VOID 39, SINGULARITY 24). Today's level 41, THE MIRROR's HALT level, plays in VOID. With S3, the rings count proper time.
+- *Does.* Plays the HALT level against the shrinking plate. On a HALT day (M7) it plays around the HALT cells too: a halt ends the level at once, whatever the clock reads, and par is the HALT-aware one; the thirty seconds stay thirty. At stride 1, on 2026-11-08 (day 9443), the HALT level 131 SUPERNOVA → 97 POSEIDON (window 27) goes from par 4 to 5, and the par order moves it from level 27 to 29: the plain road FOLD ÷g Γ ×i would halt on 42 MIT at its second move, and ×i ÷g Γ ÷g ÷g closes. THE MIRROR has one every day, THE CLOCK at 47 (below).
+- *Gets.* Close in time and the surviving rings flare once outward, then stay lit until the next level; the card reads 'closed with N rings left'. A lost level dims the floor and goes to the bardo (V3). A halt on a HALT day (M7) is a loss too: the plate freezes with the rings it has left, the floor dims, and the card adds 'N rings left' to M7's 'HALT · stopped on …'.
 - *Builds on.* tick() and the clock text (game.js:85, index.html:324); snd.clock (sound.js:253–259). The relief notes' "Three ways" #3 proposes THE TURN as the dial, but it is not wired.
 - *Changes.*
   - relief.js makeSheet takes opts.order 'radius' *new*: the vertices are sorted once by ρ.
   - group.setRadius(ρ) *new* sets setDrawRange. That works in points mode; wire and mesh need a radius-sorted index buffer.
   - The outgoing ring's colours are dimmed over its 3 s with updateRange, then cut.
-  - levels.js sets sp.sheet = 'circle' when sp.rule === 9. R1's tide is held on HALT levels.
+  - levels.js sets sp.sheet = 'circle' when sp.rule === 9. In THE MIRROR, once R4's room stands, sp.sheet stays 'room': room() lays the circle as the floor and moves the norm to the circle's wall (R4). The plate stays under the feet, and the room keeps its six conics. R1's tide is held on HALT levels.
+  - THE CLOCK *new*, THE MIRROR's HALT showcase: EXTRA[47] = 'clock', under R3's flag and rule, so it lands in Phase 3 with R3.
+    - It overlays the tape level plan() sorted into 47, the chapter's last tape slot, and keeps it as spec.fallback.
+    - It reads that level's window under HALT: tapeSpec(day, name, w, 9), where tapeSpec gains an optional forced digit *new*. The flip is open.
+    - Its title and text are its own: tapeSpec's text would read 'π[9595] = 9 HALT' where the tape has 4 SHIFT (levels.js:95).
+    - Today it reads window 41: 4389 ≡ 20 APC → 3415 ≡ 74 CROSS, par 5 (×i 6↔9 ×g ×g INV), standing in front of SHIFT 20 → 74, par 5.
+    - A lost CLOCK offers AGAIN, REBIRTH (V3) and TAPE, and TAPE plays the fallback (R3). Where the level it holds is itself HALT, the two are one level, and TAPE is hidden *(design)*.
+    - THE CLOCK is rule 9 to every check that reads it: this plate, S3's clock, V3's rebirth and B22's cells.
   - This needs R2's floor(kind). On today's 65 × 65 sheet (step 4) the central disc is 2.8 samples in radius and terraces 5–10 are one sample wide or less. Even at 129 × 129 (step 2) terraces 5–10 are 1.3–2.0 samples wide. Beyond ρ ≈ 31 cells the radial step 4ρ + 4 passes 128, so the sampled values alias into moiré. Draw the ten edges as LineLoops at ρ_k (10 × 64 = 640 vertices *(design)*), so each fade has a visible edge.
 - *Numbers.*
   - Radii: 11.34, 19.63, 25.35, 29.99, 34.01, 37.60, 40.87, 43.90, 46.74, 49.41 cells. One cell is 4/256 = 0.015625 m, so the rings run from 0.177 to 0.772 m.
-  - HALT levels today: 21, 22, 29, 41, 61. Over 100 days: 4.37 a day.
+  - HALT levels today: 21, 22, 29, 41, 61. Over 100 days: 4.37 a day. On the 7 HALT days among those 100 at stride 1 (M7), 38 HALT levels carry both rules, and par rises by one on 5 of them (days 9443 and 9451 level 29, 9498 level 16, 9502 level 8, 9503 level 16). On Q2's fresh road its 10 HALT days hold 77, and par rises on 7: by one on 6, by three on 1.
+    - With every special closed it is 5.15: THE CLOCK adds 100, and the three specials stand in front of 22 HALT levels (7 at 24, 11 at 47, 4 at 52).
+    - With every special fallen it is 4.37 again.
+    - Losable levels (V3) go from 946 to 971 with every special closed.
+  - THE CLOCK over those days (SCRIBE):
+    - par 2: 1, 3: 2, 4: 62, 5: 35 (mean 4.31);
+    - it never slides and never starts on a HALT cell;
+    - on 11 days the level it holds is itself HALT, so TAPE is hidden;
+    - routed around B22's 27 HALT cells, its par road needs one move more on 22 days, and none is cut off;
+    - REBIRTH's par from 80 is 2–5, mean 3.87, the same routed around the HALT cells.
+
+    The levels it holds are SEED 30, SHIFT 27, SYNC 17, HALT 11, NOP 10, STORE 4 and IDENT 1, with par 4: 32, 5: 42, 6: 18, 7: 8 (mean 5.02).
 - *Refs* A2.
 - *Risks.* One fade every 3 s is far under 3 flashes a second. The centre terrace is 0.18 m in radius (0.35 m across) and 2.4 m below the eye, so pair it with the clock sound.
 
@@ -267,7 +308,7 @@ The ask, item by item: conic relief R1–R7; Enter the Void V1–V4; Matrix M1�
   From up there the player sees the floor (R2), a body marker at the origin (the home cell's glyphs, number and word on one billboard), the sky mirroring, the road line and the target. The view drops back as the flow settles. With the camera on the view does not lift either (S4 Risks), because the virtual camera would no longer line up with the room; the ghost plays instead.
 - *Does.* Plays INV (key i) as today. The INV is earned when key(after) + key(move) = key(before), where key = paid·1001 + free, the weighting levels.js road() uses (levels.js:61–71). road() reads OPSET, which is null outside plan() (levels.js:28, :67), so at play time the level's ops must be passed in, or THE MIRROR's 6↔9 is ignored (game.js:60–61). On SHIFT levels the key is solveShift's length to the moved target (game.js:73, :91), with every move paid. So a free INV under IDENT lifts only when it is on a road. A tap, Enter or Esc ends the lift early.
 - *Gets.*
-  - Free, immediate confirmation that the move was right. Today the player learns it only from the whole road: HINT's toast (index.html:178) or the panel's road to the tapped target (index.html:301). Neither costs anything now (game.js:91 keeps no count, and no star depends on it); under Q4 the full road would cap the stars at ★★ (open question 5).
+  - Free, immediate confirmation that the move was right. Today the player learns it only from the whole road: HINT's toast (index.html:178) or the panel's road to the tapped target (index.html:301). Neither costs anything now (game.js:91 keeps no count, and no star depends on it); under Q4 the first HINT on a level stays free and a further one caps the stars at ★★.
   - An overhead look at where the target lies.
   - A closing INV holds the lift into the won card.
   - A voice line from cell 46, whose words include BODY and FLASH (both have letter sum 46), and which Γ leaves fixed.
@@ -316,21 +357,37 @@ The ask, item by item: conic relief R1–R7; Enter the Void V1–V4; Matrix M1�
     Then the white disc of 1, I AM, as the cycle closes at dlog 256 ≡ 0. It is the one gated flash.
   - **From 2.5 s, the card.** 'REBIRTH · 80', with cell 80's voice (story.js:144) and two doors.
 - *Does.* Chooses between two doors:
-  - AGAIN: the level from its own start, G.reset (index.html:261).
-  - REBIRTH: the same rule and target, started from 80 REBIRTH/OPENING with par recomputed. Its first move is flashed on its button (flash(), index.html:183).
+  - AGAIN: the level from its own start, G.reset (index.html:261), as today. All three stars are open, and so is its loss rule.
+  - REBIRTH: the same target, rule, free moves and slack, started from 80 REBIRTH/OPENING, with par recomputed from 80. The second life cannot be lost *(design)*: SYNC's over-par loss (game.js:77, :79), HALT's clock (:85) and B22's HALT-cell stop (decision 3) are all off, and it closes at ★ whatever the count. So R5's plate stays dark, S3 has no clock to dilate, and the rule pill reads 'REBORN · SYNC · no loss · ★' *(design)*. Its first move is flashed on its button (flash(), index.html:183).
+
+  Why the second life cannot be lost: with its loss rule kept, REBIRTH would be AGAIN with a ★ cap and a start that is no easier. Par from 80 averages 3.90 over the 946 losable levels of the 100 days from 9422, against 3.88 from their own starts, so no one would take it. What it sells instead is a sure close for two stars. Also, 80 is itself one of B22's 27 HALT points (π[80] = 9, material.md:314), so with the stop kept, a reborn HALT level would start on a HALT cell. REBIRTH is for tape levels: a special that is lost falls back to its window's own level (decision 8), and if that level is lost in turn, it is reborn like any other.
 
   A tap, Enter or Esc skips the sequence. After the first loss of a level, later losses of it go straight to the card. Under CALM nothing is flown and the I AM disc does not flash (U3); in XR nothing is flown either (Budgets and risks, AR comfort). There the field dims, the ten discs stand lit on the card as a row of glyphs, and the card follows at once.
 - *Gets.*
-  - A lost level stops being a dead end.
-  - A reborn level that closes still counts: closed++, the target's word joins the line, and the seal takes it. It earns one star at most, and the previous life stays as a dim orange ghost line. The seal reports 'reborn N'.
+  - A loss is never a wall: AGAIN still offers three stars, and REBIRTH a sure ★.
+  - What a reborn close counts *(decision 4)*:
+    - S.closed + 1. The target joins S.targets, so the seal multiplies it (F8), and its first word joins the line (game.js:77), exactly as a close from the level's own start would.
+    - THE BOOK collects the cell (Q1), and the streak counts the close.
+    - S.stars[L − 1] = 1, so a perfect chapter (24) or a perfect day (192) is out of reach once a level is reborn.
+    - It is a climb and a close but never a summit (H2) *(design)*, and it cannot earn AMBER, which needs 3★ (T3).
+  - Losable levels are SYNC or HALT, never SHIFT (each level has one rule digit, game.js:8–19), so a reborn level closes on the same cell as an own-start close. Rebirth therefore changes the stars and the seal's 'reborn N', never the seal's cell or the line. In node, with today's nine losable levels all reborn, SCRIBE still seals 227 LAMB OF GOD and TORAH 36 IMAM, with the same line and 174 stars against 192.
+  - The previous life stays as a dim orange ghost line.
   - The loop's name comes from the field. SISYPHUS has 8 letters and sums to 136 (THE LADDER's epigraph cell, HALVING LADDERS). Its Atbash mirror is 27·8 − 136 = 80, REBIRTH. Γ(80) = 154 is the norm of the stars (103, 51) and (154, 206), and the floor climber is reborn at (103, 51) (H2).
 - *Builds on.* The lost branch of won() (index.html:249, :259, :261); material.js ten_discs, which parts/corpus/check.js:57 proves and the page never reads.
 - *Changes.*
-  - game.js: rebirth() *new* keeps S.road as S.ghost, then runs level(S.level) (game.js:54–66), which clears S.lost, S.done, S._lostShown, the moves and the HALT clock; without that, apply() refuses every move (game.js:71). It then sets start = current = 80, road [80], visited {80}, par by F.solve over S.opsList, and S.reborn. A losable level is SYNC or HALT, never SHIFT, so solveShift is not needed. Stars are capped at 1 when reborn (game.js:76). save() keeps S.reborn, S.rebirths and S.ghost; without S.reborn, a reload restarts the level from its own start (game.js:51, :62).
+  - game.js:
+    - rebirth() *new* keeps S.road as S.ghost, then runs level(S.level) (game.js:54–66). That clears S.lost, S.done, S._lostShown, the moves and the HALT clock; without it, apply() refuses every move (game.js:71). It then sets start = current = 80, road [80], visited {80}, S.strict = false, S.clock = 0, par = F.cost(F.solve(80, S.target, S.free, S.opsList), S.free) and S.reborn = S.level. Last it calls save(), because game.js saves only on a start, a close, a loss, a level change and a found quest (:52, :78, :79, :84, :85, :93).
+    - A losable level is SYNC or HALT, never SHIFT, so solveShift is not needed. The plain solver is right, because the second life has no HALT-cell stop to route around.
+    - game.js:76 gives 1 when S.reborn, and :77 also pushes S.level onto S.rebirths *new*. level() clears S.reborn.
+    - canRebirth() *new* is true when S.lost, S.target ≠ 80 and that par is above 0.
+    - save() keeps reborn (the level in its second life, else 0), rebirths and ghost. start() calls rebirth() when kept.reborn === kept.level, then puts kept.ghost back as S.ghost, since rebirth() would keep the fresh start's road; otherwise a reload would hand the level back its loss rule from its own start (game.js:51, :62).
+    - S.rebirths feeds the seal's 'reborn N', and the dim marks in V4 and H3.
   - ar.js: ghostLine *new*, like roadLine but colour 0xff6a2a at opacity 0.35; tunnel() is shared with V2.
-  - void.js: VOID.bardo(S) *new*. The loss branches at index.html:231 and :325 call it before won(). REBIRTH is hidden when the target is 80.
+  - void.js: VOID.bardo(S) *new*. The loss branches at index.html:231 and :325 call it before won(). REBIRTH shows when canRebirth(). Over the 100 days from 9422 that is all 946 losable levels: none has target 80, and none has par 0 from 80, counting day 9472's free ×i (game.js:59) and THE MIRROR's flip.
   - story.js: STORY.void.death *new* from cell 38: "DEATH at the node: dlog 173; Γ 19; inverse 115." Sums 'REBIRTH': 80 and 'DEATH': 38.
-  - test.js: asserts a road from 80 with 0 < par ≤ 7 for every losable level (strict or clock, the only ones offered REBIRTH). Over 100 days from 9422 that is 946 levels (509 SYNC, 437 HALT, none SHIFT): worst par 6, mean 3.90 against 3.88 from their own starts. Over every planned level the bound also holds (worst 6), but 264 of them (all JUMP, Γ free, targets other than 80) have par 0 from 80.
+  - test.js:
+    - It asserts a road from 80 with 0 < par ≤ 7 for every losable level (strict or clock, the only ones offered REBIRTH). Over 100 days from 9422 that is 946 levels (509 SYNC, 437 HALT, none SHIFT, none with target 80): worst par 6, mean 3.90 against 3.88 from their own starts (3.89 and 3.87 with day 9472's free ×i). Over every planned level the bound also holds (worst 6), but 264 of them (all JUMP, Γ free, targets other than 80) have par 0 from 80.
+    - It requires game.js (F8). On today's plan it loses each losable level: SYNC by going over par, HALT by G.arm() and then setting S.t0 back 31 s before G.tick(). Then it calls rebirth() and plays FOLD FOLD, sets S.t0 back 60 s and ticks, which loses nothing because the clock is off, and plays the road from 80, a close at par + 2. It asserts: closed, not lost, ★, and the level in S.rebirths. At the end of the day, S.targets, the line and the seal equal the own-start day's. In the scratch run that gives 227 LAMB OF GOD for SCRIBE and 36 IMAM for TORAH, at 174 stars.
 - *Numbers.*
   - Losable levels today: 9 (SYNC 8, 14, 28, 54; HALT 21, 22, 29, 41, 61).
   - Pars from 80 to the other 257 points: 6 at par 1, 18 at 2, 48 at 3, 85 at 4, 86 at 5, 14 at 6. Mean 4.05, against 3.87 over all ordered pairs.
@@ -342,7 +399,8 @@ The ask, item by item: conic relief R1–R7; Enter the Void V1–V4; Matrix M1�
   - The atlas cuts words longer than 16 characters to 15 plus '…' (ar.js:58), so four ring labels are cut; the card lists the full words.
   - Ring 3 (cell 240) shows a lone surrogate until F1 lands.
   - The ring passes come at 6.7 a second. They are a moving pattern, not a flash, but check them with PEAT or Harding.
-  - Rebirth changes what losing a SYNC level means (open question 4).
+  - Rebirth changes what a loss costs: at most two stars, never the level. SYNC's tell, 'one over and the level is lost' (game.js:17), stays true of the first life, and the REBIRTH door says the second life cannot be lost.
+  - Rebirth lands behind the flag that Budgets and risks asks of every plan change, and test.js covers it both on and off.
 
 **V4 · TITLE CARDS: the slam, and the previous chapter in twelve-fold glass.** *M*
 - *Sees.* Each chapter opens on black with three type-only slams at 0, 550 and 1100 ms: the chapter number with its epigraph cell's glyph pair, then the TITLE, then the epigraph word and cell. GO goes live at 1500 ms *(design)* and takes focus then. #chap gets role="dialog" and aria-labelledby on its h2 (index.html:118 has neither). The slams are aria-hidden copies; #chapbody keeps its h2 and epigraph (index.html:277), so a screen reader reads the card once.
@@ -430,7 +488,7 @@ The ask, item by item: conic relief R1–R7; Enter the Void V1–V4; Matrix M1�
   - The voice line types in with a block cursor.
   - Under CALM the digits light in place, nothing flies, and the line appears whole. A tap skips the read, which lasts at most one flow, 0.8 s *(design)*, since it runs before every tape level.
 - *Does.* Watches. Taps the head or the ribbon to read the level's line, e.g. 'π[9435] = 7 JUMP: 7846 ≡ 136 VIRGIN MARY → 8788 ≡ 50 HIGGS' (levels.js sp.text already builds it).
-- *Gets.* A visible record of the day decoded, and the seal line 'the tape decoded k of 56 windows · longest run r'. Runs are counted over window numbers, because windows play out of order: levels.js:166 sorts each chapter's tape levels by par, so today chapter 1 plays windows 1, 7, 5, 3, 6, 4, 8, 2. Runs also break at the special windows 30, 31, 32, 36, 40, 44, 48 and 56.
+- *Gets.* A visible record of the day decoded, and the seal line 'the tape decoded k of 56 windows · longest run r'. Runs are counted over window numbers, because windows play out of order: levels.js:166 sorts each chapter's tape levels by par, so today chapter 1 plays windows 1, 7, 5, 3, 6, 4, 8, 2. Runs also break at the special windows 30, 31, 32, 36, 40, 44, 48 and 56. They also break at the window THE OTHER SIDE holds (today 50) when it closes, since it reads no digits. THE TURN and THE CLOCK read the windows they hold (R3, R5). So a day that closes THE OTHER SIDE decodes at most 55.
 - *Changes.*
   - ar.js:
     - tape(pi, o, spec) colours the ribbon by role.
@@ -449,7 +507,7 @@ The ask, item by item: conic relief R1–R7; Enter the Void V1–V4; Matrix M1�
   - the Γ side, 'of 1' or 'of 3' (B18), or 'fixed' for 46 and 92, which lie on neither;
   - the ring, 0–32 (B13);
   - the character, R or N;
-  - π[n] with its opcode (the 27 HALT cells read 9 HALT, B22).
+  - π[n] with its opcode (the 27 HALT cells read 9 HALT, B22; on a HALT day they are the cells that end the move run, M7).
 
   The field goes phosphor green, with the side of 3 one step dimmer, so Γ's two orbits read as two shades. The room video takes a green filter. The panel gains a row, e.g. for 62: 'Γ side of 1 · ring 18 · dlog 00100010 · π[62] = 9 HALT'.
 - *Does.* Reads the faces. Answers quests whose clue is a ray and a character (levels.js:43). In FREE WALK, tours rings with FOLD, ×i and INV, the three moves that keep a ring.
@@ -519,7 +577,75 @@ The ask, item by item: conic relief R1–R7; Enter the Void V1–V4; Matrix M1�
   - 153 cells halt, in at most 15 steps (from 215) and 3.92 on average; 27 halt where they stand. 104 never halt: basins of 33, 29 and 42 cells round the three loops, each loop closed within 35 steps (8.75 s at four a second).
   - Today's chapter closes (SCRIBE, par roads): 233 loops on 25–29/228–232; 82 (level 16, SHIFT) loops on 91–96/161–166; 181 halts at 187 in 6; 6 at 12 in 6; 14 where it stands; 116 falls into the eye's loop in 2; 1 halts at 5 in 4; 101 falls into the eye's loop after 17. Over the 100 days from 9422, 565 of 800 chapter closes halt.
 - *Refs* B23, B22, B18, B32.
-- *Risks.* B23's JUMP (to the fold partner) is not the game's JUMP rule (Γ free, game.js:16); the card says 'the machine's JUMP'. A 35-step loop is long, so a tap skips and the ring draws at once.
+- *Risks.* B23's JUMP (to the fold partner) is not the game's JUMP rule (Γ free, game.js:16); the card says 'the machine's JUMP'. Its HALT is the game's: it stops on the same 27 cells that end a move run on a HALT day (M7). A 35-step loop is long, so a tap skips and the ring draws at once.
+
+**M7 · THE HALT CELLS: on a HALT day the 27 cells where π reads 9 end the move run.** *M*
+- *Sees.* A HALT day is a day whose opcode is 9: the digit the start screen prints (index.html:162), π[windowBase(day)] on Q2's fresh road. That is 10 of the 100 days from 9422, the first on 2026-11-15 (day 9450), and 39 of the next 365. At stride 1, where the opcode is π[day + 13], it is 7 of the 100, the first on 2026-11-08 (day 9443), and 29 of 365. On it B22's 27 HALT cells stand marked: 5, 12, 14, 30, 38, 42, 44, 45, 55, 58, 62, 79, 80, 100, 122, 129, 144, 169, 180, 187, 190, 193, 199, 208, 214, 247 and 249 (sum 3095 ≡ 11).
+  - Each billboard gets a square ring and a 9 under its glyphs.
+  - A move button whose cell would be a HALT cell other than the target carries a notch, and its aria-label ends 'halts'. So the stop is seen before the press, and not by colour alone (WCAG 1.4.1). 123 of the 258 points have a HALT cell one move away (139 with THE MIRROR's flip).
+  - The daynote adds 'a HALT day: the cells where π reads 9 stop the run', and the daypill (index.html:212) adds 'HALT DAY'.
+- *Does.* Plays the day's 64 levels around them, by B22's HALT-day rule:
+  - A landing is a move's arrival. Any move, paid or free and under any rule, that lands on a HALT cell other than the target ends the move run. Under SHIFT the target is the one standing after the move (game.js:73).
+  - The level is scored where it stopped. It gets 0 stars *(design)*, and nothing joins the line or the seal, which takes only the cells actually closed. S.lost is set, S.halted keeps the cell, and UNDO is refused, as after any loss (game.js:82). The card reads 'HALT · stopped on 38 NOAH · 2 moves from the target' (at stride 1, TORAH on day 9443, level 4: Γ from 68).
+  - A halted level can be closed again: it gets V3's two doors, AGAIN and REBIRTH.
+  - A landing on the target closes as always, also when the target is a HALT cell (at stride 1, 50 of the 448 levels of the 7 HALT days end on one).
+  - The start is not a landing. A level that starts on a HALT cell plays from it, and only a move back onto it halts. That covers today's level 29 (55 HEAVEN → 127 ORIGINAL SIN, π offset 9543), TORAH's two ladders (home 62 FIBONACCI) and REBIRTH's own 80: all three start cells are HALT cells. None of 80's six moves (240, 198, 177, 151, 252, 154) lands on one.
+  - Daily mode only, like the gold day's free ×i (game.js:59). FREE WALK and THE DOORS have no HALT day.
+  - B22's other half, 'on other days they are safe havens', is not built. A haven that held HALT's clock would stop level 29's clock before its first move, since it starts on 55, and under the other rules a haven has nothing to hold.
+- *Gets.* About one day in ten (39 of 365 on the fresh road, 29 at stride 1) on which the tape sets its own traps, so B22's 27 cells become ground to plan around. The seal counts 'halted N' *(design)*.
+- *Builds on.* D.pi and OPCODES (field.js:11); material.js halt_points, asserted at parts/corpus/check.js:43 (27 cells, sum ≡ 11); apply() (game.js:70–81); the lost branch of won() (index.html:249), which today reads 'SYNC' for every loss without a clock, so it must test S.halted first.
+- *Changes.*
+  - field.js: solve(s, t, free, ops, avoid) *new parameter*. The relax loop (field.js:44–45) never enters a cell of avoid other than t. The start is the source, so it may be in avoid.
+  - levels.js:
+    - HALTS *new*, computed from D.pi (D.pi[n] === '9' for n ≤ 256), and haltDay(day) *new*, true when the day's opcode, π[windowBase(day)] (Q2), is 9.
+    - plan() sets a private AVOID beside OPSET (levels.js:28) on a HALT day, behind opts.halts (on by default). road() (:61), solveShift() (:49) and par() (:73) read it; in solveShift a layer drops a HALT cell unless it is that layer's target t0·3^k. F5's road(s, t, free, ops) takes avoid as a fifth parameter.
+    - The target slides (tapeSpec :91, ladderSpec :114, mirrorSpec :132) keep the plain par, so a window reads the same target on every day. Only par, the road and the par order (:166) change.
+    - Every spec gets sp.halts *new*: the 27 cells on a HALT day, null otherwise.
+  - game.js:
+    - level(): S.halts = new Set(spec.halts || []) and S.halted = null, both *new*.
+    - apply(), after the SHIFT step (game.js:73): `if (S.halts.has(v) && v !== S.target) { S.lost = true; S.halted = v; S.stars[S.level - 1] = 0; save(); return v; }`.
+    - The recomputed par at game.js:63 (gold days, THE MIRROR) and solveShift (game.js:29–38) take S.halts. Over the 7 HALT days at stride 1 the engine's par equals the plan's on all 896 levels of SCRIBE and TORAH.
+    - save() keeps S.halted.
+  - Every solver that plans a road on a HALT day takes the same set:
+    - HINT (game.js:91, through F5's LV.road) and the panel's road (index.html:292);
+    - V1's key test and H2's S.dist;
+    - S1's and S3's d(n), where in the reverse BFS a HALT cell gets a distance but passes none on;
+    - T3's work();
+    - V3's rebirth par.
+  - V3's rebirth on a HALT day:
+    - Every level can now be lost, SHIFT levels and the eye included (no HALT cell is one move from 137, so the eye halts only after a detour), so rebirth() calls solveShift(80, t0, S.opsList, S.halts) when S.shift. V3, whose losable levels are never SHIFT, needs none.
+    - On the 7 HALT days at stride 1, 400 of the 403 levels without SHIFT have a par from 80 of 1–6 (mean 3.54), and 3 JUMP levels have par 0. The 36 SHIFT levels have 1–6 (mean 4.06), and 2 levels end on 80.
+    - REBIRTH is hidden on those 5 and on the eye, which replays by AGAIN.
+  - index.html:
+    - paint() notches each op button from o.f(S.current) and passes halts to A.paint;
+    - won() reads 'HALT · stopped on …' when S.halted;
+    - the daynote (:162) and the daypill (:212).
+  - ar.js: billboard state 9 'halt' *new*, after F12.
+  - test.js:
+    - check(9450, 'TORAH') beside today's: the next HALT day on the fresh road (9443 at stride 1), for the name whose home 62 is a HALT cell.
+    - sp.halts holds the 27 cells (sum ≡ 11) on a HALT day, and is null otherwise.
+    - play() (test.js:14–22) follows the rule: a landing on a HALT cell short of the target fails the level. Every level reaches its target in par, and no spec road lands on a HALT cell short of it.
+    - Par stays within 1–7 (SHIFT apart, test.js:39), and the curve (test.js:64) holds.
+    - Every ordered pair of the 258 points stays connected around the 27 cells, with the flip and without it, so F.cost never meets a null road (field.js:48, :51).
+    - plan(d, name, {halts: false}) is the plan without M7, sp.halts apart, and so is plan(d, name) on every other day.
+    - A node case for game.js: a move onto a HALT cell loses and refuses UNDO; a move back onto a HALT start halts; a landing on a HALT target closes.
+
+    Scratch copies with the play() rule, the spec-road and sp.halts assertions and two HALT days added pass 4872 checks: at stride 1 with 9443 TORAH and 9498 SCRIBE, and on the fresh road's 93810 digits with 9450 TORAH and 9456 SCRIBE. The other assertions hold in node: no ordered pair is cut off; plan(d, name, {halts: false}) on the 7 HALT days and plan(d, name) on the other 93 deep-equal today's levels.js, sp.halts apart; and a patched game.js loses on 38 after Γ from 68 (TORAH, 9443 at stride 1), refuses UNDO, halts on a move back onto a HALT start, and closes on a HALT target.
+- *Numbers* (SCRIBE at stride 1, as this scope's other multi-day figures; node, with the avoid set).
+  - On the 7 HALT days (448 levels), the spec road of 162 levels lands on a HALT cell short of its target: tape 133, door 14, ladder 14, mirror 1. The eye's 137 → ∞ → 1 never does, and no HALT cell is one move from 137.
+  - 80 of them keep par on another road. On the other 82 par rises: +1 on 68, +2 on 13, +3 on 1. By rule: JUMP 18, FOLD 9, SEED 8, SHIFT 8, IDENT 7, NOP 7, the ladder 7, EXIST 5, HALT 5, STORE 5, SYNC 3.
+  - No level becomes unwinnable. Every ordered pair stays connected around the 27 cells and the diameter stays 7, so par ≤ 7 holds (max 7; SHIFT max 6).
+  - The doors and the ladder:
+    - 4176 (64 → 6, FOLD Γ Γ FOLD ×g, through 193) and 8352 (128 → 6, FOLD INV ×g, through 129) cross. Their HALT-aware roads, Γ INV Γ FOLD ×g and INV FOLD ×g, keep pars 5 and 3.
+    - SCRIBE's second ladder (level 40, 56 → 14) goes from par 4 (×i Γ ×i Γ) to 6 (INV Γ Γ ÷g ÷g ×i) on every HALT day.
+  - The par order (levels.js:166) puts 93 of the 392 tape slots on another window. On day 9443 the pars sum to 246, against 236.
+  - 36 of the 448 levels start on a HALT cell. Today's level 29 is one: at stride 1 its window plays on 2027-01-02 (day 9498) as level 16. There its road ×i Γ ×g ×g Γ (55 → 109 → 83 → 249 → 233 → 127) would halt on 249 EDDINGTON LUMINOSITY at the third move, so par goes from 5 to 6, by ×i Γ FOLD ×g ×g ×i.
+  - As if every one of the 100 days were a HALT day: 2327 of 6400 roads cross and par rises on 1093 (+1: 881, +2: 190, +3: 22). No level is unwinnable.
+  - TORAH on the same 7 days: 155 cross, and par rises on 75 (+1: 68, +2: 6, +3: 1).
+  - On Q2's fresh road (the 93810-digit tape) the 10 HALT days hold 640 levels: 221 spec roads cross, par rises on 98 (+1: 75, +2: 22, +3: 1), 63 levels start on a HALT cell, and none is unwinnable (max par 7; SHIFT 6). As if all 100 days were HALT days: 2149 cross and par rises on 939 (+1: 730, +2: 204, +3: 4, +4: 1), still none unwinnable.
+  - plan() takes about 18–21 ms on a HALT day, against 16–18 ms for the same day with opts.halts off (node, this container).
+- *Refs* B22, B23.
+- *Risks.* Every level of a HALT day can be lost by one move. The marks, the notched buttons and the free first HINT (Q4), which shows the HALT-aware road, carry that, and AGAIN or REBIRTH closes a halted level again. M7 changes the plan on HALT days, so it lands behind opts.halts, with test.js covering both settings.
 
 ### Singularity: where the roads end
 
@@ -584,14 +710,15 @@ The ask, item by item: conic relief R1–R7; Enter the Void V1–V4; Matrix M1�
 
 **S3 · THE SLOW CLOCK: HALT's time dilates near the eye.** *S*
 - *Sees.* On a HALT level the clock shows proper time with a rate tag. A third arrow, #arr-eye, points at 137. As the player nears the eye, the clock's ticks spread out and drop in pitch, and the drone slides down.
-- *Does.* Trades: a detour toward 137 slows the clock, but each detour move counts against par. Going through to ∞ (d = 6) makes the clock run fastest.
+- *Does.* Trades: a detour toward 137 slows the clock, but each detour move counts against par. On a HALT day the detour must also miss the HALT cells (M7). Going through to ∞ (d = 6) makes the clock run fastest.
 - *Gets.* HALT becomes winnable by thought rather than speed. The card reads 'τ … s of … s real · … s borrowed from the eye', and the seal totals the seconds borrowed that day.
 - *Builds on.* tick() runs on wall time (game.js:85); arm() (:68); arrows() (index.html:316–326); clock() (sound.js:253–259).
 - *Changes.*
   - game.js:
     - arm() sets S.tau and S.tLast.
     - tick() integrates dτ = dt·rate, with rate = f(d)/f(d_start) and f(d) = √(1 − 1/(d + 1)), d floored at 1.
-    - The floor matters: in the absolute form, standing on 137 stops the clock, and since every HALT start is at most 5 moves from 137, every HALT level would become unloseable.
+    - On a HALT day d is S1's reverse BFS in which a HALT cell gets a distance but passes none on (M7), since a road to the eye through one would end the run. None of the six cells at d = 1 (105, 120, 121, 154, 217, 242) is a HALT cell, and neither is 137, so the eye stays in reach from all 258 points.
+    - The floor matters: in the absolute form, standing on 137 stops the clock, and since every HALT start is at most 5 moves from 137 (6 on a HALT day, around the HALT cells, M7), every HALT level would become unloseable.
     - S.borrowed is saved.
   - sound.js: clock(s, rate) and dilate(rate) *new*, using OscillatorNode.detune = 1200·log2(rate) cents. tuneDrone ramps only .frequency (sound.js:108–111), so the detune survives retuning.
   - index.html: the rate tag and #arr-eye.
@@ -599,9 +726,10 @@ The ask, item by item: conic relief R1–R7; Enter the Void V1–V4; Matrix M1�
 - *Numbers.*
   - f(1 … 6) = 0.7071, 0.8165, 0.8660, 0.8944, 0.9129, 0.9258.
   - Over 100 days, HALT starts sit at d = 1: 6, d = 2: 40, d = 3: 98, d = 4: 137, d = 5: 156 (of 437), counted with the six moves. Counted with each level's own S.opsList, as S1's d(n) is, they are d = 4: 138 and d = 5: 155. From the commonest starts, the rate one move from the eye reads 0.7746 (−4.42 semitones) from d = 5 and 0.7906 (−4.07) from d = 4; from d = 3 it is 0.8165.
+  - With the HALT cells removed, as on a HALT day, 67 of the 437 starts sit one move further from the eye (3 → 4: 22, 4 → 5: 45), giving d = 3: 76, d = 4: 115, d = 5: 200; none passes 5. On the 7 HALT days themselves (stride 1), 8 of the 38 HALT starts move (3 → 4: 3, 4 → 5: 5). On Q2's fresh road the 10 HALT days hold 77 HALT starts; 15 move, and 5 of them reach d = 6. Over all 258 points eight cells join ∞ at d = 6: 29, 41, 114, 127, 128, 163, 166 and 228.
   - Because the form is relative, the thirty seconds stay true at the start. The absolute form would stretch them to 42.4 s at d = 1.
 - *Refs* A2, B22.
-- *Risks.* Nothing flashes. Show both the proper and the real seconds. The dilation changes HALT's thirty-second rule (game.js:18, :85), so it lands behind a flag, as Budgets and risks asks of every plan change. Add a node case: a level held at its start still loses at 30 s of wall time, and a clock run at d = 1 throughout, on a level that starts at d = 5, loses at 38.7 s (30/0.7746).
+- *Risks.* Nothing flashes. Show both the proper and the real seconds. The dilation changes HALT's thirty-second rule (game.js:18, :85), so it lands behind a flag, as Budgets and risks asks of every plan change. Add a node case: a level held at its start still loses at 30 s of wall time, and a clock run at d = 1 throughout, on a level that starts at d = 5, loses at 38.7 s (30/0.7746). On a HALT day a halt ends the level before either, since tick() stops once S.lost is set (game.js:85); the node case adds a landing on a HALT cell, which loses at once whatever the clock reads. The seal totals the seconds borrowed on closed levels only *(design)*.
 
 **S4 · THE CROSSING: level 56 as an in-fall to ∞ and a rebirth at I AM.** *M*
 - *Sees.* Level 56 runs 137 → ∞ → 1 (levels.js:145–151; par 2, free moves counted).
@@ -638,13 +766,13 @@ The ask, item by item: conic relief R1–R7; Enter the Void V1–V4; Matrix M1�
   - FOLD Γ, through 120: out of the white hole into the seed;
   - Γ INV, through ∞.
 
-  The level is the same every day, so tomorrow the player can take the other throat.
+  The level is the same every day, so tomorrow the player can take the other throat. It opens on GO or TAPE (R3). It cannot be lost (NOP, no clock), so the slot falls back only through TAPE, to the tape level it holds.
 - *Gets.* Three stars either way, and a per-name record of the throat taken. On a gold day ×i is free (game.js:59) and game.js:63 recomputes par: ×i ×i Γ reaches 0 at cost 1 (137·16² = 120), so on day 9472 (2026-12-07) both throats would score 2 stars. game.js:63 keeps spec.par for this kind, as S4 does for the eye. Once both have been taken, on any two days, the seal says 'both throats'.
 - *Changes.*
   - levels.js:
-    - SPECIAL[52] = 'other' *new*, and otherSpec() names both roads; LV.road picks one of them. plan() sends every kind but door, ladder and mirror to eyeSpec (levels.js:173), so 'other' needs its own branch there. Its rule is fixed at NOP, as the eye's is fixed at JUMP (levels.js:146), not read by digitFor (levels.js:158, which reads the tape under opts.special 'tape'): IDENT or FOLD would make one throat cost 1 and the other 2, EXIST opens ×i ×i Γ at cost 1, and JUMP gives par 0.
-    - levels.js:176 copies a chapter's first special onto its opening level, so chapter 7's opening level gets 52's special instead of 56's. quest() ignores it there (levels.js:204), so this is harmless.
-  - test.js asserts the kind and both roads.
+    - EXTRA[52] = 'other' *new*, under R3's flag and rule. It overlays the tape level plan() sorted into slot 52 and keeps it as spec.fallback (today window 50, SEED 0 → 104, par 4). otherSpec() names both roads; LV.road picks one of them. EXTRA is built in its own pass (R3), so 'other' never reaches the eyeSpec fallthrough at levels.js:173. Its rule is fixed at NOP, as the eye's is fixed at JUMP (levels.js:146), not read by digitFor (levels.js:158, which reads the tape under opts.special 'tape'): IDENT or FOLD would make one throat cost 1 and the other 2, EXIST opens ×i ×i Γ at cost 1, and JUMP gives par 0.
+    - levels.js:176 copies a chapter's first SPECIAL slot onto its opening level. EXTRA is not in SPECIAL, so chapter 7's opening level keeps 56's special.
+  - test.js asserts the kind, par 2, both roads, and the fallback as R3 lists.
   - ar.js:
     - atlas kind 'zero' *new* for 120;
     - A.lobes *new*: 12 arcs of 33 points (396 vertices), at opacity 0.4 × the Γ flow's remaining fraction, like the fold threads (ar.js:147–148).
@@ -655,7 +783,12 @@ The ask, item by item: conic relief R1–R7; Enter the Void V1–V4; Matrix M1�
   - The pair, the eye and the disc fit a 16:9 desktop view (horizontal FOV 102.45°), but not a portrait phone (35.8°).
   - Over 100 days, 54 of 6400 par roads pass 120.
 - *Refs* A32, B18, B32, B17.
-- *Risks.* Chapter 7 loses one tape level: the one read from window 52, wherever plan() had sorted it (levels.js:165–167; for SCRIBE on day 9422, the STORE level 3 → 183 at slot 51). The other six re-sort into 49–51 and 53–55, and test.js confirms the par curve still holds. Nothing flashes.
+- *Risks.* Chapter 7 loses no tape level.
+  - THE OTHER SIDE stands in front of the level plan() sorted into 52 (levels.js:165–167), the chapter's fourth by par. For SCRIBE on day 9422 that is window 50's SEED 0 → 104.
+  - The other six keep their slots, so the par curve holds whether the slot closes or falls back.
+  - Over the 100 days from 9422, the level it holds is NOP 27, STORE 13, FOLD 13, IDENT 12, EXIST 12, SYNC 11, SEED 5, HALT 4 and SHIFT 3, at par 2–5 (mean 3.62).
+  - A closed OTHER SIDE reads no digits, so that window goes undecoded (M2).
+  - Nothing flashes.
 
 ---
 
@@ -697,7 +830,7 @@ In the one-world thesis, Twelve Rays is the field's code seen as a chart: the dl
 | per-cell energy, an amber core, flares | the same rules, on the chart and in S2's disc |
 | chords, ×g bright and the rest dim | the player's road and the miners' walks, in move styles |
 | bars R0–R11: hashes and best bits (:538–551) | arrivals per ray on the day's closed roads, and best work bits |
-| header 'CASCADE GF(257) P=257 G=3 12 RAYS' | the TUBE header and the MATRIX skin's status strip |
+| header 'CASCADE GF(257) P=257 G=3 12 RAYS' | the TUBE header and the MATRIX skin's status strip (chapters 4–5, U1) |
 | cell 62 marked with its name-word | 62 FIBONACCI, the door 0062 |
 | inv(0) = 0, ×g(0) = 1 (:351, :353) | the game's own rules: inv(0) = ∞ and 0·3 = 0. Miners step off SEED and ∞ to 1 (:409) |
 | spin 0.0006 rad a frame | one turn in 174.5 s at 60 fps, driven by dt; off under CALM |
@@ -795,8 +928,8 @@ In the one-world thesis, Twelve Rays is the field's code seen as a chart: the dl
   - Arriving on one plays an amber flare on its billboard and an amber CRT pulse (FX.pulse), and the voice speaks from 51 (NONCE · LEDGER, story.js:54, :121; SHARE is one of 51's words in data.js, not yet in the story).
   - The won card gains '◆ AMBER · the road struck 8 H, 8 zero bits'. A level closed without one names, afterwards, the share that lay on a 3★ road.
   - BITS (key b, or a long press) shows the seven reach cells' code: dlog in 8 bits (×g adds 1, FOLD adds 10000000, ×i adds 11000000, INV gives 256 − d). The dlog's trailing zeros give its 2-adic depth t: the cell is a 2^t-th power. Work bits are shown for revealed cells only.
-- *Does.* Takes up an optional second goal on every level except SHIFT levels, the eye and FREE WALK: close at 3★, in 8 moves or fewer counting free moves, on a road that lands on a share cell (the target counts: without it, 666 levels, not 720). Plans a detour through an amber cell that still lands on par; UNDO lets them try again.
-- *Gets.* An amber star per level, counted on the seal and in SHARE.
+- *Does.* Takes up an optional second goal on every level except SHIFT levels, the eye and FREE WALK: close at 3★, in 8 moves or fewer counting free moves, on a road that lands on a share cell (the target counts: without it, 666 levels, not 720). Plans a detour through an amber cell that still lands on par; UNDO lets them try again. The free HINT (Q4) shows the shortest road and never the shares or the witness. Followed from the start, it takes AMBER by itself on 376 of the 1698 eligible levels (spec roads, as in Numbers): the spec road strikes a share on 429, but 53 of those roads run past 8 moves. The other 344 amber levels need a road of the player's own. A paid hint caps the level at ★★, so it rules AMBER out there.
+- *Gets.* An amber mark ◆ per level, never a star: S.stars and the star total are computed as today (game.js:76), and AMBER adds nothing to them. It is counted on the seal ('◆ n amber') and in SHARE, and kept in THE BOOK (Q1).
 
   Example from today: level 4, 233 COLLISION RESISTANT → 212 PHOTOSYNTHESIS (FOLD free, par 3, offset 9443).
   - It has 15 share cells, and only 8 H lies on a 3★ road.
@@ -805,10 +938,10 @@ In the one-world thesis, Twelve Rays is the field's code seen as a chart: the dl
 - *Changes.*
   - levels.js: work(spec, eng) *new* returns {bits: 4, cells, possible, witness}.
     - It runs an exhaustive layered search over (cell, paid, struck), to 8 moves, that never reaches the target early. The two-sided 1001/1 Dijkstra misses 11 levels.
-    - It is computed in index.html openLevel from G.S after game.level(), so gold days and the 6↔9 chapter agree with the engine. game.js never references FOLD_LEVELS today.
+    - It is computed in index.html openLevel from G.S after game.level(), so gold days and the 6↔9 chapter agree with the engine. game.js never references FOLD_LEVELS today. The search moves by the engine's rules, so on HALT days a HALT cell other than the target ends a branch, as it ends the move run (B22, decision 3).
     - The salt is S.offset in every mode; game.js:57 fills it for doors.
   - game.js: S.work, S.struck, S.bestBits (recomputed in undo()), S.amber[L − 1], saved in save().
-  - test.js: plays every witness (3★, ≤ 8 moves, a share struck) and asserts that no road exists where none is claimed.
+  - test.js: plays every witness (3★, ≤ 8 moves, a share struck) and asserts that no road exists where none is claimed. With game.js loaded, it also asserts that every level's stars are the same with work() on and off.
   - STORY.work *new*, spoken from 51 and checked.
 - *Numbers.*
   - Days 9422–9451, SCRIBE: 1920 levels, of which 192 are SHIFT and 30 are eyes, leaving 1698 eligible.
@@ -818,7 +951,7 @@ In the one-world thesis, Twelve Rays is the field's code seen as a chart: the dl
   - The search takes 5.2 ms a day median, 35.6 ms at most.
   - The rate: at the sketch's 9 bits, today's 338 hashable spec-road arrivals (T4's 339 less the one at ∞) would strike 338/512 = 0.66 shares in the whole day. At 4 bits they strike 21.1 expected (19 today).
 - *Refs* B20, C7, C1, B23, D2.
-- *Risks.* Skill or luck? The share set is fixed and shown, so finding the road is the skill; say so on first use (open question 6). Stars are untouched.
+- *Risks.* Skill or luck? The share set is fixed and shown, so finding the road is the skill. The first level where amber is possible says so once, in a card line: 'AMBER is optional: strike a share cell on a 3★ road of at most 8 moves for ◆. Stars do not change.' It is not a voice, because a STORY voice may use only its own cell's words in capitals (story/check.js:39), and AMBER is no cell's word. The flag is 'amber' in 'fold.prefs' *new*. Stars are untouched; test.js asserts it.
 
 **T4 · THE RAY LEDGER: the sketch's bars at chapter end and on the seal.** *S on T1*
 - *Sees.* At each chapter's last level the won card holds a TUBE canvas. It replays the chapter's eight roads as chords over 4 s, then draws the twelve bars R0 … R11 in RAY_RGB, with each ray's wavelength and best work bits (the sketch's drawRayBars, Twelve_Rays.html:538–551). Home's ray is outlined and the line's cell's ray is ticked. The seal shows the day's bars and the amber and found-first counts. SHARE carries a 12-character sparkline.
@@ -951,16 +1084,16 @@ In the one-world thesis, Twelve Rays is the field's code seen as a chart: the dl
 - *Sees.* Above the seal's text, a 514 × 514 picture at 2 px a cell (257 cells):
   - the ground is a slow day buffer: a 128² canvas into which one heat snapshot is blended per closed level (the live render target forgets in about 36 frames);
   - the day's climbs are redrawn in H2's radar layout: blue ascents whitening by heat, orange descents and undo back-strokes;
-  - a white dot on the rim at each closed target's azimuth, up to 64: the day's crown;
-  - an orange streak to the centre for each lost level;
+  - a white dot on the rim at each closed cell's azimuth, up to 64: the day's crown. The crown is S.targets, the seal's own factors (F8). A SHIFT level's dot stands at the cell it closed on, which is one tick (1.406°) further round for each move over par, since dlog(t0·3^k) = dlog t0 + k. A reborn level's dot is dim (V3);
+  - an orange streak to the centre for each loss; a reborn level's second climb starts from 80's azimuth;
   - the sketch's three counters as the day's (climbs, steps against the three-star day, summits) plus falls.
 
   T4's bars sit under it.
 - *Does.* Taps SHARE: the PNG and the text go out where navigator.canShare({files}) allows; otherwise a download is offered.
-- *Gets.* A picture of the day that is the player's own. Everyone that day shares the targets of the tape, door, mirror and eye levels (the ladder levels 36 and 40 start from the name's own cell, levels.js:109–121), but the roads, undos and falls are each player's.
+- *Gets.* A picture of the day that is the player's own. Everyone that day shares the targets of the tape, door, mirror and eye levels (the ladder levels 36 and 40 start from the name's own cell, levels.js:109–121). The exception is a SHIFT level, whose crown dot is wherever the player caught it. So two players of one name share the crown when they close each SHIFT level in the same number of moves (at par, say). On a product day they share the seal whenever their SHIFT moves add up to the same total. The roads, undos and falls are each player's.
 - *Builds on.* endDay() and its text share (index.html:280–289). save() keeps no roads, undos or falls today (game.js:25).
 - *Changes.*
-  - game.js: save() adds climbs *new*, [{L, s, t, par, ops (one character a move), out, undos, falls}], and the day's counters; start() restores them (game.js:46–53).
+  - game.js: save() adds climbs *new*, [{L, s, t, par, ops (one character a move), out, undos, falls}], and the day's counters; start() restores them (game.js:46–53). t is the cell the level closed on, S.targets' entry. out is the stars, 'lost' or 'reborn', and a reborn climb has s = 80 and the par from 80.
   - heat.js: dayPicture(record, ground) *new*, canvas 2D with 'lighter'.
   - index.html endDay(): an <img> whose alt reads the four counters and the crown's count; share2 (:288) goes through canvas.toBlob → File('fold-YYYY-MM-DD.png') → navigator.share. With RELIEF off (MON.mode 0) there is no ground, so strokes only.
 - *Numbers.* Today's 64 pars sum to 226; with 7 slack, a three-star day is 233 counted moves. Simulated heat PNGs at 514² weigh 115 kB at 512 climbers and 397 kB at 3584.
@@ -991,18 +1124,23 @@ Below, every reward has its picture in the world, and THE BOOK (Q1) carries them
   - A collection that does not reset at midnight: the atlas, the four gold cells, the 12 pairs, the mirror pairs. A mirror pair is collected by closing a mirror level whose word has a tablet partner (sp.mirrorWord, levels.js:134) or by answering chapter 6's or 8's Atbash quest (levels.js:203) *(design)*: 269 distinct pairs over the 100 days from 9422 (78 from the levels, 200 from the quests), of the 2551 in D.mirrors.
   - The keepsakes of every other proposal: rings (M3), circle points (R3), Saturn's rings (R6), room walls (R4), throats (S5), amber (T3), the block (T5), medals (Q5), stone heights (Q6).
   - Milestones by B30's rule: gold every 128 lifetime stars, tablet every 258, a quarter at 16512.
-  - A share line, 'book 205/257 · 1800: 10/12'.
+  - A share line, 'book 208/257 · 1800: 10/12' (SCRIBE after 100 days, every level closed on its par road).
 - *Builds on.* The per-day key (game.js:23–25), which nothing removes, so the old 'fold.run.<day>.daily' saves can be backfilled (they keep their targets, but only for the last name to play that day: start() replaces another name's record, game.js:50–52, and a save without targets gives [], :51); GOLD (ar.js:19); turn() (relief.js:187–215).
 - *Changes.*
   - parts/book/book.js *new*, window.FOLD_BOOK {load(name), record(S), backfill(), inv(cur, v), streak(), totals(), unlocked()}.
   - localStorage 'fold.book.<NAME>' *new* (see the data table).
-  - game.js: save() calls record(S); apply() calls inv() on INV.
+  - game.js: save() calls record(S), which keeps the day's seal, LV.seal(S.targets).cell, beside c, s and line (the data table's days entry). Because record() runs on every save, the stored seal is that of the cells closed so far, and THE BOOK's seal is the one the card shows (F8). apply() calls inv() on INV.
+  - backfill() seals each old save's targets as they stand, because game.js:77 has always pushed the closed cell, a SHIFT level's moved target included, so no old save needs converting. A save with fewer targets than closed levels (game.js:51 gives [] where a save has none) keeps c, s and line, but no seal.
   - ar.js: state 6 'score', added after ar.js:85 is re-bracketed (F12).
   - index.html: a full-screen BOOK sheet, not a .card, whose paddings leave 234 px of a 320 px screen (index.html:65–67), holding a CSS grid of 257 tiles of at least 18 px (16 × 18 = 288 px). 18 px is under WCAG 2.5.8's 24 × 24 and 16 × 24 = 384 px does not fit, so a tap opens a 4 × 4 zoom of 44 px tiles *(design)*, arrow keys move a focus tile, and each tile has an aria-label (cell, first word, day first closed). The pairs need F1: 31 tiles show a lone surrogate today. The permanent ring is its own object, because monApply disposes MON.obj at every level (index.html:190). It is R3's 515-vertex ring (relief notes:16): off in chapter 6, where R4's room leaves 432 of the 40k (relief notes:21); where monApply already mounts THE TURN (index.html:195: the eye level, and chapter 7 once F6 lands), it is that ring.
   - material.js: quotient_pairs *new*.
   - A Matrix touch: a collected tile decodes from '··' in a 300 ms column sweep *(design)*, static under CALM.
 - *Numbers.*
-  - Atlas growth under today's plan rule (SCRIBE, every level closed): 54 cells on day 1, 164 by day 7, 179 by 30, 205 by 100, 251 by 400. Cells 4, 148, 151, 168, 175 and 229 are never a target in 400 days. These count the plan's targets; recorded from S.targets, which holds SHIFT levels' moved targets (game.js:73, :77; F8), the counts on par roads are 55, 166, 182, 208 and 249, and 79, 123, 148, 168, 170, 175, 228 and 243 are never closed. The rule follows open question 2.
+  - Atlas growth (SCRIBE, every level closed on its par road, today's stride). THE BOOK collects the cells closed, as S.targets records them and as the seal multiplies them, so a SHIFT level collects its moved target (game.js:73, :77; F8).
+    - Collected: 55 cells on day 1, 166 by day 7, 182 by 30, 208 by 100, 249 by 400.
+    - Never closed in 400 days: 79, 123, 148, 168, 170, 175, 228 and 243.
+    - Counted by the plan's own targets instead, the figures would be 54, 164, 179, 205 and 251, with 4, 148, 151, 168, 175 and 229 never a target.
+    - Q2's fresh roads (decision 1) change all of these.
   - Gold cells first appear as targets on day 1 (cell 1), day 8 (16), day 49 (256) and day 219 (241).
   - 1800 = 7·257 + 1 gives 12 pairs, from 8 ↔ 225 to 40 ↔ 45. The plan's own roads (levels.js road(), which HINT uses after F5) press INV on one of the 24 cells 231 times on 89 of 100 days, reaching 10 pairs.
   - N(1 + 7φ) = 1 + 7 − 49 ≡ 216, THE TURN's u (B1).
@@ -1016,8 +1154,8 @@ Below, every reward has its picture in the world, and THE BOOK (Q1) carries them
   - Round your own cell, its halving ladder of 16 rungs (SCRIBE: 56 28 14 7 132 66 33 145 201 229 243 250 125 191 224 112), one rung lit gold for each day of the streak, and 'streak n/16' in text, so gold is not the only cue (WCAG 1.4.1).
   - On a gold day, a gold bloom: every cell born gold along the cycle.
   - On a tablet day, a title card: 'a tablet day: the walk stands on the cell of 93 SATURN'.
-  - Above all, days that differ from each other.
-- *Does.* Returns daily. A day counts toward the streak when at least one chapter (8 levels) is closed or the seal is read *(design)*. A STORE day (head opcode 5) banks one missed day, at most one.
+  - Above all, days that differ from each other: no start window is read twice in 1460 days running.
+- *Does.* Returns daily. A day counts toward the streak when at least one chapter (8 levels) is closed or the seal is read *(design)*. A STORE day (head opcode 5, π[windowBase(day)]) banks one missed day, at most one.
 - *Gets.*
   - Sixteen days close the ladder ("every ladder closes in sixteen", story chapter 5) with a festival bloom.
   - Gold days: gold-cell targets count double in THE BOOK, and the seal names the day's field (D2).
@@ -1028,21 +1166,27 @@ Below, every reward has its picture in the world, and THE BOOK (Q1) carries them
   - Over 100 days that is only 449 distinct roads and 205 target cells.
   - S.tabletDay and S.dayCell are computed and unused (game.js:49), and a gold day only frees ×i (game.js:59, :63).
 - *Changes.*
-  - levels.js: plan(day, name, {stride}) with windowBase(day) *new* = (13 + 257·day) mod (D.pi.length − 4). (base() already exists at levels.js:77, hence the new name.)
-  - windowBase is read by every builder that reads headOf today: tapeSpec, doorSpec (:102), ladderSpec (:115), mirrorSpec (:126), eyeSpec (:146), digitFor (:158). Outside levels.js: game.js:48 and :57, index.html:162 and :212, and the ribbon.
-  - The day's opcode stays π[day + 13], for the sound bed and the HUD.
-  - The save key is versioned ('fold.run.<day>.daily.s257'), and Q1's backfill accepts it.
-  - test.js runs both strides and asserts that start offsets are distinct over 77 consecutive days. ('No shared digit' would fail: level 64's target window always overlaps the next day's first start window.)
+  - levels.js: windowBase(day) *new*, exported, = at(9435 + 257·(day − 9422)), with FRESH_FROM 9422 and STRIDE 257 *(design)*; plan(day, name, {stride}) reads it. (base() already exists at levels.js:77, hence the name.) Day 9422 keeps its windows (9435 = 9422 + 13), so every figure in this scope about day 9422 holds on the fresh road; each later day starts 257 digits on (9423 at 9692). stride 1 gives at(day + 13), today's reading, exactly. The default is 257 only on the fresh tape (D.pi.length − 4 = 257·365 + 1); a stale 20001-digit data.js plays stride 1 under the old save key.
+  - windowBase replaces headOf (levels.js:39) in every builder: tapeSpec (:88), doorSpec (:102), ladderSpec (:115), mirrorSpec (:126), eyeSpec (:146), digitFor (:158). Offsets are kept wrapped, o = at(windowBase(day) + 4(L − 1)), so sp.offset and the text's π[o] name a real tape position; the comment at :36 ('the tape is 20001 digits') goes. Outside levels.js: game.js:48 sets S.head from a copy of the rule, fresh check included (as RULES is copied, game.js:8), which also serves the plan-less tapeSpec (:41) and the offset fallback (:57); index.html:162's daynote prints windowBase(dn) and its digit, and :212 already prints S.offset; the ribbon draws 0 for k past the tape's end (ar.js:210), so it reads pi[k] while k < pi.length and pi[at(k)] beyond: a window from 93803–93805 keeps its own four digits under the head.
+  - The day's opcode is π[windowBase(day)], window 1's rule digit (7 JUMP on 9422, as now): the daynote and the STORE day read it. π[day + 13] means nothing on the fresh road; the sound bed follows each level's rule (index.html:267).
+  - The save key is versioned: plan() stamps spec.stride *new* on every spec, and game.js:23 appends '.s257' when the plan played was built at stride 257 ('fold.run.<day>.daily.s257'; game.js's own copy of the rule when no plan is loaded). The key follows the plan, not the tape, so a stride-1 run is never resumed into the other plan, whichever shell file is stale. A phone that updates mid-day starts that day over once. Q1's backfill reads both keys; both hold real closes.
+  - test.js: D.pi.length === 93810 and D.pi starts 314159265358979; plan(9422, name) deep-equals plan(9422, name, {stride: 1}) for TORAH and SCRIBE; the 93,440 start offsets at(windowBase(d) + 4j), j = 0 … 63, of days 9422–10881 are distinct, and day 10882's windows 2–64 are day 9422's 1–63, the wrap the README states (arithmetic, 17 ms); for 30 days from today every tape spec's offset is at(windowBase(d) + 4(sp.window − 1)) and no tape offset repeats (30 plans, 0.6 s); the log line (:24–26) prints windowBase(day) as the head. With S3's localStorage stub it loads game.js and asserts that its copy of the rule, G.windowBase *new*, agrees over the same 1460 days.
   - FOLD_BOOK.streak(); ar.js A.homeLadder *new* (16 arcs × 10 points, vertexColors) and bloom(dur, rgb) *new*; days.festivals *new*.
-  - The README's play bullet and the levels notes are rewritten.
+  - build_data.py: pi_digits(n) *new*, Machin's π/4 = 4·arctan(1/5) − arctan(1/239) in exact integers with 10 guard digits, for n = 93810. It asserts that the first 20001 equal the machine page's tape (build_data.py:13); they do. Python 3.11+ refuses int-to-str past 4300 digits, so it calls sys.set_int_max_str_digits(0). The data.js header (build_data.py:26) names both sources.
+  - gen_material.py re-derives the tape by Störmer's four-term formula and asserts every digit. tape_head_today and opcode_today follow windowBase (:225), and need_pi (:156) asks for the whole tape, digit 93809: a base near the ring's end wraps (day 9750's is 93731, and base + 266 would pass the end). The day-9384 head checks (gen_material.py:117–119, corpus check.js:53) keep π[9397] = 6 but drop 'head' from their labels: day 9384 now reads from 93475.
+  - M1's 78 × 256 tape texture holds π[at(windowBase(day) − 9435 + 78c + r)], so the day's strip stands over columns 120–124 every day, as on 9422 (M1); it is refilled once a day. 78 rows are now a choice, not ⌊20001/256⌋.
+  - README:14's 'day + 13 + 4(L − 1)' becomes 'b + 4(L − 1), where the day's base is b = 9435 + 257·(day − 9422), taken round a ring of 93806 digits', and the bullet gains: 'Each day starts 257 digits on from the day before, so no start window is read twice in any 1460 days running. Day d + 365 reads day d's digits one place earlier, which gives new figures and new levels; day d + 1460 replays 63 of day d's 64 windows. The tape is the machine's 20001 digits of π, carried on to 93810 by Machin's formula.' The root README's build_data.py row says the same. parts/levels/notes.md's 'The day' (:9, :30) is rewritten, and its day-9384 examples (:37–38, :65) are recomputed, since day 9384 moves.
 - *Numbers.*
-  - 19997 = D.pi.length − 4 is prime, and gcd(257, 19997) = 1. The first window overlap comes after 77 days. At 256 digits a day there are at most 78 non-overlapping days in the tape, so 257 is near the ceiling. Then the tape comes round: 77·257 ≡ −208 = −4·52 (mod 19997), so day d + 77's windows 53–55 and 57–64 re-read day d's windows 1–3 and 5–12 (11 tape windows; window 56 is the eye), and days 78–365 re-read 13.6 of their 56 tape windows on average. A year with no overlap needs 257 × 365 = 93805 digits; data.js holds 20001, from the machine's page (build_data.py:13).
-  - Stride 257 over 100 days: 5166 roads, all 257 targets by day 25, gold 241 by day 4. Par histogram 1: 759, 2: 729, 3: 1579, 4: 1900, 5: 1214, 6: 219 (stride 1 has 346 at par 6 and 35 at par 7). None of the 6400 levels breaks par > 0 or par ≤ 7.
-  - Over the next 365 days: 39 STORE heads, with the longest gap 31 days.
+  - The tape: 93810 digits: the ring that at() wraps, 257·365 + 1 = 93806, plus the 4 that at() keeps past it (D.pi.length − 4, levels.js:36), so the last window, from 93805, reads true digits. The first 20001 are the machine's: Machin's digits equal them. Machin and Störmer agree on all 93810, in 7.3 s and 6.1 s (python 3.13 on this container's Xeon 2.1 GHz). data.js grows from 107,876 B to 181,685 B before the header's new words (+73,809 B of digits; zlib level 9: 38,246 → 73,510 B).
+  - The horizon: windowBase(d + 365) = windowBase(d) − 1. No start window is read twice in 1460 consecutive days (node: the real plans of days 9422–10881, 27 s, and the arithmetic from day 9000). Day d + 365 reads day d's digits one place earlier, so its figures and rule digits are new: it shares 6.1 levels with day d, the 6 fixed specials and 0.1 by chance (20-day mean). Day d + 1460 reads day d's windows 1–63 as its 2–64, the first replay. The + 1 buys the four years: a ring of 257·365 replays every window on day d + 365, and 257·365 + 3 replays 2 windows on day d + 1096.
+  - Digits: days 2 to 363 apart share none. Neighbours share the 3-digit seam where window 64's target (base + 256 … 259; up to + 266 after a slide, over those 1460 days) runs into the next day's window 1, as at any stride under 260.
+  - Over the 100 days from 9422 (SCRIBE): 5363 distinct roads, against 449 on stride 1; the rest are the 6 fixed specials a day (doors, ladders, eye) and 443 coincidences of residue, 358 of them SEED starts. All 257 targets by day 24 (stride 1: 205 by day 100), gold 241 by day 3; the plan's targets reach 54, 205 and 257 cells by days 1, 7 and 30 (Q1's stride-1 54, 164, 179). Day d + 4 shares 6.2 levels with day d (20-day mean), against 55.0. Par 1: 705, 2: 778, 3: 1503, 4: 1916, 5: 1296, 6: 197, 7: 5 (stride 1: 763, 670, 1386, 1949, 1251, 346, 35); none of the 6400 breaks par > 0 or par ≤ 7. 311 tape levels slid (270). A plan still takes about 20 ms in node.
+  - The other proposals' multi-day figures (over 100 days from 9422, or 30) are stride-1 figures. On the fresh road the same 100 days hold 559 HALT levels, 5.59 a day (R5: 4.37), and 589 SYNC (509): 1148 losable levels (V3: 946). From 80 the worst par is still 6, but 6 of them (4 SYNC, 2 HALT, all tape) have target 80 itself, so a rebirth from 80 would start on its target (stride 1: none). 27 tape levels have target 0, 23 of them not SHIFT (R1, Q4: 32 and 12). Figures about day 9422 alone do not change.
+  - Over the next 365 days: 40 STORE heads (π[windowBase(day)] = 5), with at most 37 days between two (π[day + 13]: 39 and 31).
   - Gold days: 2026-12-07 (day 9472), 2027-04-14 (9600, 91 SPIRIT), 2027-08-20 (9728, 219 DIVINE PROPORTION).
   - Tablet day: 2027-02-19 (9546, field 37 HADES, tablet cell 93 SATURN), 124 days away.
 - *Refs* D2, D3, D6, D7, B5, B16, D5, D1.
-- *Risks.* The stride rewrites every day's plan and the README's promise, so it sits behind opts.stride as the owner's call (open question 1). The streak uses the local date, as the day does (game.js:21–22).
+- *Risks.* The fresh road rewrites every day's plan but 9422's, and the README's account of the tape. data.js and levels.js ship in one CACHE bump; on a stale 20001-digit data.js levels.js plays stride 1, and the key's '.s257', taken from the plan's spec.stride, keeps the two plans' runs apart. From day d + 1460 windows come round, and the README says so. The streak uses the local date, as the day does (game.js:21–22).
 
 **Q3 · THE TIER LADDER: every reward has its picture.** *M–L*
 
@@ -1074,20 +1218,34 @@ Below, every reward has its picture in the world, and THE BOOK (Q1) carries them
 - *Sees.* A word level's HUD reads '→ ??? · PRIVATE KEY'.
   - The target is named only by a word whose letters add up to it (PRIVATE 91 + KEY 41 = 132) and that is not the cell's first word. The first word is printed on every billboard (ar.js:58), so naming it would make a visual search, not arithmetic; 132's first word is FLOWER OF LIFE.
   - There is no gold arrow and no target highlight.
-  - Each HINT press adds a bit, eight in all (B20). For 132 (dlog 37 = 00100101) the lines run 'dlog ≡ 1 (mod 2)', 1 (mod 4), 5 (mod 8), 5 (mod 16), 5 (mod 32), 37 (mod 64), 37 (mod 128), 37 (mod 256), and the cells outside the target's coset fall away as green rain: 128 cells stay lit, then 64, 32, 16, 8, 4, 2, 1.
-  - On ordinary levels, HINT 1 flashes only the first move (it flashes it today, index.html:178, but also toasts the whole road), and HINT 2 shows the road as chips (U5).
-- *Does.* Works out the cell from the word (A = 1 … Z = 26, mod 257, the rule the start screen already teaches with the name) or by reading cells, then walks there. Chooses how many bits to buy.
+  - Each HINT press adds a bit, eight in all (B20). The first bit is the level's free hint, and a ninth press shows the road. For 132 (dlog 37 = 00100101) the lines run 'dlog ≡ 1 (mod 2)', 1 (mod 4), 5 (mod 8), 5 (mod 16), 5 (mod 32), 37 (mod 64), 37 (mod 128), 37 (mod 256), and the cells outside the target's coset fall away as green rain: 128 cells stay lit, then 64, 32, 16, 8, 4, 2, 1.
+  - On ordinary levels the first HINT is free and shows what it shows today: the whole road from where you stand, with its first move flashed (index.html:178, flash() :183). It now comes as chips (U5), on LV.road over S.opsList (solveShift on SHIFT levels) and, on HALT days, around the HALT cells (F5, decision 3). The chips stay up while the player follows them. A move off them greys them, and UNDO back onto them lights them again.
+- *Does.* Works out the cell from the word (A = 1 … Z = 26, mod 257, the rule the start screen already teaches with the name) or by reading cells, then walks there. Chooses how many bits to buy past the free one.
 - *Gets.* A puzzle in the game's own language.
-  - Stars are capped by bits used *(design)*: up to 2 bits no cap, 3–5 bits ★★, 6 or more ★.
-  - On an ordinary level, the full road caps at ★★ (open question 5).
-  - THE BOOK counts levels read with 0 bits.
+  - HINT is free once on each level, and every further press costs. game.js:76 applies the cap as min(stars, capOf(S)), from S.spent[L − 1]:
+    - **Word level:** 0–1 bits, no cap (the free bit leaves 128 cells lit); 2–5 bits, ★★ (64 down to 8 cells); 6–8 bits, ★ (4 cells down to 1); the road, ★. One bit is free, as one road is on an ordinary level.
+    - **Ordinary level:** the first road is free; a second or later road caps the level at ★★. A press is charged only when the player stands off the last road given, i.e. the moves made since it are not a prefix of it. A press on that road, or after UNDO back onto it, shows the chips again for nothing.
+    - **Per level and per day:** S.spent[L − 1] is saved in the run record ('spent', see the data table). A reload, AGAIN (G.reset, index.html:261) or REBIRTH (V3) does not give the free hint back.
+    - **Followed, the free road still earns ★★★.** Over the 100 days from 9422 (SCRIBE), all 5819 non-SHIFT LV.road roads cost exactly par (the eye counts its free moves), and solveShift's roads are par by definition. On HALT days par and the road both keep clear of the HALT cells (decision 3). On gold day 9472 the eye needs S4's fix to game.js:63, which today gives it par 0. So the price falls only on a player who leaves the road and asks again. A capped level cannot take AMBER, which needs 3★ (T3).
+  - THE BOOK counts word levels read with 0 bits and levels closed with no HINT.
 - *Builds on.* hint() returns the whole road (game.js:91, index.html:178); quests already find a cell by its words (levels.js:196–206); nice() (levels.js:186).
 - *Changes.*
   - levels.js: wordSpec() *new* (kind 'word', spec.word, spec.hideTarget). One per chapter in its second tape slot *(design)*; every tape level on tablet days (Q2); never on SHIFT levels (rule 4), where the target moves; never on a target of 0, which has no dlog and so no coset (field.js:20; 32 tape levels have target 0 over the 100 days from 9422, 12 of them not SHIFT). Of the 230 word cells, 229 are in 1..256.
   - hideTarget suppresses A.paint's pulsing gold target (ar.js:178), the HUD's glyphs, number and word (index.html:217), the 'sighted' logic (:322) and the arrow (:318–321). It must also replace the tape spec's title and text, which name the target (word(s) → word(t) and '→ 8788 ≡ 50 HIGGS', levels.js:94–96) and are shown in the level toast and the voice (index.html:206, :270, :272, :278), and blank the ribbon's target window, whose four figures give the target by arithmetic (ar.js:210–212; M2's gold digits).
-  - game.js: S.bits, bitsHint() → dlog(target) mod 2^k, and the star cap applied at game.js:76. The cap needs F5's gate first: today a tap on the target prints its road for nothing (index.html:301).
+  - game.js:
+    - S.spent *new*: an int[64], written by save() (game.js:25) and restored in start() with the kept fields (game.js:51).
+    - hintPress() *new* replaces hint() (game.js:91). It returns {road}, or on a word level {bits: k, coset: dlog(target) mod 2^k}, each with charged and cap. It keeps S.hintRoad and S.hintAt (S.road.length when the road was given) for the prefix test. level() clears both (game.js:62), so after AGAIN or a reload the next press is charged.
+    - capOf(S) *new* is applied at game.js:76, before the strict check at :77.
+  - index.html: HINT (index.html:178) calls hintPress() and shows its price on the button: 'HINT · free' before the first press and while the player stands on the road it gave, 'HINT · ★★' once off it (on a word level, the next band's cap).
+  - The cap needs F5's gate first: today a tap on the target prints its road for nothing (index.html:301).
   - ar.js paint(): a {coset: k} mask that puts cells outside the coset into state 8 (Q3).
-  - test.js, for kind 'word': letterSum(word) % 257 === target; D.cells[target].ws includes the word; nice(word) (exported from levels.js, which keeps it private today, :186, :249); the word is not the first word; par > 0; the level plays in par. For k = 0 … 8, the coset holds 256/2^k cells and contains the target.
+  - test.js, for kind 'word': letterSum(word) % 257 === target; D.cells[target].ws includes the word; nice(word) (exported from levels.js, which keeps it private today, :186, :249); the word is not the first word; par > 0; the level plays in par. For k = 0 … 8, the coset holds 256/2^k cells and contains the target. The price is checked on every level of the planned days, with game.js loaded under a localStorage stub (as Phase 1's S3 check loads it):
+    - HINT at the start, then its chips, closes at par with 3★ and spent 1;
+    - a second press in place leaves spent at 1;
+    - on a non-strict level, one non-closing move off the road and then HINT gives spent 2, and that road closes at ★★ at most;
+    - UNDO back onto the road, then HINT, charges nothing;
+    - spent survives save() and start();
+    - word levels cap at 3, 3, 2, 2, 2, 2, 1, 1, 1 for 0 … 8 bits.
 - *Numbers.*
   - 230 cells have a non-first askable word that adds up to the cell; 27 lack one. Today 51 of 56 tape targets qualify, 47 without SHIFT.
   - Rejected alternative, hint bits of the road: only 40 of 916 levels (30 days, no free move, no shift, no flip) reach par with ×g ÷g FOLD ×i alone.
@@ -1167,7 +1325,7 @@ Below, every reward has its picture in the world, and THE BOOK (Q1) carries them
 
 ## UI and HUD
 
-**U1 · ONE HUD, FOUR SKINS.** *M*
+**U1 · ONE HUD, FOUR SKINS, AND THE CHAPTER PICKS THE SKIN.** *M*
 - *Sees.* The same instruments in the same places in every skin; only colour, type and ornament change.
   - **RELIEF:** ground #0a0d10, hairlines, hue = dlog.
   - **VOID:** black, white type, condensed capital titles, and the last move's hue as the accent. Op hues at hsl(h, 70 %, 65 %) on the panel run from 5.64:1 (×i) to 12.42:1 (÷g).
@@ -1175,8 +1333,10 @@ Below, every reward has its picture in the world, and THE BOOK (Q1) carries them
   - **SINGULARITY:** black, #fff4e6 (19.33:1), amber #ffd400 (14.67:1), the instruments as rings round the reticle, and the CRT barrel raised to 0.06 so the tube's scanlines and edge visibly bow (shaders notes:77–78). The CRT quad only draws darkening and glow; it never resamples the scene (fx.js:151–155). So no cell moves, and picking stays exact.
 
   All text sits on solid strips, and every glyph pair renders (F1).
-- *Does.* Picks a skin in settings, or leaves AUTO, which changes skin only on the chapter card *(design)*: RELIEF for chapters 1–3, MATRIX for 4–5 (doors and ladder, numbers as code), VOID for 6 (THE MIRROR), SINGULARITY for 7 (THE EYE), RELIEF for 8.
-- *Gets.* Each chapter opens in a new look, so the visual progression is itself a reward. The HUD stays readable over a bright room, in AR, on a Pi, and on a phone held sideways.
+- *Does.* Plays. The skin follows the chapter, as the floor does, and there is no skin to pick *(design)*: RELIEF for chapters 1–3, MATRIX for 4–5 (doors and ladder, numbers as code), VOID for 6 (THE MIRROR), SINGULARITY for 7 (THE EYE), RELIEF for 8. It changes only when a chapter card opens, and index.html:268 opens one only at levels 1, 9, …, 57 of a daily run. So a day changes skin four times, at levels 25, 41, 49 and 57, and holds 32 RELIEF levels, 16 MATRIX, 8 VOID and 8 SINGULARITY. The card is the first thing drawn in the new skin, so V4's slams are set in its title face.
+  - U3's HUD row offers CHAPTER (the default) or FIXED. FIXED is an accessibility option, not a look. It holds RELIEF's HUD and CRT all day: RELIEF's tokens and mono titles; no running digits, no reticle rings, no stretching words (U5); the CRT at its 0.0234 barrel (fx.js:16), tinted by the move's hue as today (index.html:242). It is for players who need the HUD's colours, type and edge never to change. Under FIXED the world still changes by chapter: the floor (R2), the rain (M1) and the eye (S1) are the field, not the skin.
+  - Every mode with chapter cards follows the chapter: DAILY, and STONE (Q6), which opens index.html:268's gate. The others keep one skin per run: THE DOORS takes chapter 4's MATRIX; FREE WALK, the chains (Q5) and AXIOM (T5) stand in RELIEF.
+- *Gets.* Four of the day's eight chapter cards open a new look (into chapters 4, 6, 7 and 8; chapters 2, 3 and 5 keep the one before), so the visual progression is itself a reward, and the look always says which part of the day it is. The HUD stays readable over a bright room, in AR, on a Pi, and on a phone held sideways.
 - *Builds on.* The :root tokens (index.html:15); the HUD gradient from .92 to 0 (:39); 9 px op labels (:51); backdrop-filter on every button, the panel and the cards (:35, :60, :67); the toast's nowrap (:73); fixed sheet offsets (:60, :76–78); the rule pill showing name plus tell (:213).
 - *Changes.*
   - index.html <style>:
@@ -1186,9 +1346,20 @@ Below, every reward has its picture in the world, and THE BOOK (Q1) carries them
     - the rule pill shows the name only, and a tap or Enter shows the tell. The pill becomes a <button aria-expanded>, because a span takes no focus; the ops' tells are title tooltips today (index.html:175), which a touch screen never shows. Today the pill text runs 33–71 characters. The flip chapter's suffix takes it to 94 (today's SHIFT levels 45 and 47), and a gold day's on top of that to 114;
     - html[data-lowend] drops backdrop-filter;
     - a ResizeObserver on #ops writes --ops-h, and the panel, toast and quest anchor to it.
-  - parts/hud/hud.js *new*, window.FOLD_HUD {init, setSkin, paint, move, undo, frame, level, close, lose, seal}. setSkin writes the skin's CRT preset. MATRIX passes the tint FX.GREEN to crtPulse; today FX.pulse leaves the last move's tint in place (fx.js:205).
-  - parts/hud/check.js *new* (node): glyphs(n) has 2 code points (3 for 256, 1 for ∞); each skin's text token is at least 4.5:1 on its strip and --hair at least 3:1.
-  - localStorage 'fold.prefs' {skin}: the one prefs object U3 loads before A.init, not a key of its own.
+  - parts/hud/hud.js *new*, window.FOLD_HUD {init, setSkin, paint, move, undo, frame, level, close, lose, seal}. setSkin writes the skin's CRT preset. MATRIX passes the tint FX.GREEN to crtPulse; today FX.pulse leaves the last move's tint in place (fx.js:205). skinFor(mode, spec, prefs) *new* is pure:
+    - 'relief' when prefs.hud is 'fixed';
+    - for 'daily' and 'stone', SKINS[spec.chapter − 1], with SKINS = ['relief', 'relief', 'relief', 'matrix', 'matrix', 'void', 'singularity', 'relief']. spec.chapter comes from levels.js:80 and :167, so a special's fallback level, which takes the special's slot, keeps that slot's skin;
+    - 'matrix' for 'doors', whose specs say chapter 1 (levels.js:233, via :80);
+    - 'relief' for every other mode (free() says chapter 0, levels.js:245).
+  - index.html calls setSkin(skinFor(…)) in two places. The first is ENTER, after G.start (:333) and before #hud shows (:334), so a day resumed mid-chapter opens in its chapter's skin and nothing changes when openLevel runs 3.9 s later (:338). The second is chapter(), as #chap opens (:278) under its .74 scrim (:65), before GO.
+  - The swap needs no gate. The grounds differ by at most 0.0039 in relative luminance (#0a0d10 0.0039, #050805 0.0022, black 0), against U3's 0.1. SINGULARITY's barrel, 0.0234 → 0.06, moves the tube's edge in over 7.1 % of the screen, darkening it by 0.2 alpha or more (python over fx.js:174–188). That is a one-way step under the scrim, and its reverse comes a chapter later; U3 counts only opposing pairs.
+  - In XR, crtQ is hidden (index.html:345) and crtPulse returns at once (:241), so there a skin is its HUD tokens alone.
+  - parts/hud/check.js *new* (node): glyphs(n) has 2 code points (3 for 256, 1 for ∞); each skin's text token is at least 4.5:1 on its strip and --hair at least 3:1. It loads data.js, field.js and levels.js as test.js:6–7 does, and asserts skinFor:
+    - over plan(9422, 'SCRIBE') the skin changes only at levels 25, 41, 49 and 57, each with (L − 1) % 8 === 0, where index.html:268 opens a card;
+    - 32, 16, 8 and 8 levels in RELIEF, MATRIX, VOID and SINGULARITY;
+    - doors('2357')'s 7 levels are all MATRIX, and free() is RELIEF;
+    - with {hud: 'fixed'} all 64 levels are RELIEF.
+  - localStorage 'fold.prefs' {hud: 'chapter' | 'fixed'}, default 'chapter': the one prefs object U3 loads before A.init, not a key of its own. The skin itself is never stored: skinFor recomputes it from the mode and S.spec. So no run record changes (game.js:25), and a reload mid-chapter opens in that chapter's skin.
 - *Layout* (sizes *design*).
   - **Phone portrait:**
     - Z1 status strip, 28 px: day · L n/64 · RULE · ★ · gear. A 44 × 44 hit area does not fit a 28 px strip: the gear's target overhangs it by 16 px (glyph drawn at 28 px), or the strip grows to 44 px.
@@ -1217,7 +1388,7 @@ Below, every reward has its picture in the world, and THE BOOK (Q1) carries them
 - *Risks.*
   - backdrop-filter over a WebGL canvas that changes every frame is unmeasured on VideoCore; data-lowend removes it.
   - 𝟙 may be missing from DejaVu or Android fonts. Detect tofu with measureText, or fall back to a 16-glyph sprite.
-  - AUTO never switches mid-chapter.
+  - A switch mid-chapter would re-colour every instrument under the player's eyes. skinFor reads only the mode and spec.chapter and is called only at ENTER and when a card opens, and check.js asserts the four switch levels.
 
 **U2 · THE MOVE, FELT: one motion grammar.** *M*
 - *Sees.* On every move each instrument moves with the sky, in the same frames, and lands when the cells land. UNDO flows backwards instead of jumping the marker. The rare cells get their own landings: a gold flare on 1, 16, 256 and 241; 'Γ(n) = n' written on 46 and 92; the reticle tightening on 137; at ∞, every ring collapsing to a point and re-opening on Γ(∞) = 1.
@@ -1254,11 +1425,12 @@ The busy gate allows at most 2.22, 1.39 and 1.01 moves a second for the three fl
 - *Sees.*
   - **CALM on** (the system's prefers-reduced-motion, or the in-app MOTION setting): nothing moves the camera, no tunnel is flown, nothing flashes. Each effect shows a still or a slow fade. Γ's room filter becomes a hue turn without the inversion. The flow is pinned, so cells do not travel, but the busy gate and HALT keep their timing.
   - **CALM off:** the effects play, but every large luminance change passes one gate.
-  - A gear (on the start screen and in the status strip) opens one sheet: SKIN · MOTION (SYSTEM / FULL / REDUCED) · STROBE (ON / OFF) · COLOUR (RELIEF HUE / RAYS / CVD-SAFE) · VIEW (ROOM camera / SKY / AR when supported; AR moves here from the aux that index.html:339 appends at ENTER, which with RAYS and VIEW would be a fourth #ops row over #quest; Scope creep's VIEW aux, cycling RAIN and CODE, then needs another name) · SOUND · TUNING (chromatic / a220 / lambda / tape) · CODE · MAP · TEXT 100 / 150 / 200 %. WCAG 1.4.4 asks 200 %, and index.html:5's user-scalable=no blocks pinch zoom on Android Chrome, so TEXT is the only zoom there.
+  - A gear (on the start screen and in the status strip) opens one sheet: HUD (CHAPTER / FIXED; U1) · MOTION (SYSTEM / FULL / REDUCED) · STROBE (ON / OFF) · COLOUR (RELIEF HUE / RAYS / CVD-SAFE) · VIEW (ROOM camera / SKY / AR when supported; AR moves here from the aux that index.html:339 appends at ENTER, which with RAYS and VIEW would be a fourth #ops row over #quest; Scope creep's VIEW aux, cycling RAIN and CODE, then needs another name) · SOUND · TUNING (chromatic / a220 / lambda / tape) · CODE · MAP · TEXT 100 / 150 / 200 %. WCAG 1.4.4 asks 200 %, and index.html:5's user-scalable=no blocks pinch zoom on Android Chrome, so TEXT is the only zoom there.
 - *Does.* Toggles. Each choice is kept on the device and applied before the scene is built. The sheet also holds a button for every action that is elsewhere only a key or a long press (T3's BITS, key b or a long press; Scope creep's 'everything else'): a key is out of reach on a phone, and a long press is out of reach of a keyboard (WCAG 2.1.1) and hard under a screen reader.
 - *Gets.*
   - Photosensitive, vestibular-sensitive and colour-blind players play the same challenges and still read hue = dlog.
   - A player who will not share the camera picks SKY instead of being asked on every ENTER (index.html:336).
+  - A player who needs the HUD never to change picks HUD FIXED (U1). Nobody picks a look: the sheet names no skin.
   - The four tunings already written (sound.js:39–44, :195) become audible.
   - It fixes F2.
 - *Changes.*
@@ -1315,34 +1487,34 @@ The busy gate allows at most 2.22, 1.39 and 1.01 moves a second for the three fl
 **U5 · THE LINE, THE TRACE, THE HINT, THE PANEL.** *S for hint and panel, M for the rest*
 - *Sees.*
   - **The line strip.** For the first time the line shows during play; today it appears only on the cards (index.html:257, :286). Above the ops: the last three words and two cells, 'Σ 167 EYE OF PROVIDENCE · φ 17 Q' (SCRIBE today after level 8; Numbers). Σ is the letter sum's cell; φ is the positional part, by B12's law (k, s, b)·(k′, s′, b′) = (k + k′, s + s′, b + b′ + k·s′). A closing word types in and both cells roll.
-  - **Spaghettification.** In the SINGULARITY skin the words stretch toward the eye's screen position as you near it, with s(d) = 1 + 2/(d + 1)³ (3.00, 1.25, 1.074, 1.031 … for d = 0, 1, 2, 3). Word i of k stretches by s^((i+1)/k), with area kept. This radial tide is the counterpart of S1's tangential arcs. On the crossing the letters stream into the eye and re-form at the top edge.
+  - **Spaghettification.** In the SINGULARITY skin, which is chapter 7 (levels 49–56, the eye's chapter; U1), the words stretch toward the eye's screen position as you near it, with s(d) = 1 + 2/(d + 1)³ (3.00, 1.25, 1.074, 1.031 … for d = 0, 1, 2, 3). Word i of k stretches by s^((i+1)/k), with area kept. This radial tide is the counterpart of S1's tangential arcs. On the crossing the letters stream into the eye and re-form at the top edge.
   - **The trace.** In CODE view, a 3-line log records each move as arithmetic ('×g 62·3 = 186 · d 34 → 35'). The stand shows 'n = 3^d · 0xNN', and the status strip rains the level's own π digits with the opcode digit lit.
-  - **The hint** appears as chips: 'Γ×10 ×i Γ×11' for today's level 1.
+  - **The hint** appears as chips: 'Γ×10 ×i Γ×11' for today's level 1. The first HINT on a level is free, and the HINT button shows its price ('free', then '★★'). The chips light one by one as the player follows them, grey on a move off them, and light again on UNDO back onto them (Q4).
   - **The panel's** mirror list reads '4 of N ›' and expands grouped by mirror cell 27k − s. It adds hex, 3^d, nm, note, Γ side, ring and ladder. Its close button is 44 × 44.
-- *Does.* Reads the line as a running computation and taps it for each word's (k, s, b); toggles CODE; taps HINT and gets a short, readable road.
+- *Does.* Reads the line as a running computation and taps it for each word's (k, s, b); toggles CODE; taps HINT and gets a short, readable road, free the first time on each level.
 - *Gets.*
   - "Seeing the code behind things", which here is literally the field's own arithmetic.
   - A line with two names each day: SCRIBE today, on par roads, ends on Σ 30 ARK · φ 109 NIETZSCHE. The plan's unshifted targets would give Σ 221 INDUSTRIALIZATION · φ 232 TOPOLOGICAL QUANTUM (F8).
   - When level 56 closes, 'your line went through the eye: Γ(Σ) = …' on the card and the seal. For example, Γ(56) = 23, whose words are CALEB, DJED, AIM, BAT, I AM; Γ(137) prints '∞ the open circuit'.
 - *Changes.*
   - field.js: positional(s) *new*. Its index advances on the letters A–Z only, so the law equals positional() of the space-joined line.
-  - game.js: lineInfo() also returns b, phi, phiWord and gamma. hint() and showCell's road use LV.road (F5).
+  - game.js: lineInfo() also returns b, phi, phiWord and gamma. hint() becomes hintPress() (Q4), and it and showCell's road use LV.road (F5).
   - hud.js: lineStrip, trace and rle. The strip, the hint chips and the rule pill are <button>s, so a keyboard reaches each word's (k, s, b). The trace is role='log', and #voice and #toast get role='status' aria-live='polite'; nothing on the page is announced today.
   - index.html: showCell's expander (F4), the code facts, and the gated road (F5).
   - ar.js: atlas(cells, mode) redraws the code faces on toggle, an 18,874,368-byte re-upload; that is a one-off hitch on a Pi.
 - *Numbers.*
   - RONGO is (5, 69, 193); RONGORONGO is (10, 138, 731), and 731 ≡ 217 (B12).
   - SCRIBE today, every level closed in order on par roads, with the line game.js:77 builds (a SHIFT level adds its shifted target's word: levels 6, 7, 16, 45, 47; F8): after level 8, k 53, Σ 167, φ 17; after level 64, k 559, Σ 30, φ 109. The plan's unshifted targets give k 48, Σ 99, φ 95 and k 550, Σ 221, φ 232.
-  - Today's level 1 hint is 38 moves (Γ×37 ×i), a 112-character toast cut off by nowrap (index.html:73). LV.road gives 22 moves; the longest LV.road today is 25 (level 18).
+  - Today's level 1 hint is 38 moves (Γ×37 ×i), a 112-character toast cut off by nowrap (index.html:73). LV.road gives 22 moves; the longest LV.road today is 25 (level 18). As chips, today's 64 roads take 1–7 chips (mean 3.38) and at most 17 characters. Over the 100 days from 9422 they take 1–7 chips (mean 3.47; 35 of 6400 roads need 7) and at most 21 characters. Seven 44 px chips with 4 px gaps are 332 px wide, inside a 360 px phone less two 10 px gutters.
 - *Refs* B12, C1, B18, B13, B5, C16, A12.
-- *Risks.* The trace describes the move just made, never the road ahead. Spaghettification at s = 3 with area kept leaves a 12 px word 4 px tall, so the stretched word is an aria-hidden copy over the plain strip text, and it is off under CALM. Long tablet words in the strip need ellipsis and the expander. WCAG 2.5.8 asks 24 × 24 (AA) and 2.5.5 asks 44 × 44 (AAA); today's close button is about 25 × 24.
+- *Risks.* The trace describes the move just made, never the road ahead. Spaghettification at s = 3 with area kept leaves a 12 px word 4 px tall, so the stretched word is an aria-hidden copy over the plain strip text, and it is off under CALM and under HUD FIXED (U1). Long tablet words in the strip need ellipsis and the expander. WCAG 2.5.8 asks 24 × 24 (AA) and 2.5.5 asks 44 × 44 (AAA); today's close button is about 25 × 24.
 
 **U6 · THE CARDS AND THE SEAL.** *M*
 - *Sees.*
   - **Name screen.** Each letter's value drops down a short π-rain column into the running sum. The cell lands as a pixel on the 16 × 16 table and a dot on the twelve rays. Under it: the cell's glyphs, ray, character, Atbash mirror (27k − s), φ-part, and square roots when it is a residue (C16). SCRIBE: 56 CARDANO, k 6, ∞ε, ray 1, dlog 229 (odd, so a non-residue with no root), mirror 27·6 − 56 = 106 NEFERTITI, φ 155 SINGULARITY.
   - **Boot.** ENTER boots the HUD during the bloom, in the bloom's own order (POW, ar.js:165): the status strip types in, the table lights cell by cell, the ops rise. It all fits inside the existing 3.9 s before openLevel (index.html:335, :338), with no new wait.
   - **Won card.** CLOSED slams on the chord (+260 ms), and the stars appear with the bells (+550, +780, +1010 ms; sound.js:241, :243). Also: the road as chips, the line's new word with Σ and φ rolling, the marks (SIGHTED, IN PHASE, AMBER), and the chart replaying the road.
-  - **The seal.** The floor settles to the plain norm and the day's targets rise on it as contour lines, one chapter a second: each is {a² + ab − b² ≡ t}, 258 points in its dlog hue. Where a line runs through a star (targets 154 or 103), the stars on it flare. The seal cell's contour is drawn last, in white. The card carries the day's heat picture (H3), the ledger (T4) and SHARE (text and PNG).
+  - **The seal.** The floor settles to the plain norm, and the day's closed cells rise on it as contour lines, one chapter a second: each is {a² + ab − b² ≡ t}, 258 points in its dlog hue. These are S.targets, the cells the seal multiplies, so a SHIFT level's line is the cell it closed on (F8). Where a line runs through a star (targets 154 or 103), the stars on it flare. The seal cell's contour is drawn last, in white. Under the map the card names it 'product of the 64 closed cells ≡ 227 LAMB OF GOD' (SCRIBE today). On a day that closed a 0 it reads 'sum of the closed cells'; a day ended early with END THE DAY names the n of 64 it sealed; and when V3's second life was taken it adds 'reborn N'. The card carries the day's heat picture (H3), the ledger (T4) and SHARE (text and PNG).
 - *Does.* Types a name, then ENTER, GO, NEXT and WALK ON as today. A tap or Esc skips any card animation, and the card's first button takes focus when it has played. In 3D, turns round to read the contour map.
 - *Gets.* The day ends on two images that belong to that day and that name: the contour map in the world, and the heat on the card.
 - *Builds on.* The start screen (index.html:87–104, nameCell at :158); won() (:247–264); endDay() (:280–289); LV.seal (levels.js:209–216); the five stars (relief.js:46).
@@ -1354,8 +1526,7 @@ The busy gate allows at most 2.22, 1.39 and 1.01 moves a second for the three fl
   - Saving the picture needs render and toBlob in the same frame, because the renderer has no preserveDrawingBuffer (ar.js:124).
   - Slams go through FX.strobe (U3).
 - *Numbers.* At most 64 × 258 + 258 contour points, which with the floor is 33416 vertices, under 40k. Today, on par roads:
-  - by what endDay seals: 55 distinct closed targets, 14190 points, 31094 vertices;
-  - by the plan's targets: 54 targets, 13932 points (F8).
+  - the 55 distinct cells SCRIBE closes (S.targets; the plan's targets would be 54, F8): 14190 points, and 31094 vertices with the floor and the white seal line.
 - *Refs* A10, A7, C16, C3, D1, D2, A13, A34, B32.
 - *Risks.* 50+ families of curves can blur; the white seal line on top, the batching and a 'one chapter' toggle keep it legible. Over the camera a full-screen black card hides the room for about 1.2 s, so AR uses half-sheets.
 
@@ -1382,7 +1553,15 @@ Tried in a scratch copy with the two words removed:
 *Fix:* the 'k of N ›' expander (U5).
 
 **F5 · game.js:91 and index.html:292, :301 — HINT and the panel use F.solve, a 0-1 BFS that does not minimise moves.** Today's level 1 hint is 38 moves (Γ×37 ×i) in a 112-character toast that nowrap cuts off (index.html:73); LV.road gives 22. Level 17's F.solve road is 69 moves. The panel also prints the road to any tapped cell, the target included (index.html:301), which bypasses the challenge.
-*Fix:* road(s, t, free, ops) gains an ops parameter (OPSET is private, levels.js:28) and is called with S.opsList; the target's road in the panel is shown only after HINT.
+*Fix:* road(s, t, free, ops, avoid) gets two new parameters:
+- ops (OPSET is private, levels.js:28), called with S.opsList;
+- avoid: cells the road never enters short of the target. On HALT days these are B22's 27 HALT cells (decision 3); on other days the set is empty.
+
+game.js hint() and showCell (index.html:292) call road() in place of F.solve; SHIFT keeps solveShift (game.js:91), which takes the same avoid set. The first HINT on a level shows that road for free, as chips (U5); further presses cost as Q4 sets out.
+
+On an ordinary level the panel's line for the target reads 'the road is HINT's · free' or 'the road is HINT's · ★★' and never prints the road. That stops the plain tap, not a hunt: the target's panel lists its fold, inverse and Γ (index.html:300), and on 3533 of the 5719 levels of the 100 days from 9422 without SHIFT or the eye (SCRIBE, HALT cells avoided on HALT days), the road to one of them plus that one move closes at 3★. On a word level the target is hidden, so the panel prints every cell's road, the target's included, and the target's panel looks like any other.
+
+Over the 5819 non-SHIFT levels of those 100 days, LV.road's roads run 1–25 moves (mean 4.65) and F.solve's 1–88 (mean 6.56). Every LV.road road costs exactly par.
 
 **F6 · index.html:195 — `ch === 7` with a 0-based ch (index.html:192).** THE TURN stands in THE SEAL (levels 57–64), while README:22–23 says the eye's chapter.
 *Fix:* `ch === 6`.
@@ -1396,7 +1575,12 @@ Tried in a scratch copy with the two words removed:
 *Fix:* R1 and R3.
 
 **F8 · index.html:281 against parts/levels/test.js:74 — two different seals.** endDay seals S.targets. game.js:77 pushes S.target after game.js:73 has shifted it, while test.js:74 seals the plan's target0. So SHIFT levels 6, 7, 16, 45 and 47 record 81, 40, 82, 54 and 249 instead of 1, 144, 141, 172 and 74. For SCRIBE on day 9422 with par roads, endDay shows 227 LAMB OF GOD, and test.js's rule gives 130 PYTHAGORAS. For TORAH, the name test.js plans (test.js:84), test.js prints 101 AMPLITUDE and the card would show 36 IMAM. The seal is per name, because the ladder levels 36 and 40 start from the name's cell.
-*Fix:* decide which is meant (open question 2), and make test.js assert what the card shows.
+*Fix (decided: the seal is the cells you close).* The seal is LV.seal(S.targets), which endDay already computes (index.html:281). It takes the cell each level was closed on, one entry per closed level, and a SHIFT level's moved target t0·3^moves counts (game.js:73, :77). game.js:73–77 and the seal call at index.html:281 stay as they are. What changes is what checks the seal and how the card labels it.
+- test.js:74 becomes `L.seal(plan.map(sp => play(sp).target))`, the cells the par roads close on: play() already follows the moving target (test.js:19–21). The first-32 seal at :77 changes the same way. test.js also requires game.js, which loads in node as it is because its localStorage calls sit inside try (game.js:24–25). For today's plan it plays every spec road through G.start, G.apply and G.next, and asserts that G.S.targets equals those cells and that L.seal(G.S.targets), the card's own call, gives the same seal. Run in node, both give 227 LAMB OF GOD for SCRIBE and 36 IMAM for TORAH (64 closed, 192 stars). For TORAH on day 9384 the seal becomes 170 IMAGINARY NUMBER; test.js prints 242 HEISENBERG UNCERTAINTY there today.
+- What the seal now depends on. On a product day it is the plan's seal × g^m, where m is the number of moves used on the day's SHIFT levels: today m = 23, and 130·3²³ ≡ 227. So every move on a SHIFT level turns the seal one ×g. This holds on all 68 product days among the 100 from 9422 (SCRIBE). The other 32 days close a 0 and seal by the sum, where one more SHIFT move adds 2t for that level's cell t. A day has 2–11 SHIFT levels (581 in those 100 days). SHIFT has no slack, so 3★ on a SHIFT level means exactly par moves, and a day with 3★ on every SHIFT level seals one cell per name and day. The name enters only through the ladder levels 36 and 40. test.js asserts the ×g step on product days: one SHIFT cell × 3 multiplies the seal by 3 (SCRIBE's level 6 at par + 1 turns 227 into 167 EYE OF PROVIDENCE).
+- index.html:286 says 'product of the targets' even on a sum day. It follows seal.by instead ('product' or 'sum of the closed cells') and gives seal.n of 64, since END THE DAY seals what is closed so far.
+- The line comes from the same cells: game.js:77 pushes the shifted target's word. So the card's two readings of the seal, the line's cell in its prose (story.js:35, :58) and the product line, both come from what was closed.
+- parts/levels/notes.md:64–66 gives 220 CENTRAL LIMIT THEOREM for day 9384 and 54 LOVE for 9421, seals that neither rule gives: for TORAH the plan's targets seal 242 and 256 BAAL SQUARED, the cells closed 170 and 180. They are rewritten as TORAH's 170 IMAGINARY NUMBER (mirror 235 BINOMIAL DISTRIBUTION) for 9384 and 180 JOHN VON NEUMANN (mirror 198 BEAUTIFUL DOORWAY) for 9421. README:19–20 adds the product of the cells closed.
 
 **F9 · field.js:35 — the flip's tell is false in a six-move game.** It says "the one move that can cross Γ's sides", which is true only beside Γ alone (B17). Γ has two orbits of 128, plus its fixed points 46 and 92. Over the moves that neither start nor land on 46 or 92, ×g and ÷g cross between the orbits for 130 of 252, FOLD and INV for 128 of 252, ×i for 112 of 252, Γ for 0 of 256, and the flip for 32 of 78. Counting a landing on 46 or 92 as a crossing gives 132, 130 and 114 of 254, and 34 of 80 for the flip (node over field.js).
 *Fix:* field.js:35's tell and :33's comment become "Γ never crosses its two sides; the flip crosses for 36 of the 82 cells it moves". B17's hook "the one way across Γ's sides" (material.md:294) goes too.
@@ -1438,20 +1622,23 @@ gen_material.py reads the tablet from outside this repository (FOLD_TABLET, gen_
 | `singularity` *new* | material.js | {moves_to_pole: int[258] (index 257 = ∞; six moves; check only, the game computes per S.opsList), orbits {of1: int[128], of3: int[128], fixed: [46, 92], slots {pole: 126, inf: 127, zero: 6, seed: 7}}, other_side {start: 137, target: 0, roads: [["fold","gam"], ["gam","inv"]], via: [120, 257]}} | Γ walks with ∞ as 257 | S1, S2, S3, S5 |
 | `gamma.side_of_1`, `rings.all` *new* | material.js | int[128] sorted (∞ as 257, not 'inf'); {0..32: int[4 or 8]} | gen_material.py's Γ orbit (:85–89) and ring rule (:104–107); check.js loads field.js and compares | M3, M1 (JUMP pattern) |
 | `axiom` *new* | material.js | {seed: 'F1-R1-CF1111-DM1-T4-P2357-C53-E111-S161-D234-PM1', tokens: [[label, factor, factor mod 257]] × 11, minus: [1, 83, 174, 182, 41, 117, 137, 212, 7], plus: [1, 83, 75, 216, 140, 120, 45, 250], pars_minus: [4, 1, 4, 3, 3, 4, 2, 5], pars_plus: [4, 4, 3, 3, 4, 2, 4], sign: 'character of day mod 257; +1 at 0'} | B24's products; a six-move BFS in python *new*, cross-checked in test.js | T5 |
+| `halt_points` (read, not new) | material.js | int[27]: 5 … 249, sum 3095 ≡ 11 | D.pi[n] = 9 for n ≤ 256, asserted at parts/corpus/check.js:43. levels.js computes HALTS from D.pi itself (test.js loads no material.js), and test.js asserts the same 27 | M6, M7 |
 | `autopilot` *new* | material.js | {rule: 'JUMP → 257 − pc, HALT stops, else pc + 1', halts: 153, cycles: [[25..29, 228..232], [91..96, 161..166], [118..120, 137..139]], basins: [33, 29, 42]} | B23's rules over D.pi; check.js re-runs 46 → 214 | M6 |
 | `heat` *new* | material.js | {forms: {norm: {grad: [[2, 1], [1, −2]], crest: 258, zero: 1, wrap_edges: 33006, edges: 132098, gentle: 49}, circle: {grad: [[2, 0], [0, 2]], crest: 256, zero: 513, wrap_edges: 33044, gentle: 49}, hyperbola: {grad: [[2, 0], [0, −2]], crest: 256, zero: 513, wrap_edges: 33042, gentle: 49}, product: {grad: [[0, 1], [1, 0]], crest: 256, zero: 513, wrap_edges: 33024, gentle: 49}, ellipse: {grad: [[2, 0], [0, 8]], crest: 256, zero: 513, wrap_edges: 33068, gentle: 49}, parabola: {grad: '(−4, 2b)', crest: 257, zero: 257, wrap_edges: 17540, gentle: 257}}, stars: none (they are material.js norm_stars.stars, the same five points in the same order; relief.js:46 STARS holds them in another order), words: {SISYPHUS: [136, 8, 80], REBIRTH: [80, 7, 109], FALL: [31, 4, 77], GROUND: [79, 6, 83], STONE: [73, 5, 62]}} | arithmetic, with both rules written into gen_material.py and asserted in check.js: a wrap edge is a torus neighbour pair whose values differ by more than 128 (of 2·257² = 132098), and gentle means a gradient of length at most 4, the gradient being the central difference × 2⁻¹ mod 257, signed. Words get their own check loop, because SISYPHUS is not a tablet word | H1–H3, V3 |
 | `palette_cvd`, `palette_cvd_rays` *new* | material.js | [[r, g, b]] × 256 by dlog; × 12 by ray; zero as a light neutral, not [0, 0, 0] on the dark ground | CIELAB L* = 62 + 22 cos θ, a* 0, b* = 45 sin θ → sRGB. check.js asserts gamut for both tables, min ΔE76 ≥ 9 under Machado 2009 for the 12 rays only, and θ rising with dlog for the 256: those 256 lie on one loop, so neighbours differ by only 0.54–1.10 before any simulation. As text on --ground #0a0d10, rays 5–7 (L* 42.9, 40.0, 42.9) reach 3.36, 3.02 and 3.36 : 1, and rays 4 and 8 only 4.50, on the line. So ray words are set in --text beside a swatch; the swatches keep WCAG 1.4.11's 3 : 1 | U3 |
 | `rays` (read, not new) | sound.js, ar.js | FOLD_SOUND.NM and NOTE (sound.js:35–36, exported at :262) and AR.RAY_RGB (ar.js:27, exported at :237); sign: missing data | already exported. A material.js copy would be a third source, and the two already differ: ar.js:27 uses the unrounded 377 + 21.18r, sound.js:36 the rounded nm | U4, T4 |
 | `quotient_pairs` *new* | material.js | {n: 1800, q: 7, pairs: [[8, 225], [9, 200], [10, 180], [12, 150], [15, 120], [18, 100], [20, 90], [24, 75], [25, 72], [30, 60], [36, 50], [40, 45]], norm_of_point: 216} | B31; check.js asserts a·b = 1800 and inv(a) = b | Q1 |
 | `days.festivals` *new* | material.js | [[iso, day, kind, field, word, tablet_cell or null]], ten years | the same day rule as gold_2026_2027 | Q2 |
+| `pi` (extended) | data.js | a string of 93810 digits: the machine's 20001 (build_data.py:13), then 73809 more; at() wraps at 93806 = 257·365 + 1 (levels.js:36), and the 4 past it let the last window, from 93805, read true digits | build_data.py pi_digits(93810) *new*: Machin's formula in exact integers, asserted equal to the machine page on its 20001; gen_material.py re-derives every digit by Störmer's formula; test.js asserts the length | Q2, M1, M2 |
+| `tape_head_today`, `opcode_today` (fix) | material.js | windowBase(day_today) and π there: 9435 and 7 on day 9422, as now | gen_material.py:225 with levels.js's base rule copied; need_pi (:156) asks for the whole tape, digit 93809; corpus check.js recomputes both | Q2 |
 | `word_cells` *new, optional* | material.js | [[cell, word]] for the 230 cells with a non-first askable word whose letter sum ≡ the cell mod 257 (229 by exact sum) | letter sums over data.js | Q4 |
 | `seven_step_words` *new* | material.js | [[word, sum]] for the 370 words levels.js nice() can ask (:186), 352 of them standing at their own sum cell | Kaprekar steps of letter sums as four figures. The tablet has 428 such distinct words, including unaskable entries (N, O, AM, MA, GG, JD, MC2); material.md C7 says 24 (F13) | Q5 |
 | `tunnel.glyphs` (fix) | material.js | last entry ∞⅗ | F.glyphs of each cell, computed at gen_material.py:234, where the list is typed today | V2, F13 |
 | `cells[44].w`, `cells[44/62].ws` (fix) | data.js | the name-words out of 44's ws (its first word) and 62's (its third); w is the first word left (44 SPACE, 62 FIBONACCI, 70 LILITH unchanged) | build_data.py, and gen_material.py given the same rule. gen_material.py:11–14 as it stands would make 62 TORAH and 70 PROOF (F3) | F3 |
-| spec fields | computed on device | sp.sheet, sp.work {bits, cells, possible, witness}, sp.word, sp.hideTarget; S.shiftStep is game state in game.js (R3), not a spec field | levels.js. sp.work stays deterministic, for test.js:32's equality check, and within a budget: plan() already takes 16–28 ms in node | R2, T3, Q4, R3 |
-| run record `fold.run.<day>.<mode>` (game.js:23–25) | localStorage | gains: climbs [{L, s, t, par, ops, out, undos, falls}], undos, steps, lost, spent int[64], closed cell per level, amber int[64], rays int[12], bits int[12], found, decoded int[], circle (64 hex digits), rebirths, phase | game.js save(); old runs default to zeros | H2, H3, T3, T4, M2, R3, V3, V4, U4 |
+| spec fields | computed on device | sp.sheet, sp.work {bits, cells, possible, witness}, sp.word, sp.hideTarget, sp.fallback (on R3's, R5's and S5's specials: the tape level the special stands in front of, whole); S.shiftStep is game state in game.js (R3), not a spec field | levels.js. sp.work stays deterministic, for test.js:32's equality check, and within a budget: plan() already takes 16–28 ms in node | R2, T3, Q4, R3, R5, S5 |
+| run record `fold.run.<day>.<mode>` (game.js:23–25) | localStorage | gains: climbs [{L, s, t, par, ops, out, undos, falls}], undos, steps, lost, spent int[64], closed cell per level, amber int[64], rays int[12], bits int[12], found, decoded int[], circle (64 hex digits), fell int[] (the special slots played by their fallbacks, R3), rebirths, phase | game.js save(); old runs default to zeros | H2, H3, T3, T4, M2, R3, V3, V4, U4, Q4 |
 | `fold.book.<NAME>` *new* | localStorage | {v: 1, days {<day>: {c, s, seal, line}}, first {<cell>: <day>}, atlas: 65 hex digits, gold: 4 bits, q1800: 12 bits, mirrors: [], stars, rings, circle, walls, saturn, throats, stone, doors, blocks} | record() and backfill() | Q1–Q6 |
-| `fold.prefs`, `fold.void`, `fold.rings`, `fold.boot.<day>` *new* | localStorage | {skin, motion, strobe, palette, view, tuning, code, map, text}; flags | the settings sheet and the toggles | U3, V1, M3, T5 |
+| `fold.prefs`, `fold.void`, `fold.rings`, `fold.boot.<day>` *new* | localStorage | {hud ('chapter' or 'fixed'; the skin is computed, never stored, U1), motion, strobe, palette, view, tuning, code, map, text}; flags | the settings sheet and the toggles | U1, U3, V1, M3, T5 |
 
 ---
 
@@ -1488,13 +1675,13 @@ Every deploy that changes a file in SHELL bumps sw.js CACHE, as sw.js:1 asks, st
 - *New files:* parts/book/book.js and parts/well/disc.js. New material.js keys go through gen_material.py where the tablet is, plus check.js. CACHE 'fold-v14'.
 - *Dependencies:*
   - Q1 comes before Q2's streak, Q5's unlocks, Q6's heights and every keepsake.
-  - Q2's stride waits on open question 1.
+  - Q2's stride needs build_data.py's extended tape (Decisions 1).
   - Q3 needs M1, S1 and V3; Q4 uses Q3's rain state.
   - R4 needs R1; S2 needs S1; M5 needs H1; V2 reuses V3's tunnel().
   - T3 reveals through T2; without miners, shares show at level open.
   - U6's contours need R1's level table.
   - Every new billboard state (Q1's 6, Q3's 7 and 8, and any that Q4 or T2 add) follows F12, which lands in Phase 1.
-  - Q1's stored seal and U6's seal card wait on open question 2 (F8).
+  - Q1's stored seal and U6's seal card use the seal of the cells closed (Decisions 2, F8).
   - M6's keepsakes need Q1, and its trace by hand needs M3's faces.
   - F15 prunes old runs after Q1's backfill.
 - *The moment that sells it:* a perfect chapter of THE MIRROR. The room is lit on all four walls, the last close comes in bullet time, and MATRIX · 85 rains down every column except yours. The next morning the start screen mines the new day's block on the twelve rays (T5), and THE MIRROR is still in THE BOOK, with the streak ladder one rung higher.
@@ -1526,7 +1713,8 @@ Every deploy that changes a file in SHELL bumps sw.js CACHE, as sw.js:1 asks, st
   - Outside the relief budget: billboards 1032, rain 7168, the crowd's 2n offscreen line vertices.
 - **Draw calls and textures.**
   - Today 14 draw calls (measured on level 1). Three of them are the threads, ladder and orbit at opacity 0 (ar.js:234); hiding them (F10) gives 11, which pays for rain +1 and the tunnel +2. Added: rain +1, kaleidoscope +1 (card only), crowd plane +1 plus a 3-pass render target, tunnel +2, disc +4, the chart 0 (it is 2D canvas).
-  - Textures: main atlas 18,874,368 B; code atlas 4,718,592 B (64 px slots for the Pi); rain atlas 327,680 B; tape texture 19,968 B; heat render target 256 kB (64 kB at 128²).
+  - Textures: main atlas 18,874,368 B; code atlas 4,718,592 B (64 px slots for the Pi); rain atlas 327,680 B; tape texture 19,968 B (78 × 256 of the tape's 93810 digits, from windowBase(day) − 9435, refilled once a day; Q2); heat render target 256 kB (64 kB at 128²).
+  - Download: data.js is 181,685 B with the fresh road's tape before the header's new words, up from 107,876 B (+73,809 B of digits; zlib level 9: 38,246 → 73,510 B). It is fetched once per CACHE bump (sw.js:2–4) and parsed once.
 - **Photosensitivity (WCAG 2.3.1).**
   - Every large-area luminance change goes through U3's gate: at most 3 a second, onsets at least 334 ms apart.
   - The gate also counts saturated-red transitions, under 2.3.1's red-flash rule: R/(R + G + B) ≥ 0.8, on the linear R, G, B of the relative-luminance definition. Γ's CRT tint hsl(0 70 % 60 %) (index.html:242) is 0.82 and the descent orange #ff6a2a (V3) 0.86, so both count; the warp tint [1.0, 0.55, 0.5] (fx.js:304) is 0.68. Any new red source is tested the same way.
@@ -1547,22 +1735,51 @@ Every deploy that changes a file in SHELL bumps sw.js CACHE, as sw.js:1 asks, st
   - The six directions proposed six Twelve Rays ports (floor city, HUD chart, operator screen, accretion disc, seal tube, attract) and seven Sisyphean Heat ports. This scope keeps one module for each: parts/rays/rays.js and parts/heat/heat.js.
   - Likewise one flash gate, one lift (void.js), one tunnel builder (ar.js tunnel()), one floor that R1, R5, H1 and U6 all draw on, and one persistence layer (Q1).
   - At most two new aux buttons (RAYS, and VIEW cycling RAIN and CODE); a fourth row of #ops covers #quest. On WebXR Android, the 'AR · the room' button added at ENTER (index.html:339) would make that fourth row (LADDER RAYS VIEW, then AR), so AR moves to the start screen beside #xrnote (index.html:101). In THE MIRROR the 6↔9 button (index.html:175, shown at :218) is a seventh op: 7 + 6 × 2 = 19 columns, one more than three rows hold, so VIEW drops to a fourth row there even without AR, and one aux button must give way in that chapter. Everything else is a key or a long press, and also a button in U3's settings sheet: a key alone is out of reach on a phone, and a long press alone is out of reach from a keyboard (WCAG 2.1.1).
-  - Every plan change lands behind a flag, with test.js covering both settings: Q2's stride, the new level kinds of R3 and S5, rebirth (V3), word levels (Q4), hint caps, and S3's dilated HALT clock, which changes when tick() loses a level (game.js:85).
+  - Every plan change lands behind a flag, with test.js covering both settings: Q2's stride, the new level kinds of R3, R5 and S5 (opts.extra; with every special fallen back it is the plan without the flag), rebirth (V3), word levels (Q4), hint caps, and S3's dilated HALT clock, which changes when tick() loses a level (game.js:85).
 
 ---
 
-## Open questions
+## Decisions (2026-10-18)
 
-1. **Fresh roads (Q2).** Adopt a window stride of 257? Today day d + 4 replays 55 of day d's 64 levels. The stride changes every day's plan and the README's account of the tape; saves would be versioned. At stride 257 the tape's windows overlap after 77 days (C2). A year without overlap needs 257 × 365 = 93,805 digits, but data.js holds 20001, taken from the machine's page (build_data.py:13). Where would a longer tape come from, or should the README say that from day 78 the windows are reread?
-2. **The seal (F8).** Is it the product of the plan's targets (test.js:74; 130 PYTHAGORAS today for SCRIBE, 101 AMPLITUDE for TORAH, the name test.js prints), or of the cells actually closed, shifted on SHIFT levels (endDay; 227 LAMB OF GOD for SCRIBE and 36 IMAM for TORAH, on par roads)? The second makes the seal depend on how many moves the player used. Either way the seal is per name. C1 stores the seal and U6 draws it, so both wait on this answer.
-3. **HALT cells (B22).** Build B22 as written (on HALT days, landing on a HALT cell ends the move run and scores the level there), or leave it out? The "safe haven" reading inverts B22 and would make level 29 unloseable, since it starts on HALT point 55.
-4. **Rebirth (V3).** May a lost SYNC or HALT level be closed from 80 at one star, counting in the line and the seal?
-5. **HINT (Q4).** Stay free and show the whole road, or cost stars (★★ for the full road, caps by bits used)?
-6. **Amber (T3).** Is a deterministic hash on top of par welcome, or should the score stay pure? The Matrix direction dropped the hash.
-7. **Skins (U1).** AUTO by chapter, or one skin the player chooses? AUTO is the one-world reading: the four layers share one scene and the skin changes only the HUD and the CRT with the chapter. A free choice reads as four skins; offer it as a fixed HUD for players who want one that does not change, not as a look.
-8. **Level slots.** plan() sorts a chapter's tape levels by par into the free slots (levels.js:165–167). A new special therefore drops the window of its own number, not the level shown at that slot today.
-   - Level 24 becomes THE TURN. Window 24 (today the JUMP level 160 → 46 at slot 18) is no longer read, and today's SEED level at 24 (0 → 181, window 22) moves to another slot.
-   - Level 52 becomes THE OTHER SIDE. Window 52 (today the STORE level 3 → 183 at slot 51) drops.
-   - A HALT level inside THE MIRROR (today level 41, read from window 43): the room (R4) or the zone plate (R5)?
+The owner answered the eight open questions on 2026-10-18. Each entry gives the answer in the owner's words, then what is built. The figures are for SCRIBE from day 9422 unless another name is given.
 
-   test.js:34–35 and :50–62 assert the specials' slots and kinds, and gain the new ones behind the flag.
+1. **Fresh roads (Q2).** "Each day a fresh road." Each day starts 257 digits of π on from the day before. levels.js windowBase(day) *new* = at(9435 + 257·(day − 9422)) replaces headOf in every builder. game.js, the daynote (index.html:162) and the ribbon (ar.js:210) read through it. Day 9422 keeps its windows, so this scope's day-9422 figures hold.
+   - The tape: build_data.py computes π to 93,810 digits by Machin's formula in exact integers. It asserts that the first 20001 equal the machine page's tape, and the run takes 7.3 s. gen_material.py re-checks every digit by Störmer's formula. data.js grows from 107,876 B to 181,685 B.
+   - The horizon: no start window is read twice in 1460 consecutive days. Day d + 1460 replays 63 of day d's 64 windows, and the README says so.
+   - Saves and tests: the save key is 'fold.run.<day>.daily.s257', taken from spec.stride. test.js asserts the tape's length, that plan(9422) is unchanged, and that 1460 days have distinct start offsets.
+   - Effect: day d + 4 shares 6.2 levels with day d, against 55.0 before, and 100 days hold 5363 distinct roads, against 449. The scope's other 100-day figures were computed on stride 1. This ships in Phase 2.
+2. **The seal (F8).** "The cells you close." The seal is LV.seal(S.targets), the seal endDay already shows (index.html:281). It counts SHIFT levels' moved targets t0·3^moves (game.js:73, :77).
+   - test.js:74 and :77 now seal play(sp).target, and a G.apply run of today's plan checks that S.targets and the card agree. That seal is 227 LAMB OF GOD for SCRIBE and 36 IMAM for TORAH, where the plan's own targets gave 130 and 101.
+   - The seal now depends on the name (the ladder levels 36 and 40) and on the moves used on SHIFT levels. On a product day it is the plan's seal × g^(SHIFT moves), which holds on all 68 product days in 100.
+   - This ships in Phase 1.
+3. **HALT cells (B22).** "Build the halt, but we should account for that." This is built as M7.
+   - The rule: on a HALT day (the day's opcode is 9) in daily mode, a move that lands on one of the 27 HALT cells, other than the target, ends the run. The level is lost, with 0 stars and no UNDO. The start is not a landing, so level 29, which starts on 55, plays from its start.
+   - The solver: F.solve(…, avoid) and levels.js's AVOID behind opts.halts give par, HINT, V3's rebirth, S3's d and T3's work() the same detours.
+   - The numbers: at stride 1, on the 7 HALT days in 100 (448 levels), 162 par roads cross a HALT cell. 80 of them keep par on another road and 82 rise (+1: 68, +2: 13, +3: 1). On the fresh road's 10 HALT days, 221 cross and 98 rise.
+   - Every level stays winnable: every ordered pair of cells stays connected around the 27, and par stays at 7 or less.
+   - The clocks: HALT's 30 s clock is unchanged, and a halt stops both that clock and R5's plate. S3's d grows on 8 of 38 levels (15 of 77 on the fresh road), to at most 6.
+   - Tests: check(9443, 'TORAH'), and plan(d, name, {halts: false}) unchanged. This ships in Phase 1.
+4. **Rebirth (V3).** "Lost syncs and halts can be closed again." The bardo card offers AGAIN, which replays from the level's own start with three stars open, and REBIRTH.
+   - REBIRTH keeps the target, the rule and the slack. It starts from 80 with par from 80. It cannot be lost, because strictness, the clock and M7's stop are off, and it closes at ★.
+   - A reborn close counts in closed, the line, S.targets, the seal and THE BOOK. Losable levels never SHIFT, so a rebirth changes only the stars (at most −2 a level).
+   - test.js reborns today's 9 losable levels: 174 stars, with the seal unchanged. Over 100 days all 946 losable levels are offered REBIRTH, and the worst par from 80 is 6.
+5. **HINT (Q4, F5).** "Hint should stay free once." The first HINT on a level is free. It shows the whole road from where the player stands, as chips, from LV.road(…, S.opsList, avoid).
+   - Further presses are counted in S.spent[L − 1], which a reload, AGAIN and REBIRTH all keep. game.js:76 applies min(stars, capOf(S)).
+   - The caps: on ordinary levels, ★★ from the second road. On word levels, 0–1 bits have no cap, 2–5 bits cap at ★★, 6–8 bits at ★, and the road (a ninth press) at ★. Showing the last road again is free.
+   - A free road followed costs exactly par (5819 of 5819 non-SHIFT levels over 100 days), so it still earns ★★★. F5's free hint ships in Phase 1, Q4's word caps in Phase 3.
+6. **Amber (T3).** "Welcome the side goal." AMBER is an optional second goal, ◆, never a star: a 3★ close in 8 moves or fewer whose road strikes a share cell.
+   - It is open on every level except SHIFT levels, the eye and FREE WALK. S.stars never reads it, and test.js asserts that the stars are the same with work() on and off.
+   - It is possible on 720 of the 1698 eligible levels in days 9422–9451. A paid hint rules it out.
+7. **Skins (U1).** "Skins should follow chapter." The chapter picks the skin: RELIEF for chapters 1–3 and 8, MATRIX for 4–5, VOID for 6, SINGULARITY for 7. The skin changes at levels 25, 41, 49 and 57.
+   - hud.js skinFor() *new* reads spec.chapter, so a special's fallback keeps its slot's skin.
+   - U3 offers CHAPTER (the default) or FIXED. FIXED is an accessibility option, not a look: RELIEF's HUD and CRT all day.
+   - The skin is never stored. parts/hud/check.js asserts the four switches.
+8. **Specials (R3, R5, S5).** "A special level should be special; if not completed, then back to the window's original level."
+   - plan(day, name, {extra: true}) *new* overlays THE TURN at 24, THE CLOCK at 47 (THE MIRROR's HALT showcase on R5's plate) and THE OTHER SIDE at 52. It does this after the par sort (levels.js:165–167), which is unchanged.
+   - Each special keeps the level the sort put in its slot as spec.fallback. A special that is lost or skipped plays that fallback at the slot, through TAPE on its opening or lost card. The fallback is a plain tape level, with no fallback of its own.
+   - game.js saves S.fell *new* ('fell'). fall() *new* refuses once the special is closed. No run-key version is needed.
+   - test.js: with every special swapped back, the plan equals plan(d, n) on 100 of 100 days, so no window is dropped and no level moves. This ships in Phase 3.
+
+### Still open
+
+- Six losable levels in 100 days on the fresh road have target 80, so REBIRTH from 80 would start on the target and is hidden there. Those levels can only be closed again through AGAIN. Should they get another rebirth cell?
