@@ -35,11 +35,12 @@ Level 3 (EXIST, chapter SUNRISE) in play, the view tipped down onto the chapter'
 
 ![The π rain](docs/screenshots/rain.png)
 
-Chapter 5's level 33: the π tape as rain at full tier, 256 columns of 78 digits behind the cells.
+Chapter 5's level 33: the π tape as rain at full tier, 256 columns of 78 digits behind the cells, written in the field's glyphs and
+binary (each column's glyph pair and its dlog in gold bits), the level's window read out of it in the true digits.
 
 ![The eye as a black hole](docs/screenshots/eye.png)
 
-Level 56, THE EYE: 137's shadow in its gold photon ring at full lens tier, the sky and the cells bent round it.
+Level 56, THE EYE: 137's shadow in its gold photon ring at full lens tier, the sky, the rain and the cells bent round it.
 
 ![The bardo card](docs/screenshots/bardo.png)
 
