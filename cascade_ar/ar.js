@@ -61,6 +61,20 @@ window.AR = (function () {
     const tex = new T.CanvasTexture(cv); tex.minFilter = T.LinearFilter; tex.magFilter = T.LinearFilter; tex.generateMipmaps = false; return tex;
   }
   const uvOf = i => { const c = i % COLS, r = Math.floor(i / COLS); return [c / COLS, 1 - (r + 1) / ROWS, (c + 1) / COLS, 1 - r / ROWS]; };
+  // ── the lens (S1): the eye as a point lens of Einstein radius θE (lensE, radians; 0 bends nothing). A point β from the eye is drawn at
+  // its primary image θ+ = (β + √(β² + 4θE²))/2 on the same great circle; only the sky bends, eased in from 3 to 5 m out, so SEED on the
+  // floor stays. The cells, the ribbon and the lines between cells run it in their vertex shaders, lensed() below in JS for the taps ──
+  A.lensU = { lensDir: { value: place(EYE).normalize() }, lensE: { value: 0 }, shadow: { value: 0 } };   // shadow: the pupil's black, 0..1
+  const LENS_GL = `uniform vec3 lensDir; uniform float lensE;
+float lensImage(vec3 p, out float b, out vec3 w) {   // θ+ of p, with its β and the unit tangent away from the eye; θ+ = β where nothing bends
+  float r = length(p); vec3 u = p / max(r, 0.0001); float c = dot(u, lensDir); vec3 tv = u - c * lensDir; float s = length(tv);
+  w = tv / max(s, 0.000001); b = atan(s, c);
+  if (lensE <= 0.0 || s < 0.00001) return b;
+  return b + smoothstep(3.0, 5.0, r) * 0.5 * (sqrt(b * b + 4.0 * lensE * lensE) - b);
+}
+vec3 lensed(vec3 p) { float b; vec3 w; float t = lensImage(p, b, w); return t - b < 0.000001 ? p : (cos(t) * lensDir + sin(t) * w) * length(p); }
+`;
+  const BEND = sh => { sh.uniforms.lensDir = A.lensU.lensDir; sh.uniforms.lensE = A.lensU.lensE; sh.vertexShader = LENS_GL + sh.vertexShader.replace('#include <begin_vertex>', 'vec3 transformed = lensed(vec3(position));'); };   // a line of the sky, lensed
   // ── instanced quads: a halo and the atlas text; each travels from iFrom to iPos as the uniform `flow` runs 0 → 1 ──
   function billboards(count, tex, size) {
     const FX = window.FOLD_FX, airyGL = FX && FX.halo ? FX.halo() : '';   // the Airy disc as the halo when the shader module is loaded
@@ -71,10 +85,11 @@ window.AR = (function () {
     geo.setAttribute('iPos', new T.InstancedBufferAttribute(pos, 3)); geo.setAttribute('iFrom', new T.InstancedBufferAttribute(from, 3)); geo.setAttribute('iUV', new T.InstancedBufferAttribute(uv, 4));
     geo.setAttribute('iCol', new T.InstancedBufferAttribute(col, 3)); geo.setAttribute('iState', new T.InstancedBufferAttribute(st, 1)); geo.setAttribute('iBorn', new T.InstancedBufferAttribute(born, 1)); geo.setAttribute('iSeed', new T.InstancedBufferAttribute(seed, 1));
     const mat = new T.ShaderMaterial({
-      uniforms: { map: { value: tex }, time: { value: 0 }, flow: { value: 1 }, ease: { value: 0 }, halo: { value: 1 } }, transparent: true, depthWrite: false,
+      uniforms: { map: { value: tex }, time: { value: 0 }, flow: { value: 1 }, ease: { value: 0 }, halo: { value: 1 }, lensDir: A.lensU.lensDir, lensE: A.lensU.lensE, shadow: A.lensU.shadow }, transparent: true, depthWrite: false,
       vertexShader: `attribute vec3 iPos; attribute vec3 iFrom; attribute vec4 iUV; attribute vec3 iCol; attribute float iState; attribute float iBorn; attribute float iSeed;
-        uniform float time; uniform float flow; uniform float ease;
-        varying vec2 vUv; varying vec2 vQ; varying vec3 vCol; varying float vA; varying float vS; varying float vSeed;
+        uniform float time; uniform float flow; uniform float ease; uniform float shadow;
+        varying vec2 vUv; varying vec2 vQ; varying vec3 vCol; varying float vA; varying float vS; varying float vSeed; varying float vEye;
+` + LENS_GL + `
         void main(){
           vUv = vec2(mix(iUV.x, iUV.z, uv.x), mix(iUV.y, iUV.w, uv.y)); vQ = uv * 2.0 - 1.0; vCol = iCol; vS = iState; vSeed = iSeed;
           float s = 1.0; vA = 1.0;
@@ -88,10 +103,17 @@ window.AR = (function () {
           // the ease again, the slow-in, slow-out of bullet time (M4)
           float t = clamp(flow, 0.0, 1.0); float e = t * t * (3.0 - 2.0 * t); e = mix(e, e * e * (3.0 - 2.0 * e), ease);
           vec3 p = mix(iFrom, iPos, e); float ra = mix(length(iFrom), length(iPos), e); if (length(p) > 0.01) p = normalize(p) * ra;
-          vec4 mv = modelViewMatrix * vec4(p, 1.0); mv.xyz += position * s;
+          // the eye's pupil is the shadow (S1), on the cell standing at the eye; the lens: the cell at its primary image, stretched across
+          // by θ+/β (at most 3) and squashed along the radius by dθ+/dβ = θ+²/(θ+² + θE²)
+          vec3 u0 = normalize(p); vEye = shadow * step(0.0, dot(u0, lensDir)) * (1.0 - smoothstep(0.002, 0.01, length(cross(u0, lensDir))));
+          vec2 st = vec2(1.0); vec3 rv = vec3(0.0);
+          if (lensE > 0.0) { float b; vec3 w; float ti = lensImage(p, b, w); if (ti - b > 0.000001) { p = (cos(ti) * lensDir + sin(ti) * w) * length(p); rv = cos(ti) * w - sin(ti) * lensDir; st = vec2(min(ti / max(b, 0.0001), 3.0), ti * ti / (ti * ti + lensE * lensE)); } }
+          vec4 mv = modelViewMatrix * vec4(p, 1.0); vec2 o = position.xy * s;
+          if (st.x != 1.0) { vec2 rr = (modelViewMatrix * vec4(rv, 0.0)).xy; float l = length(rr); if (l > 0.0001) { rr /= l; vec2 tt = vec2(-rr.y, rr.x); o = rr * dot(o, rr) * st.y + tt * dot(o, tt) * st.x; } }
+          mv.xy += o;
           gl_Position = projectionMatrix * mv; }`,
       fragmentShader: `uniform sampler2D map; uniform float time; uniform float halo;
-        varying vec2 vUv; varying vec2 vQ; varying vec3 vCol; varying float vA; varying float vS; varying float vSeed;
+        varying vec2 vUv; varying vec2 vQ; varying vec3 vCol; varying float vA; varying float vS; varying float vSeed; varying float vEye;
 ` + airyGL + `
         void main(){
           vec4 c = texture2D(map, vUv);
@@ -105,6 +127,7 @@ window.AR = (function () {
           vec3 hc = vCol * h * halo * shimmer;
           float a = max(c.a, h * 0.85 * halo);
           vec3 rgb = c.rgb * (0.65 + 0.35 * vCol) * c.a + hc * (1.0 - c.a * 0.6);
+          if (vEye > 0.0) { float pu = vEye * (1.0 - smoothstep(0.30, 0.36, d)); rgb *= 1.0 - pu * (1.0 - c.a); a = max(a, pu); }   // the 22 px pupil black, the glyphs kept
           if (a < 0.03) discard; gl_FragColor = vec4(rgb, a * vA); }`
     });
     const mesh = new T.Mesh(geo, mat); mesh.frustumCulled = false; return { mesh, geo, pos, from, uv, col, st, born, seed, count };
@@ -143,7 +166,7 @@ window.AR = (function () {
     floor.add(segsOf(ticks, 0x3f8a52, 0.5));
     // the horizon, the generator's cycle
     const hz = []; for (let k = 0; k <= 256; k++) { const a = k / 256 * Math.PI * 2; hz.push(new T.Vector3(Math.sin(a) * R, 0, -Math.cos(a) * R)); }
-    A.scene.add(lineOf(hz, 0x2a5a3a, 0.45));
+    A.horizon = lineOf(hz, 0x2a5a3a, 0.45); A.scene.add(A.horizon);
     // the fold threads: every cell to its fold partner, shown while the fold runs; the ladder of the player's cell; Γ's orbit of it
     const th = []; for (let n = 1; n <= 128; n++) th.push(place(n), place(F.fold(n)));
     A.threads = segsOf(th, 0xc9a84c, 0); A.scene.add(A.threads);
@@ -151,6 +174,7 @@ window.AR = (function () {
     A.orbit = lineOf([new T.Vector3(), new T.Vector3()], 0xff7b7b, 0); A.scene.add(A.orbit);
     A.moveLines = new T.LineSegments(new T.BufferGeometry(), new T.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.85 })); A.scene.add(A.moveLines);
     A.roadLine = lineOf([new T.Vector3(), new T.Vector3()], 0xffffff, 0.7); A.scene.add(A.roadLine);
+    for (const o of [A.horizon, A.threads, A.ladder, A.orbit, A.moveLines, A.roadLine]) o.material.onBeforeCompile = BEND;   // the sky's lines bend with the cells
     // stars when there is no camera: 500 points
     const sp2 = []; for (let i = 0; i < 500; i++) { const u = Math.random() * 2 - 1, ph = Math.random() * Math.PI * 2, r = Math.sqrt(1 - u * u); sp2.push(new T.Vector3(r * Math.cos(ph) * 40, u * 40, r * Math.sin(ph) * 40)); }
     A.stars = new T.Points(new T.BufferGeometry().setFromPoints(sp2), new T.PointsMaterial({ color: 0x8fb996, size: 0.12, sizeAttenuation: true, transparent: true, opacity: 0.6 })); A.scene.add(A.stars);
@@ -196,7 +220,8 @@ window.AR = (function () {
     if (current != null && current !== 0 && current !== F.INF) {
       const lp = []; let c = current; for (let k = 0; k < 16; k++) { const nx = F.mul(c, 129); lp.push(...arc(place(c), place(nx), 10)); c = nx; }
       A.ladder.geometry.dispose(); A.ladder.geometry = new T.BufferGeometry().setFromPoints(lp);
-      const op = []; c = current; for (let k = 0; k < 128; k++) { const nx = F.gamma(c); if (nx !== F.INF && c !== F.INF) op.push(...arc(place(c), place(nx), 6)); c = nx; if (c === current) break; }
+      // on THE EYE (state.eye) the orbit runs through ∞ too, up Γ's arc from the eye to the zenith and down to 1 (S4)
+      const op = []; c = current; for (let k = 0; k < 128; k++) { const nx = F.gamma(c); if (nx !== F.INF && c !== F.INF) op.push(...arc(place(c), place(nx), 6)); else if (state.eye && nx === F.INF) op.push(...arc(place(c), place(nx), 18), ...arc(place(nx), place(1), 18)); c = nx; if (c === current) break; }
       A.orbit.geometry.dispose(); A.orbit.geometry = new T.BufferGeometry().setFromPoints(op.length ? op : [new T.Vector3(), new T.Vector3()]);
     }
   }
@@ -223,9 +248,17 @@ window.AR = (function () {
   function onOrientation(e) { if (e.alpha == null) return; const o = (screen.orientation && screen.orientation.angle) || window.orientation || 0; A.deviceQ = deviceQuaternion(e.alpha * Math.PI / 180, e.beta * Math.PI / 180, e.gamma * Math.PI / 180, o * Math.PI / 180); }
   // where a cell falls on the screen: the world point projected through the camera as it hangs in the rig (the camera's world matrix
   // already carries the rig's turn, so it is applied once); scratch vectors, no allocation a call
-  const _p = new T.Vector3(), _w = new T.Vector3(), _place = {};
+  const _p = new T.Vector3(), _w = new T.Vector3(), _q = new T.Vector3(), _u = new T.Vector3(), _place = {};
+  // the lens in JS (S1), the vertex shaders' law, so a tap lands on the image drawn: at θE = 8.36° 154 stands at 13.60°, not 8.45°
+  function lensed(v, out) {
+    out = out || new T.Vector3(); out.copy(v); const e = A.lensU.lensE.value, r = v.length(), L = A.lensU.lensDir.value; if (!(e > 0) || r < 1e-4) return out;
+    const c = v.dot(L) / r; _u.copy(v).divideScalar(r).addScaledVector(L, -c); const s = _u.length(); if (s < 1e-5) return out;
+    const b = Math.atan2(s, c), k = Math.min(1, Math.max(0, (r - 3) / 2)), t = b + k * k * (3 - 2 * k) * 0.5 * (Math.sqrt(b * b + 4 * e * e) - b);
+    _u.divideScalar(s); return out.copy(L).multiplyScalar(Math.cos(t)).addScaledVector(_u, Math.sin(t)).multiplyScalar(r);
+  }
+  const lensPlace = n => lensed(place(n));
   function onScreen(n, out) {
-    let q = _place[n]; if (!q) q = _place[n] = place(n);
+    let q = _place[n]; if (!q) q = _place[n] = place(n); q = lensed(q, _q);
     _w.copy(q).applyMatrix4(A.camera.matrixWorldInverse); _p.copy(q).project(A.camera);
     out = out || {}; out.x = _p.x; out.y = _p.y; out.front = _w.z < 0; return out;
   }
@@ -242,5 +275,5 @@ window.AR = (function () {
     fade(A.threads, A.flowOp === 'fold' ? 0.45 * live : 0); fade(A.ladder, A.showLadder ? 0.35 : 0); fade(A.orbit, A.showOrbit ? 0.35 : (A.flowOp === 'gam' ? 0.5 * live : 0));
     if (!A.renderer.xr.isPresenting) look(); A.renderer.render(A.scene, A.camera);
   }
-  return { init, paint, flow, bloom, tape, place, onOrientation, onScreen, pick, frame, A, resize, RAY_RGB, rayColor, GOLD, MIRRORS, EYE };
+  return { init, paint, flow, bloom, tape, place, lensed, lensPlace, onOrientation, onScreen, pick, frame, A, resize, RAY_RGB, rayColor, GOLD, MIRRORS, EYE };
 })();

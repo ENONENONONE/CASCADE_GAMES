@@ -16,6 +16,7 @@ window.FOLD_FX = (function () {
   const GREEN = [0.373, 0.827, 0.478], GOLD = [0.788, 0.659, 0.298], GROUND = [0.039, 0.051, 0.063];
   const BARREL = 0.0234;   // the 2.34 % = δ% = ε₄ ln φ
   const MOEBIUS_A = 0.47;  // 120/257 = Z₀ scaled to the unit screen: Γ's zero at +a, its pole at −a
+  const LENS_GAIN = 2.5;   // the eye's photon ring: gold × airyGlow(1.3405, 0.45) = 0.161 × 2.5, relative luminance 0.059, under the gate's 0.1
   // ── the phosphor's own clock: F(T) = cos(πT)·exp(−0.5T) from 1 at T = 0 down to 0 at T = ½, the sign kept out ──
   const persistence = T => T <= 0 ? 1 : T >= 0.5 ? 0 : Math.cos(Math.PI * T) * Math.exp(-0.5 * T);
   let CALM = false;        // §6: the player's reduced motion, set by calm(); pulse(), warpRun() and the room's moves read it live
@@ -37,6 +38,9 @@ void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`;
   // knows its own z, so the stars that can reach it are the ones whose index lies within ±HALFWIN of k₀ = (1 − z)N/2: 23 candidates,
   // no search. The golden angle's fraction fract(kφ) is built from k's digits in base 8 and 64 so it survives mediump (a 16-bit float
   // holds fract(233 × 0.618…) to a tenth of a turn only; split, it holds it to 1/512). Brightness and twinkle come from a hash of k.
+  // opts.lens (S1): the eye as a point lens. The view direction θ from lensDir is read from its source β = θ − θE²/θ before anything is
+  // drawn, so the stars, the band and the spokes bend round the eye; inside `horizon` the shadow, and the photon ring is the Airy disc's
+  // first bright ring alone (1 ≤ r ≤ 1.831, r = 1.3405·θ/θE), with a thin rim hugging the shadow (design). lensE 0 bends nothing.
   function sky(opts) {
     opts = opts || {};
     const N = opts.stars || 377, samples = opts.samples === 0 ? 0 : Math.max(3, Math.min(23, (opts.samples | 0) || 23)) | 1, HALF = Math.max(0, (samples - 1) >> 1);   // odd, ≤ 23; 0 leaves the stars out and the loop with them
@@ -49,12 +53,22 @@ uniform float stars;        // the stars' brightness, 0 hides them
 uniform float rays;         // the twelve spokes' strength
 uniform float breath;       // the depth of the 13 s breathing, 0..1
 uniform float drift;        // turns per second the sky drifts round the vertical, the slow life of it
+uniform float negate;       // 0 the sky, 1 its negative: the crossing through ∞
 varying vec3 vDir;
 #define N ${N.toFixed(1)}
 #define SAMPLES ${samples}
 #define HALFWIN ${HALF.toFixed(1)}
 #define GLOWK ${glowK}
+#define LENS ${opts.lens ? 1 : 0}
+#define LENS_GAIN ${LENS_GAIN.toFixed(2)}
 const float TAU = 6.2831853;
+#if LENS
+uniform vec3 lensDir;       // the eye, a unit vector in the world
+uniform float lensE;        // θE in radians, 0 off
+uniform float lensA;        // the shadow and the ring, 0..1
+uniform float horizon;      // the shadow's radius in radians, the pupil's
+` + halo() + `
+#endif
 float hash1(float k) {       // k an integer below 2048, exact in mediump; mixed from its two halves so no product leaves the mantissa
   float kl = mod(k, 16.0), kh = floor(k / 16.0);
   float h = fract((kl + 1.0) * (kh + 3.0) * 0.0527);
@@ -66,6 +80,18 @@ float goldenTurn(float k) {  // fract(k·φ⁻¹), k = 64a + 8b + c: fract(64φ�
 }
 void main() {
   vec3 d = normalize(vDir);
+#if LENS
+  float shade = 1.0, ring = 0.0;
+  if (lensE > 0.0) {
+    float c = dot(d, lensDir); vec3 tv = d - c * lensDir; float s = length(tv);
+    float th = atan(s, c);                                       // θ from the eye: atan, since acos near 1 loses about 1.8° in fp16
+    float b = th - lensE * lensE / max(th, 0.002);               // the source β = θ − θE²/θ, on the far side inside θE
+    d = cos(b) * lensDir + sin(b) * tv / max(s, 0.0001);
+    shade = 1.0 - lensA * (1.0 - smoothstep(horizon, 1.15 * horizon, th));
+    float r = 1.3405 * th / lensE, rim = (th - 1.25 * horizon) / (0.2 * horizon);
+    ring = lensA * (step(1.0, r) * step(r, 1.831) * airyGlow(r, 0.45) + 0.12 * exp(-rim * rim));
+  }
+#endif
   HP float turn = fract(time * drift);                            // the drift, kept to one turn before it meets mediump
   float az = fract(atan(d.x, -d.z) / TAU + turn + 0.5) - 0.5;    // the field's own azimuth in turns: x = sin, z = −cos, as ar.js places the cells
   float zd = d.y;
@@ -98,7 +124,12 @@ void main() {
   vec3 col = green * (0.040 + 0.045 * band) + gold * (0.035 * seed) + green * (0.06 * zen);
   col += gold * (spokes * rays * 0.10);
   col += mix(green, vec3(0.92, 0.98, 0.94), 0.45) * (lit * stars);
-  gl_FragColor = vec4(col * breathe, 1.0);
+  col = mix(col, max(green * 0.120 - col, 0.0), negate);        // the negative (S4), capped by green so it never outshines the band; stars and spokes go black
+  col *= breathe;
+#if LENS
+  col = col * shade + gold * (ring * LENS_GAIN);                 // the shadow, then the gold ring over it
+#endif
+  gl_FragColor = vec4(col, 1.0);
 }`;
     const vertexShader = `varying vec3 vDir;
 void main() {
@@ -110,8 +141,9 @@ void main() {
     const uniforms = {
       time: { value: 0 }, green: { value: GREEN.slice() }, gold: { value: GOLD.slice() },
       stars: { value: opts.starLight == null ? 1.0 : opts.starLight }, rays: { value: opts.rays == null ? 1.0 : opts.rays },
-      breath: { value: opts.breath == null ? 0.35 : opts.breath }, drift: { value: opts.drift == null ? 1 / 2400 : opts.drift },
+      breath: { value: opts.breath == null ? 0.35 : opts.breath }, drift: { value: opts.drift == null ? 1 / 2400 : opts.drift }, negate: { value: 0 },
     };
+    if (opts.lens) Object.assign(uniforms, { lensDir: { value: opts.lensDir || [0, 0, -1] }, lensE: { value: 0 }, lensA: { value: 0 }, horizon: { value: 0.0189 } });
     return { vertexShader, fragmentShader, uniforms, blending: 'normal', depthTest: false, depthWrite: false, transparent: false, renderOrder: -10 };
   }
 
@@ -361,5 +393,5 @@ void main() {
     const m = new THREE.ShaderMaterial({ vertexShader: spec.vertexShader, fragmentShader: spec.fragmentShader, uniforms: spec.uniforms, transparent: !!spec.transparent, depthTest: !!spec.depthTest, depthWrite: !!spec.depthWrite, blending: THREE.NormalBlending });
     const mesh = new THREE.Mesh(new THREE.PlaneBufferGeometry(2, 2), m); mesh.frustumCulled = false; mesh.renderOrder = spec.renderOrder || 0; return mesh;
   }
-  return { sky, halo, airy: airyJS, crt, pulse, resize, cssFilter, cssReset, cssApply, gammaWarp, warp, grab, warpRun, calm, strobe, quad, persistence, GREEN, GOLD, GROUND, BARREL, MOEBIUS_A, PHI_INV, GOLDEN_ANGLE };
+  return { sky, halo, airy: airyJS, crt, pulse, resize, cssFilter, cssReset, cssApply, gammaWarp, warp, grab, warpRun, calm, strobe, quad, persistence, GREEN, GOLD, GROUND, BARREL, MOEBIUS_A, LENS_GAIN, PHI_INV, GOLDEN_ANGLE };
 })();
