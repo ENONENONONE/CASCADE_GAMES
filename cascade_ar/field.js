@@ -8,6 +8,8 @@ window.FIELD = (function () {
   const DLOG = new Array(P).fill(-1), POW = new Array(256);
   { let x = 1; for (let k = 0; k < 256; k++) { POW[k] = x; DLOG[x] = k; x = x * 3 % P; } }
   const G16 = 'Φ∂φ∞⊟⊗♯⅗εδΩΓQΣψ𝟙';
+  // 𝟙 lies outside the BMP, two UTF-16 units; index by code point or G16[15] is a lone surrogate
+  const G16A = Array.from(G16);
   const OPCODES = ['NOP', 'IDENT', 'EXIST', 'SEED', 'SHIFT', 'STORE', 'FOLD', 'JUMP', 'SYNC', 'HALT'];
   const inv = n => n === 0 ? INF : n === INF ? 0 : POW[(256 - DLOG[n]) % 256];
   const mul = (a, b) => (a === INF || b === INF) ? INF : a * b % P;
@@ -15,7 +17,7 @@ window.FIELD = (function () {
   const gamma = z => { if (z === INF) return 1; const d = (z + 120) % P; if (d === 0) return INF; return ((z - 120 + P) % P) * inv(d) % P; };
   // Γ⁻¹: w = (Z − 120)/(Z + 120) gives Z = 120(1 + w)/(1 − w); w = 1 is ∞, w = ∞ is 137, the pole
   const gammaInv = w => { if (w === INF) return 137; if (w === 1) return INF; return 120 * (1 + w) % P * inv((1 - w + P) % P) % P; };
-  const glyphs = n => n === INF ? '∞' : n === 256 ? '∂ΦΦ' : G16[n >> 4] + G16[n & 15];
+  const glyphs = n => n === INF ? '∞' : n === 256 ? '∂ΦΦ' : G16A[n >> 4] + G16A[n & 15];
   const ray = n => (n === 0 || n === INF) ? -1 : DLOG[n] % 12;
   const dlog = n => (n === 0 || n === INF) ? -1 : DLOG[n];
   const walkCell = n => (n === 0 || n === INF) ? 0 : (34830 * DLOG[n]) % 66048;
