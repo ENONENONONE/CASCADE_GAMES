@@ -231,7 +231,8 @@ html.calm *{transition:none!important;animation:none!important}
   if (FX && FX.crt && FX.quad) { try { const spec = FX.crt(); const q = FX.quad(THREE, spec); q.renderOrder = 998; crtQ = q; over.add(q); crtU = spec.uniforms; FX.resize(crtU, A.A.renderer); $('crt').style.display = 'none'; window.addEventListener('resize', () => FX.resize(crtU, A.A.renderer)); } catch (e) { console.warn('crt', e); } }
   if (FX && FX.warp && FX.quad) { try { const spec = FX.warp(); const q = FX.quad(THREE, spec); q.renderOrder = 999; q.visible = false; warpQ = q; A.A.scene.add(q); warpU = spec.uniforms; window.addEventListener('resize', () => { warpU.aspect.value = window.innerWidth / Math.max(1, window.innerHeight); }); } catch (e) { console.warn('warp', e); } }
   if (WELL && WELL.mount && LENS !== 'off') { try { WELL.mount(THREE, A, { tier: LENS, FX, sky: A.A.sky }); } catch (e) { console.warn('well', e); } }
-  // GLOW (parts/glow): the scene into a half-res target, then bloom, the eye's and the floor's shafts, glitter and the grade as one pass;
+  // GLOW (parts/glow): the scene into a target at the screen's size (half res on the bloom tier), then bloom, the eye's and the floor's
+  // shafts, glitter and the grade as one pass, the light at a quarter of the screen;
   // fold.prefs {glow: 'on' | 'off' | 'auto'}: auto leaves `tiny` off and `lowEnd` with bloom alone, on is the full pass anywhere; never in XR.
   // Its third light is the field's own, from parts/trace (TRACE.light below; fold.prefs {traceGlow: 'off'} leaves it out)
   let glow = null; const glowTier = () => GLW ? GLW.tierFor(PREFS.glow, { tiny, lowEnd }) : 'off';
@@ -676,7 +677,7 @@ html.calm *{transition:none!important;animation:none!important}
       await A.A.renderer.xr.setSession(s); $('video').style.display = 'none'; A.A.stars.visible = false; if (A.A.sky) A.A.sky.visible = false; if (crtQ) crtQ.visible = false; toast('the field is in the room');
       s.addEventListener('end', () => { A.A.renderer.xr.enabled = false; $('video').style.display = had.video; if (had.video !== 'none') cameraOn(); A.A.stars.visible = had.stars; if (A.A.sky) A.A.sky.visible = had.sky; if (crtQ) { crtQ.visible = had.crt; FX.resize(crtU, A.A.renderer); } A.resize(); }); } catch (e) { toast('AR did not open: ' + (e.message || e)); if (stream) cameraOn(); }
   }
-  // ── the 3D frame: the scene (into GLOW's half-res target when it is on), GLOW's passes and composite, then the CRT overlay; in the room
+  // ── the 3D frame: the scene (into GLOW's scene target when it is on), GLOW's passes and composite, then the CRT overlay; in the room
   // the compositor owns the frame, so neither. The glow's lights are read after the frame, from the camera as it was drawn: the eye's ring
   // (well.js: a and e above 0) at 137's screen place, SEED at the floor's centre with the twelve spokes' screen directions, and the field's
   // own light (TRACE.light: the tracer's brightest direction as a cell, in the light's colour, by its energy), each fading out as it leaves

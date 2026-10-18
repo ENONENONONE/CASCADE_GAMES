@@ -112,9 +112,9 @@ void main(){ float r = length(vQ) * scale; float h = airyGlow(r, lift); float co
     renderer.compile(scene, camera); renderer.compile(over, camera);
     // every pass's program: a render of each through the glow compiles them; a second frame is the measure
     const bad = errs.filter(e => /shader|program|glsl/i.test(e));
-    const rt = glow.rt, bud = GL.budget(rt.w, rt.h, 'full', glow.scale);
+    const rt = glow.rt, bud = GL.budget(rt.w, rt.h, glow.tier === 'off' ? 'full' : glow.tier, glow.scale);
     lines.push(bad.length ? '<i>shader errors: ' + bad.length + '</i>\n' + bad.map(e => e.slice(0, 1200)).join('\n') : '<b>compiled</b>: sky (lens), halo ×48, rain, crt, glow bright + blur H + blur V + rays + composite — no shader errors from three.js');
-    lines.push('<span>scene target ' + rt.hw + '×' + rt.hh + ' bytes · quarter targets ' + rt.qw + '×' + rt.qh + ' ' + (glow.hdr ? 'half float' : 'bytes') + ' · budget at ' + rt.w + '×' + rt.h + ': ' + (bud.fetches / 1e6).toFixed(1) + ' M fetches, ' + (bud.ops / 1e6).toFixed(0) + ' M ops, ~' + bud.ms + ' ms on a mid phone; the sky saves ' + (bud.skyOps / 1e6).toFixed(0) + ' M ops at half res</span>');
+    lines.push('<span>scene target ' + rt.hw + '×' + rt.hh + ' bytes (scale ' + glow.scale + ') · quarter targets ' + rt.qw + '×' + rt.qh + ' ' + (glow.hdr ? 'half float' : 'bytes') + ' · budget at ' + rt.w + '×' + rt.h + ': ' + (bud.fetches / 1e6).toFixed(1) + ' M fetches, ' + (bud.ops / 1e6).toFixed(0) + ' M ops, ~' + bud.ms + ' ms on a mid phone' + (bud.skyOps ? '; the sky saves ' + (bud.skyOps / 1e6).toFixed(0) + ' M ops at this scale' : '; the scene at the screen\'s size, no saving on the sky') + '</span>');
     lines.push('<span>drag to look · buttons below; FPS at the end of this line: </span><b id="fps">—</b>');
     $('report').innerHTML = lines.join('\n');
   }
