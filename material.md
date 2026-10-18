@@ -373,9 +373,10 @@ return; 65536 = 2¹⁶ = F₄ − 1. — LEDGER 39.
 
 ## (c) Words and sums worth quests
 
-**C1 · Mirror pairs on the tablet.** 2551 directed pairs (w, v) with v at the mirror cell of w and the same length (`data.js`
-`mirrors`, built from the tablet at 2306 entries); the seven letter pairs that are tablet words both sides: B/Y, C/X, H/S, I/R,
-J/Q, L/O, M/N. — `tools_build_data.py`; review "The fourth flip".
+**C1 · Mirror pairs on the tablet.** 2551 pairs [w, v] with v at the mirror cell of w and the same length, each pair listed
+once with w first alphabetically (the relation is symmetric, so [v, w] holds too) (`data.js` `mirrors`, built from the tablet at
+2306 entries); the seven letter pairs that are tablet words both sides: B/Y, C/X, H/S, I/R, J/Q, L/O, M/N. — `build_data.py`;
+review "The fourth flip".
 → *Quest "the other side"*: tap a word's mirror cell within the level to earn its pair.
 
 **C2 · Self-mirrors by sum.** LOVE 54, SAMSON 81, MOUNT SINAI 135, PRESERVATION 162 (and TUNING FORK 135, not a tablet word, its

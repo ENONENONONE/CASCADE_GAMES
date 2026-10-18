@@ -99,7 +99,7 @@ meet = [a for a, b in inside if gamma(a) == b]; assert_eq(meet, [36], 'flip = Γ
 # ── the order-4 subgroup, rings ──
 assert_eq(sorted(POW[64*k] for k in range(4)), [1, 16, 241, 256], 'order 4')
 assert_eq(16*16 % P, 256, 'i² = -1'); assert_eq(4*4 % P, 16, '√i = 4')
-dlog5 = lambda n: (DLOG[n] * 135) % 256   # 7·55 ≡ 1 mod 64 ... dlog base 5 = dlog3 × 55⁻¹ mod 256
+dlog5 = lambda n: (DLOG[n] * 135) % 256   # dlog base 5 = dlog3 × 55⁻¹ mod 256, 55⁻¹ = 135
 assert_eq(55 * 135 % 256, 1, '55 inverse 135 mod 256')
 ring = lambda n: min(dlog5(n) % 64, 64 - dlog5(n) % 64)
 assert_eq(ring(62), 18, 'ring of 62'); assert_eq(ring(46), 20, 'ring of 46'); assert_eq(ring(16), 0, 'ring of i'); assert_eq(ring(4), 32, 'ring of 4')
@@ -110,6 +110,9 @@ for w in ('LOVE', 'SAMSON', 'MOUNT SINAI', 'PRESERVATION'): assert_eq(27*K(w) - 
 # ── HALT points of π ──
 D = open(os.path.join(HERE, '..', 'cascade_ar', 'data.js'), encoding='utf-8').read()
 pi = re.search(r'"pi":"([0-9]+)"', D).group(1)
+def need_pi(n, what):
+    if n >= len(pi): raise SystemExit('the π tape in data.js has %d digits; %s needs digit %d — rebuild data.js from a longer tape' % (len(pi), what, n))
+need_pi(9397, 'day 9384\'s head')
 halts = [n for n in range(P) if pi[n] == '9']; assert_eq(len(halts), 27, '27 HALT points'); assert_eq(sum(halts) % P, 11, 'HALT sum 11')
 assert_eq(pi[9397], '6', 'π[9397] = 6')
 # ── transfer matrix on π ──
@@ -143,18 +146,19 @@ assert_eq(day(datetime.date(2056, 8, 3)), 20304, 'I AM day'); assert_eq(20304 % 
 poles = [('1458-06-23 J', 3), ('1639-05-02', 2), ('1820-03-02', 1), ('2000-12-31', 0), ('2181-10-31', 256), ('2362-09-01', 255)]
 for ds, f in poles[1:]:
     y, m, dd = map(int, ds.split('-')); n = day(datetime.date(y, m, dd)); assert_eq(n % 66048, 0, 'pole ' + ds); assert_eq(n % P, f, 'pole field ' + ds)
+n = day(datetime.date(1458, 7, 2)); assert_eq(n % 66048, 0, 'pole 1458-06-23 J'); assert_eq(n % P, 3, 'pole field 1458-06-23 J')   # Julian 23 June = Gregorian 2 July
 # 64.1°: Julian 1420-04-26 = Gregorian 1420-05-05, 1420-07-30 = 1420-08-08
 n1 = day(datetime.date(1420, 5, 5)); n2 = day(datetime.date(1420, 8, 8))
 assert_eq(n1, -212081, 'day of 26 April 1420 J'); assert_eq(n2, -211986, 'day of 30 July 1420 J')
 assert_eq(n1 % P, 201, 'field 201'); assert_eq(n2 % P, 39, 'field 39')
-today = datetime.date.today(); tn = day(today)
+today = datetime.date.today(); tn = day(today); need_pi(tn + 13, 'today\'s head')
 # ── Voynich counts ──
 voy = {'entries': 322, 'labels': 299, 'women': 232, 'heads': 46, 'points': 303, 'starred_paragraphs': 285, 'eva_letters': 194262, 'words': 36278, 'lines': 5385, 'pages': 227, 'paragraphs': 740, 'star_points': 2342, 'label_letters': 1970, 'label_sums': 22990, 'entry_sum': 618413, 'f69v_radial_words': 28, 'f69v_sum': 2087, 'figures_with_star': 294, 'paschal_days': 194313, 'callippic_days': 27759, 'f103r_stars': 19}
 voy_cells = {k: (v, v % P, W(v % P)) for k, v in voy.items()}
 assert_eq(322 % P, 65, '322'); assert_eq(299 % P, 42, '299'); assert_eq(303 % P, 46, '303'); assert_eq(2342 % P, 29, '2342'); assert_eq(618413 % P, 71, '618413'); assert_eq(194313 - 194262, 51, 'the 51')
 # ── the ten discs ──
 discs = [POW[k] for k in range(246, 256)]; assert_eq(discs, [198, 80, 240, 206, 104, 55, 165, 238, 200, 86], 'ten discs')
-assert_eq(sum(discs) % P, 30, 'disc sum'); 
+assert_eq(sum(discs) % P, 30, 'disc sum')
 pr = 1
 for v in discs: pr = pr*v % P
 assert_eq(pr, 103, 'disc product')
@@ -175,7 +179,7 @@ F = [0, 1]
 while len(F) < 1040: F.append((F[-1] + F[-2]) % P)
 assert_eq(F[129], 0, 'F(129)=0'); assert_eq((F[516], F[517]), (0, 1), 'Pisano 516'); assert_eq(F[128], 241, 'F(128)')
 L = lambda n: (F[n-1] + F[n+1]) % P
-assert_eq([L(0) if False else 2, L(129), L(258), L(387)], [2, 225, 255, 32], 'Lucas quarter points')
+assert_eq([L(129), L(258), L(387)], [225, 255, 32], 'Lucas quarter points')   # L(0) = 2
 # ── Younger Dryas years in the field ──
 yd = {12900: 50, 12800: 207, 11700: 135, 10950: 156, 10850: 56, 9750: 241, 9500: 248}
 for y, f in yd.items(): assert_eq(y % P, f, 'YD %d' % y)
@@ -229,7 +233,7 @@ out = {
   'ladders': {str(k): v for k, v in ladders.items()},
   'five_staircase': {'dlog5': 55, 'first': stair[:13], 'k33': stair[33], 'k34': stair[34], 'k128': 256},
   'gamma': {'z0': 120, 'zero': 120, 'pole': 137, 'fixed': [46, 92], 'at_infinity': 1, 'w_multiplier': 153, 'w_step_dlog': 122, 'order': 128, 'orbit_of_1_first16': orb[:16], 'orbit_of_63_first16': g63[:16]},
-  'flip69': {'cells_with_6_or_9': len(flips), 'inside_field': len(inside), 'equals_gamma_at': [36, 39], 'pairs_first12': inside[:12]},
+  'flip69': {'cells_with_6_or_9': len(flips), 'inside_field': len(inside), 'equals_gamma_at': meet, 'equals_gamma_image': [gamma(a) for a in meet], 'pairs_first12': inside[:12]},
   'order4': [1, 16, 256, 241], 'rings': {'rule': 'dlog5(n) = 135·dlog3(n) mod 256; ring = min(s mod 64, 64 − s mod 64); cell 2·ring from gold', 'ring0': [1, 16, 256, 241], 'ring32': [4, 64, 193, 253], 'ring16': [2, 8, 32, 128, 255, 249, 225, 129], 'samples': {str(n): ring(n) for n in (62, 46, 73, 86, 120, 137, 3, 71, 63)}},
   'halt_points': halts,
   'transfer_matrix': {'T': '[[2 − k², −1], [1, 0]], k² = (2d + 1)·180 mod 257', 'traces': {'M83': traces[83], 'M256': traces[256], 'M257': traces[257]}},
@@ -251,7 +255,7 @@ out = {
   'hebrew': {'atbash_constant': 23, 'gematria_pairs': heb_pairs, 'pairs_sum': 1495, 'pairs_cell': 210, 'names_sum_tablet_spellings': names_sum, 'names_cell': names_sum % P, 'self_mirror_by_length': {k: 23*k*129 % P for k in (1, 2, 4, 7, 8, 12, 14, 15, 22)}},
   'sphere': {'cells': 66048, 'tablet_stride': 258, 'gold_stride': 128, 'quarter_points': [0, 16512, 33024, 49536], 'g_cell': 34830, 'phi_cell': 65920, 'golden_angle': 137.508, 'spiral_arms': [377, 610, 233, 144, 89, 55]},
 }
-js = '// THE FOLD — the corpus\'s numbers for the game, generated %s by parts/corpus/gen_material.py (every value computed and checked there). Do not edit by hand.\nwindow.FOLD_MATERIAL = %s;\n' % (today.isoformat(), J(out))
+js = '// THE FOLD — the corpus\'s numbers for the game, generated %s by cascade_ar_tools/gen_material.py (every value computed and checked there). Do not edit by hand.\nwindow.FOLD_MATERIAL = %s;\n' % (today.isoformat(), J(out))
 dst = os.path.join(HERE, '..', 'cascade_ar', 'parts', 'corpus', 'material.js')
 open(dst, "w", encoding="utf-8").write(js)
 print('written', dst, len(js.encode()), 'bytes; all checks passed')

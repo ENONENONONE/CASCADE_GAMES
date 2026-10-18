@@ -3,10 +3,11 @@
 
 The agent's instructions are the body of ~/.claude/agents/games-designer-code-agent.md (the same file Claude Code and the
 Agent SDK load as a subagent). This script sends them as the system prompt, attaches the files you name as context, and
-streams the answer: a design paragraph and the code to write. It does not edit files itself; for an agent that reads,
-edits and runs tests on its own, use the subagent in Claude Code or the Claude Agent SDK.
+streams the answer: a design paragraph and the code to write. The answer goes to stdout (and --out); the summary of the
+model's thinking goes to stderr. It does not edit files itself; for an agent that reads, edits and runs tests on its own,
+use the subagent in Claude Code or the Claude Agent SDK.
 
-    pip install anthropic
+    pip install -r requirements.txt
     python3 games_designer_api.py "add a night sky mode to THE FOLD" ../cascade_ar/index.html ../cascade_ar/ar.js
     python3 games_designer_api.py --out answer.md "review game.js for bugs" ../cascade_ar/game.js
 
@@ -39,9 +40,15 @@ def main() -> int:
     ap.add_argument("--out", help="also write the answer to this file")
     a = ap.parse_args()
 
+    if not AGENT.is_file():
+        print(f"{AGENT} not found; the agent's instructions are read from there", file=sys.stderr)
+        return 2
     parts = []
     for f in a.files:
         p = pathlib.Path(f)
+        if not p.is_file():
+            print(f"{f}: no such file", file=sys.stderr)
+            return 2
         data = p.read_bytes()
         if len(data) > MAX_FILE_BYTES:
             print(f"{f} is {len(data)} bytes, over {MAX_FILE_BYTES}; name a smaller file or split it", file=sys.stderr)
@@ -51,6 +58,7 @@ def main() -> int:
 
     client = anthropic.Anthropic()
     out = []
+    thought = False
     try:
         with client.beta.messages.stream(
             model=MODEL,
@@ -65,6 +73,10 @@ def main() -> int:
             for event in stream:
                 if event.type == "content_block_delta" and event.delta.type == "text_delta":
                     sys.stdout.write(event.delta.text); sys.stdout.flush(); out.append(event.delta.text)
+                elif event.type == "content_block_delta" and event.delta.type == "thinking_delta":
+                    sys.stderr.write(event.delta.thinking); sys.stderr.flush(); thought = True
+                elif event.type == "content_block_start" and event.content_block.type == "text" and thought:
+                    sys.stderr.write("\n\n"); sys.stderr.flush(); thought = False   # keep the answer off the thinking's last line
             msg = stream.get_final_message()
     except anthropic.RateLimitError as e:
         print(f"\nrate limited: {e.message}", file=sys.stderr); return 3
