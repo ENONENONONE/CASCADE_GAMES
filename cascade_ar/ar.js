@@ -71,9 +71,9 @@ window.AR = (function () {
     geo.setAttribute('iPos', new T.InstancedBufferAttribute(pos, 3)); geo.setAttribute('iFrom', new T.InstancedBufferAttribute(from, 3)); geo.setAttribute('iUV', new T.InstancedBufferAttribute(uv, 4));
     geo.setAttribute('iCol', new T.InstancedBufferAttribute(col, 3)); geo.setAttribute('iState', new T.InstancedBufferAttribute(st, 1)); geo.setAttribute('iBorn', new T.InstancedBufferAttribute(born, 1)); geo.setAttribute('iSeed', new T.InstancedBufferAttribute(seed, 1));
     const mat = new T.ShaderMaterial({
-      uniforms: { map: { value: tex }, time: { value: 0 }, flow: { value: 1 }, halo: { value: 1 } }, transparent: true, depthWrite: false,
+      uniforms: { map: { value: tex }, time: { value: 0 }, flow: { value: 1 }, ease: { value: 0 }, halo: { value: 1 } }, transparent: true, depthWrite: false,
       vertexShader: `attribute vec3 iPos; attribute vec3 iFrom; attribute vec4 iUV; attribute vec3 iCol; attribute float iState; attribute float iBorn; attribute float iSeed;
-        uniform float time; uniform float flow;
+        uniform float time; uniform float flow; uniform float ease;
         varying vec2 vUv; varying vec2 vQ; varying vec3 vCol; varying float vA; varying float vS; varying float vSeed;
         void main(){
           vUv = vec2(mix(iUV.x, iUV.z, uv.x), mix(iUV.y, iUV.w, uv.y)); vQ = uv * 2.0 - 1.0; vCol = iCol; vS = iState; vSeed = iSeed;
@@ -84,8 +84,9 @@ window.AR = (function () {
           if (iState > 3.5 && iState < 4.5) vA = 0.6;
           if (iState > 4.5) s = 1.15;
           float b = clamp((time - iBorn) / 0.5, 0.0, 1.0); s *= 0.2 + 0.8 * b; vA *= b;   // born: a cell blooms in
-          // the flow: along the chord from where the cell came to where it stands, lifted so it rides the sphere, eased
-          float t = clamp(flow, 0.0, 1.0); float e = t * t * (3.0 - 2.0 * t);
+          // the flow: along the chord from where the cell came to where it stands, lifted so it rides the sphere, eased; ease 1 eases
+          // the ease again, the slow-in, slow-out of bullet time (M4)
+          float t = clamp(flow, 0.0, 1.0); float e = t * t * (3.0 - 2.0 * t); e = mix(e, e * e * (3.0 - 2.0 * e), ease);
           vec3 p = mix(iFrom, iPos, e); float ra = mix(length(iFrom), length(iPos), e); if (length(p) > 0.01) p = normalize(p) * ra;
           vec4 mv = modelViewMatrix * vec4(p, 1.0); mv.xyz += position * s;
           gl_Position = projectionMatrix * mv; }`,
@@ -153,7 +154,7 @@ window.AR = (function () {
     // stars when there is no camera: 500 points
     const sp2 = []; for (let i = 0; i < 500; i++) { const u = Math.random() * 2 - 1, ph = Math.random() * Math.PI * 2, r = Math.sqrt(1 - u * u); sp2.push(new T.Vector3(r * Math.cos(ph) * 40, u * 40, r * Math.sin(ph) * 40)); }
     A.stars = new T.Points(new T.BufferGeometry().setFromPoints(sp2), new T.PointsMaterial({ color: 0x8fb996, size: 0.12, sizeAttenuation: true, transparent: true, opacity: 0.6 })); A.scene.add(A.stars);
-    A.yaw = 0; A.pitch = 0; A.deviceQ = null; A.touchYaw = 0; A.t0 = performance.now(); A.flowT0 = -10; A.flowDur = 0.8; A.fx = [];
+    A.yaw = 0; A.pitch = 0; A.deviceQ = null; A.touchYaw = 0; A.t0 = performance.now(); A.flowT0 = -10; A.flowDur = 0.8; A.slow = 1; A.zoom = false; A.fx = [];
     resize(); window.addEventListener('resize', resize);
     return A;
   }
@@ -201,7 +202,7 @@ window.AR = (function () {
   function flow(op) {
     const inv = { g: n => F.mul(n, 86), ig: n => F.mul(n, 3), fold: F.fold, inv: F.inv, i: n => F.mul(n, 241), gam: n => F.gammaInv(n), flip: F.flip69 }[op.id];
     for (let n = 0; n < 258; n++) { const p = place(inv(n)); A.cellB.from.set([p.x, p.y, p.z], n * 3); }
-    A.cellB.geo.getAttribute('iFrom').needsUpdate = true; A.flowT0 = now(); A.flowDur = op.id === 'gam' ? 1.1 : op.id === 'g' || op.id === 'ig' ? 0.5 : 0.8; A.flowOp = op.id;
+    A.cellB.geo.getAttribute('iFrom').needsUpdate = true; A.flowT0 = now(); A.flowDur = op.id === 'gam' ? 1.1 : op.id === 'g' || op.id === 'ig' ? 0.5 : 0.8; A.flowOp = op.id; A.slow = 1;   // the page slows a closing flow (A.slow, A.zoom)
   }
   // ── the tape ribbon ──
   function tape(pi, o) {
@@ -231,6 +232,9 @@ window.AR = (function () {
     const t = now(); A.cellB.mesh.material.uniforms.time.value = t; A.tapeB.mesh.material.uniforms.time.value = t;
     const f = Math.min(1, (t - A.flowT0) / A.flowDur); A.cellB.mesh.material.uniforms.flow.value = f;
     const live = f < 1 ? 1 - f : 0;
+    // bullet time (M4): a slowed flow eases twice, and on a screen the view narrows 70° → 58° and back over it; never in the room
+    const slow = A.slow > 1 && f < 1; A.cellB.mesh.material.uniforms.ease.value = slow ? 1 : 0;
+    const fov = slow && A.zoom && !A.renderer.xr.isPresenting ? 70 - 12 * Math.sin(Math.PI * f) : 70; if (A.camera.fov !== fov) { A.camera.fov = fov; A.camera.updateProjectionMatrix(); }
     A.threads.material.opacity = A.flowOp === 'fold' ? 0.45 * live : 0; A.ladder.material.opacity = A.showLadder ? 0.35 : 0; A.orbit.material.opacity = A.showOrbit ? 0.35 : (A.flowOp === 'gam' ? 0.5 * live : 0);
     if (!A.renderer.xr.isPresenting) look(); A.renderer.render(A.scene, A.camera);
   }

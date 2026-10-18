@@ -44,7 +44,7 @@ window.FOLD_SOUND = (function () {
   };
   let ac = null, master = null, comp = null, cellBus = null, muted = false, tuning = 'chromatic', bound = false;
   let home = 0, lastRay = 0, phrase = [];                                  // phrase: the pitches last arrived on, for the inverse
-  let drone = null, bed = null;
+  let drone = null, bed = null, dil = 1;                                  // dil: the slow clock's rate, the drone detuned by it
   const clk = { next: 0, last: -1, lastCall: -9 };
   const wrap = r => ((Math.round(r) % 12) + 12) % 12;
   const hz = r => TUNINGS[tuning].hz(wrap(r));
@@ -102,7 +102,7 @@ window.FOLD_SOUND = (function () {
     a.connect(lp); b.connect(lp); c.connect(lp); lp.connect(g);
     let out = g; const pan = ac.createStereoPanner ? ac.createStereoPanner() : null; if (pan) { g.connect(pan); out = pan; }
     out.connect(master);
-    [a, b, c, lfo].forEach(o => o.start(t));
+    [a, b, c].forEach(o => { o.detune.value = 1200 * Math.log2(dil); }); [a, b, c, lfo].forEach(o => o.start(t));
     drone = { a, b, c, lfo, lg, lp, g, pan, t0: t, nodes: [a, b, c, lfo, lg, lp, g, pan].filter(Boolean) };
   }
   function tuneDrone(ray, immediate) {
@@ -249,15 +249,22 @@ window.FOLD_SOUND = (function () {
     thump(t + 1.0, 0.35);
     if (drone) { const g = drone.g.gain; g.cancelScheduledValues(t); g.setTargetAtTime(0.015, t, 0.3); g.setTargetAtTime(0.07, t + 2.5, 1.0); }
   }
-  // the countdown: call it every frame; a tick a second above ten seconds, then quickening to ten a second and rising an octave
-  function clock(s) {
-    if (!ready() || s == null || !isFinite(s)) return; const t = now(); clk.lastCall = t;
+  // the countdown: call it every frame; a tick a second above ten seconds, then quickening to ten a second and rising an octave. s is in
+  // the clock's own seconds and rate its pace against the wall (S3, the slow clock): the ticks spread by 1/rate and drop by ×rate
+  function clock(s, rate) {
+    if (!ready() || s == null || !isFinite(s)) return; const t = now(), r = rate > 0 && isFinite(rate) ? rate : 1; clk.lastCall = t;
     if (clk.last >= 0 && s > clk.last + 1.5) clk.next = 0; clk.last = s;
     if (t < clk.next) return;
-    const period = s > 10 ? 1 : Math.max(0.1, s / 10), f = s > 10 ? 1100 : 1100 * Math.pow(2, (10 - s) / 10);
+    const period = (s > 10 ? 1 : Math.max(0.1, s / 10)) / r, f = (s > 10 ? 1100 : 1100 * Math.pow(2, (10 - s) / 10)) * r;
     click(t + 0.005, f, s > 10 ? 0.08 : 0.08 + (10 - s) * 0.012, 0.022); clk.next = t + period;
+  }
+  // the slow clock near the eye: the drone slides by 1200·log2(rate) cents on .detune; tuneDrone ramps only .frequency, so it survives
+  function dilate(rate) {
+    const r = rate > 0 && isFinite(rate) ? rate : 1; if (Math.abs(r - dil) < 0.002) return; dil = r;
+    if (!ready() || !drone) return; const t = now(), c = 1200 * Math.log2(r);
+    for (const o of [drone.a, drone.b, drone.c]) { o.detune.cancelScheduledValues(t); o.detune.setTargetAtTime(c, t, 0.4); }
   }
   function stop() { if (!ac) return; stopBed(); stopDrone(); const a = ac; ac = null; master = null; comp = null; cellBus = null; setTimeout(() => { try { a.close(); } catch (e) {} }, 1800); }
   const state = () => ({ ready: ready(), state: ac ? ac.state : 'none', muted, tuning, home, lastRay, rule: bed ? bed.name : null, note: NOTE[home], hz: ready() ? hz(home) : null });
-  return { init, setMuted, cell, op, bloom, win, lose, clock, setRule, setHome, stop, setTuning, hz, state, TUNINGS, NOTE, NM, GOLD, MIRRORS, EYE };
+  return { init, setMuted, cell, op, bloom, win, lose, clock, dilate, setRule, setHome, stop, setTuning, hz, state, TUNINGS, NOTE, NM, GOLD, MIRRORS, EYE };
 })();
