@@ -12,7 +12,7 @@
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-192.png">
 <style>
-:root{--ground:#0a0d10;--panel:rgba(12,16,20,.82);--line:#24302a;--text:#e8f3e4;--dim:#8fa796;--gold:#c9a84c;--green:#5fd37a;--blue:#7fb8ff;--red:#ff7b7b;--climb:#2f6fb8;--fall:#ff6a2a;--mono:ui-monospace,"SF Mono",Menlo,"DejaVu Sans Mono",monospace;--sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+:root{--ground:#0a0d10;--panel:rgba(12,16,20,.82);--line:#24302a;--text:#e8f3e4;--dim:#8fa796;--gold:#c9a84c;--green:#5fd37a;--blue:#7fb8ff;--red:#ff7b7b;--climb:#2f6fb8;--fall:#ff6a2a;--phos:#00fc00;--amber:#ffd400;--tube:#050805;--mono:ui-monospace,"SF Mono",Menlo,"DejaVu Sans Mono",monospace;--sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;height:100%;background:var(--ground);color:var(--text);font:15px/1.4 var(--sans);overflow:hidden;overscroll-behavior:none}
 #video{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;display:none;filter:saturate(.75) brightness(.8);transition:transform .6s cubic-bezier(.2,.7,.2,1),filter .6s}
@@ -96,7 +96,15 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 #clock{color:var(--red)}
 #quest{position:absolute;right:10px;bottom:178px;max-width:min(60vw,360px);background:var(--panel);border:1px solid rgba(127,184,255,.35);border-radius:10px;padding:6px 10px;font:11px/1.4 var(--mono);color:var(--blue)}
 #quest[hidden]{display:none} #quest.done{color:var(--green);border-color:var(--green)}
-@media (max-width:420px){#ops button{font-size:13px;padding:12px 2px}.stand .g{font-size:24px}.stand .n{font-size:18px}#quest{bottom:196px}}
+#rays{position:absolute;left:10px;bottom:178px;width:132px;height:132px;border-radius:50%;background:var(--tube);border:1px solid var(--line);cursor:pointer;touch-action:none}
+#rays[hidden],#tube[hidden]{display:none}
+#tube{position:absolute;inset:0;background:var(--ground)} #hud.tubing{background:none}
+#tubec{position:absolute;border-radius:12px;background:var(--tube);touch-action:none;box-shadow:0 20px 40px rgba(0,0,0,.45);outline:none}
+#tubec:focus-visible{box-shadow:0 0 0 2px var(--blue)}
+.tubebtns{position:absolute;display:flex;gap:6px} .tubebtns button{padding:4px 10px;min-height:24px;font-size:11px;color:var(--dim)} .tubebtns button[aria-pressed="true"]{color:var(--blue);border-color:var(--blue)}
+.ledger{display:block;width:100%;max-width:394px;margin:8px 0 4px;border-radius:10px;background:var(--tube)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media (max-width:420px){#ops button{font-size:13px;padding:12px 2px}.stand .g{font-size:24px}.stand .n{font-size:18px}#quest{bottom:196px}#rays{bottom:196px}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 html.calm *{transition:none!important;animation:none!important}
 </style>
@@ -125,6 +133,7 @@ html.calm *{transition:none!important;animation:none!important}
     <div class="row" style="justify-content:center"><button id="mute" aria-pressed="false" style="font-size:11px;padding:6px 10px">SOUND ON</button></div>
   </section>
 
+  <div id="tube" hidden><canvas id="tubec" role="img" tabindex="0" aria-label="the twelve rays"></canvas><div class="tubebtns" id="tubebtns"><button id="tubeface" aria-pressed="false" title="A8's 16 × 16 dlog picture: ×i turns it a quarter, FOLD a half">TABLE</button><button id="tubex" title="back to the field (t or Esc)">× FIELD</button></div><div class="sr" id="tubefocus" role="status" aria-live="polite"></div></div>
   <div id="hud" hidden>
     <div class="row"><span id="date"></span><span class="pill" id="daypill"></span><span class="pill rule" id="rulepill"></span><span class="pill ch" id="chpill"></span><span class="pill" id="lvl"></span><span id="clock"></span></div>
     <div class="stand"><span class="g" id="cur-g"></span><span class="n" id="cur-n"></span><span class="w" id="cur-w"></span></div>
@@ -133,6 +142,7 @@ html.calm *{transition:none!important;animation:none!important}
     <div class="voice" id="voice" role="status" aria-live="polite"></div>
   </div>
   <div id="quest" hidden></div>
+  <canvas id="rays" role="img" tabindex="0" aria-label="the twelve rays" title="the twelve rays: tap (or t) for the TUBE" hidden></canvas>
   <div id="cross" hidden></div>
   <div class="arrow" id="arr-cur" hidden><i></i></div>
   <div class="arrow tg" id="arr-tg" hidden><i></i></div>
@@ -157,6 +167,7 @@ html.calm *{transition:none!important;animation:none!important}
 <script src="parts/corpus/material.js"></script>
 <script src="parts/well/well.js"></script>
 <script src="parts/void/void.js"></script>
+<script src="parts/rays/rays.js"></script>
 <script>
 (function () {
   'use strict';
@@ -230,6 +241,90 @@ html.calm *{transition:none!important;animation:none!important}
   const bView = aux('VIEW', () => view(), 'the π tape as the rain behind the field, on or off (key v)');
   function view() { const B = A.A.rainB; if (!B) return toast('the rain is off on this device'); B.mesh.visible = !B.mesh.visible; LS.set('fold.view', B.mesh.visible ? 'rain' : 'none'); bView.setAttribute('aria-pressed', B.mesh.visible); if (!B.mesh.visible) A.readEnd(); toast(B.mesh.visible ? 'the rain: the π tape, 78 digits a column, a column a dlog tick' : 'rain off', 2400); }
   bView.setAttribute('aria-pressed', !!(A.A.rainB && A.A.rainB.mesh.visible));
+  // ── the twelve rays (T1, T4): the field drawn flat, spoke dlog mod 12 and ring dlog div 12, an inset by the quest box; a tap on it or t
+  // opens the TUBE, in which the whole day plays in 2D and the 3D frame is skipped, never in the room, where the inset alone rides the
+  // dom-overlay. `tiny` draws the inset at 30 fps. RAYS or m toggles the inset, kept in fold.prefs ──
+  const RY = window.FOLD_RAYS || null, dpr2 = Math.min(2, window.devicePixelRatio || 1);
+  const RAYS = { on: PREFS.rays !== 'off', tube: false, inset: null, big: null, last: 0, focus: null, hold: null, fade: null };
+  if (RY) { try { RAYS.inset = RY.Chart($('rays'), { size: 132, dpr: dpr2, calm: () => calm }); } catch (e) { console.warn('rays', e); } }
+  const bRays = RY ? aux('RAYS', () => raysToggle(), 'the twelve rays: the field drawn flat, spoke dlog mod 12, ring dlog div 12 (key m); tap the disc, or t, for the TUBE, the day in 2D') : null;
+  if (bRays) bRays.setAttribute('aria-pressed', RAYS.on);
+  function raysToggle() { RAYS.on = !RAYS.on; PREFS.rays = RAYS.on ? 'on' : 'off'; LS.set('fold.prefs', JSON.stringify(PREFS)); if (bRays) bRays.setAttribute('aria-pressed', RAYS.on); raysShow(); toast(RAYS.on ? 'the twelve rays: spoke dlog mod 12, ring dlog div 12, SEED at the centre, ∞ the rim · tap it for the TUBE' : 'rays off'); }
+  function raysShow() { $('rays').hidden = !RAYS.inset || !RAYS.on || RAYS.tube || $('hud').hidden; }
+  const raysSay = (k, n) => (k ? k + ' ' : '') + (n === F.INF ? '∞, on the rim' : n === 0 ? '0 SEED, at the centre' : n + ' ' + D.cells[n].w + ', ray ' + F.ray(n) + ', ring ' + Math.floor(F.dlog(n) / 12));
+  function raysSet(S) {
+    if (!RY) return; const arr = (S.rays || []).reduce((a, b) => a + b, 0), best = Math.max(0, ...(S.bits || [0])), L = G.lineInfo();
+    const st = { current: S.current, target: S.target, home: S.home, road: S.road, ops: S.ops, opsList: S.opsList, quest: S.quest && G.answered(S.quest) ? S.quest.cell : null, salt: [S.day, S.offset], rays: S.rays, bits: S.bits, homeRay: F.ray(S.home), tickRay: F.ray(L.cell), info: [(S.mode === 'free' ? 'FREE' : 'L:' + S.level) + '  M:' + S.moves + (S.par != null ? '/' + S.par : ''), 'ARR:' + arr + '  BEST:' + best] };
+    for (const c of [RAYS.inset, RAYS.big]) if (c) c.set(st);
+    const lab = 'the twelve rays: ' + raysSay('you', S.current) + (S.target != null ? '; the target ' + raysSay('', S.target) : '') + '; home ' + raysSay('', S.home);
+    $('rays').setAttribute('aria-label', lab); $('tubec').setAttribute('aria-label', lab + (RAYS.tube && RAYS.focus != null ? '; the focus ' + raysSay('', RAYS.focus) : ''));
+  }
+  // a move: every node slides from its preimage over the sky's own flowDur; crossing the rim (an arrival at ∞) or the seam (86 ×g → 1,
+  // 1 ÷g → 86) makes the chart fall, once a day; with the TUBE up that is a large change, so it asks the flash gate, and refused or CALM
+  // it is a 150 ms cross-fade
+  function raysMove(id, u) { if (!RY) return; for (const c of [RAYS.inset, RAYS.big]) if (c) c.flow(id, A.A.flowDur); const k = RY.kind(id, u); if (k && (k.k === 'rim' || k.k === 'seam')) raysFall(); }
+  function raysFall() { const day = String(G.S.day); if (LS.get('fold.rays.fall') === day) return; LS.set('fold.rays.fall', day); const sft = calm || (RAYS.tube && !!FX && !!FX.strobe && !FX.strobe({ dL: 0.12, area: 1 })); for (const c of [RAYS.inset, RAYS.big]) if (c) c.fall(sft); }
+  // the TUBE: square with the bars under it, centred between the HUD and the moves, or on a wide screen at the right from under the HUD's
+  // first row, beside its text, whichever is larger (the quest box moves left meanwhile); scene ↔ tube is a whole-screen change, so it
+  // asks the gate and, refused or CALM, fades over 600 ms
+  function raysFit() {
+    const vw = window.innerWidth, hud = $('hud'), bot = $('ops').getBoundingClientRect().top - 4, fit = (av, wmax) => { let W = Math.min(wmax, 1000); for (let k = 0; k < 3; k++) W = Math.min(W, av - RY.band(W)); return Math.max(160, Math.floor(W)); };
+    const qb = $('quest').hidden ? null : $('quest').getBoundingClientRect(), qw = qb ? qb.width + 18 : 0;   // the quest box: under a centred TUBE it stands above it, beside a side one it moves left
+    const top = hud.getBoundingClientRect().bottom + 4, top1 = hud.children[0].getBoundingClientRect().bottom + 6, botA = qb ? Math.min(bot, qb.top - 4) : bot, a = fit(botA - top, vw - 20);
+    let textR = 0; for (const r of [...hud.children].slice(1)) { if (r.hidden || !r.getBoundingClientRect().height) continue; for (const e of r.children.length ? r.children : [r]) textR = Math.max(textR, e.getBoundingClientRect().right); }
+    const b = fit(bot - top1, Math.min(vw - 10 - textR - 12, vw - 20 - qw)), side = b > a + 24, W = side ? b : a, left = side ? vw - 10 - W : Math.round((vw - W) / 2), y = Math.round(side ? top1 : top + Math.max(0, (botA - top - W - RY.band(W)) / 2));
+    const c = $('tubec'); c.style.left = left + 'px'; c.style.top = y + 'px'; const q = $('quest'); q.style.left = side ? '10px' : ''; q.style.right = side ? 'auto' : '';
+    const bt = $('tubebtns'); bt.style.right = (vw - left - W + 8) + 'px'; bt.style.top = (y + W - 34) + 'px'; return W;
+  }
+  function raysTube(on) {
+    if (!RY || on === RAYS.tube) return; if (on && A.A.renderer.xr.isPresenting) return toast('in the room the chart stays an inset');
+    const ok = !calm && (!FX || !FX.strobe || FX.strobe({ dL: 0.3, area: 1 })), el = $('tube'); RAYS.tube = on;
+    if (on) { el.hidden = false; const W = raysFit(); if (!RAYS.big) RAYS.big = RY.Chart($('tubec'), { size: W, dpr: dpr2, header: true, bars: true, labels: true, face: PREFS.face === 'table' ? 'table' : 'rays', calm: () => calm }); else RAYS.big.resize(W); $('tubeface').setAttribute('aria-pressed', RAYS.big.o.face === 'table'); RAYS.focus = G.S.current; RAYS.big.focus(RAYS.focus); paint(); $('tubec').focus(); }
+    else { if (ok) el.hidden = true; $('quest').style.left = $('quest').style.right = ''; }
+    RAYS.fade = ok ? null : { t0: performance.now(), to: on ? 1 : 0 }; el.style.opacity = ok ? '' : on ? '0' : '1';
+    $('hud').classList.toggle('tubing', on); $('cross').hidden = on || $('hud').hidden; for (const id of ['arr-cur', 'arr-tg', 'arr-eye']) if (on) $(id).hidden = true; raysShow();
+    toast(on ? 'the TUBE: the day in 2D · hold for a lens, let go on a cell to read it · the arrows walk the rays · t or Esc for the field' : 'the field', 2600);
+  }
+  function raysFade(now) { const f = RAYS.fade; if (!f) return; const x = Math.min(1, (now - f.t0) / 600), el = $('tube'); el.style.opacity = String(f.to ? x : 1 - x); if (x >= 1) { RAYS.fade = null; el.style.opacity = ''; if (!f.to) el.hidden = true; } }
+  function raysFrame(xr) {
+    if (!RY) return; const now = performance.now(); raysFade(now);
+    if (RAYS.tube && RAYS.big) { if (xr) raysTube(false); else RAYS.big.frame(now); }
+    else if (RAYS.inset && !$('rays').hidden && (!tiny || now - RAYS.last >= 30)) { RAYS.last = now; RAYS.inset.frame(now); }
+  }
+  // the TUBE by pointer: holding brings up the 4× lens under the finger, letting go on a node opens the cell panel (which answers the quest)
+  { const tc = $('tubec'), xy = e => { const r = tc.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+    tc.addEventListener('pointerdown', e => { if (!e.isPrimary || !RAYS.big) return; const [x, y] = xy(e); RAYS.hold = { x, y, lens: false, t: setTimeout(() => { if (RAYS.hold) { RAYS.hold.lens = true; RAYS.big.lens(RAYS.hold.x, RAYS.hold.y); } }, 180) }; tc.setPointerCapture(e.pointerId); });
+    tc.addEventListener('pointermove', e => { const h = RAYS.hold; if (!h) return; [h.x, h.y] = xy(e); if (h.lens) RAYS.big.lens(h.x, h.y); });
+    tc.addEventListener('pointerup', e => { const h = RAYS.hold; RAYS.hold = null; if (!h || !RAYS.big) return; clearTimeout(h.t); const [x, y] = xy(e), n = h.lens ? RAYS.big.lens(x, y) : RAYS.big.pick(x, y); RAYS.big.lens(null); if (n != null) { RAYS.focus = n; RAYS.big.focus(n); showCell(n); } });
+    tc.addEventListener('pointercancel', () => { const h = RAYS.hold; RAYS.hold = null; if (h) clearTimeout(h.t); if (RAYS.big) RAYS.big.lens(null); });
+    $('rays').addEventListener('click', () => raysTube(true));
+    $('tubex').onclick = () => raysTube(false);
+    $('tubeface').onclick = () => { if (!RAYS.big) return; const f = RAYS.big.o.face === 'table' ? 'rays' : 'table'; PREFS.face = f; LS.set('fold.prefs', JSON.stringify(PREFS)); RAYS.big.resize(null, f); $('tubeface').setAttribute('aria-pressed', f === 'table'); toast(f === 'table' ? 'the TABLE: cell p at column p mod 16, row p div 16, the dlog its light · ×i turns it a quarter, FOLD a half' : 'the twelve rays'); };
+    window.addEventListener('resize', () => { if (RAYS.tube && RAYS.big) RAYS.big.resize(raysFit()); }); }
+  // without a pointer: in the TUBE the arrows give way to a focus ring, ←/→ one ray and ↑/↓ one ring (on the TABLE a column and a row),
+  // Enter reads the cell; m toggles the inset, t the TUBE, Enter on the inset opens it
+  function raysKey(e) {
+    if (!RY || $('hud').hidden || document.activeElement === $('name') || e.ctrlKey || e.metaKey || e.altKey) return false; const cards = $('chap').hidden && $('won').hidden;
+    if (e.key === 'm' && cards) { raysToggle(); return true; }
+    if (e.key === 't' && cards) { raysTube(!RAYS.tube); return true; }
+    if (!RAYS.tube) { if ((e.key === 'Enter' || e.key === ' ') && document.activeElement === $('rays')) { e.preventDefault(); raysTube(true); return true; } return false; }
+    if (!cards || !RAYS.big) return false;
+    const nav = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, 1], ArrowDown: [0, -1] }[e.key], tbl = RAYS.big.o.face === 'table';
+    if (nav) { e.preventDefault(); RAYS.focus = RY.step(RAYS.focus == null ? G.S.current : RAYS.focus, nav[0], tbl ? -nav[1] : nav[1], RAYS.big.o.face); RAYS.big.focus(RAYS.focus); $('tubefocus').textContent = raysSay('', RAYS.focus); raysSet(G.S); return true; }
+    if (e.key === 'Enter' && RAYS.focus != null && !(document.activeElement && document.activeElement.tagName === 'BUTTON')) { e.preventDefault(); showCell(RAYS.focus); return true; }
+    if (e.key === 'Escape') { if (!$('panel').hidden) $('panel').hidden = true; else raysTube(false); return true; }
+    return false;
+  }
+  // the ray ledger (T4): at a chapter's close the won card replays its eight roads as chords over 4 s, then the bars from your own
+  // arrivals, home's ray outlined and the line's cell's ray ticked; under CALM the last frame only. The seal draws the day's bars
+  function ledger(ch) {
+    const cv = $('ledger'); if (!cv || !RY) return null; const S = G.S, roads = G.roadsOf(ch * 8 + 1, ch * 8 + 8), t = RY.tally(roads), L = G.lineInfo(), W = Math.min(394, Math.floor(cv.getBoundingClientRect().width) || 304, Math.max(200, Math.floor(window.innerHeight * 0.45)));   // the bars stay on a short screen's card
+    const c = RY.Chart(cv, { size: W, dpr: dpr2, header: true, bars: true, colour: 'phos', marks: false, calm: () => calm });
+    c.replay(roads, { dur: 4, rays: t.rays, bits: t.bits, home: F.ray(S.home), tick: F.ray(L.cell), info: ['CH:' + (ch + 1) + '  ROADS:' + roads.length, 'ARR:' + t.n + '  BEST:' + Math.max(0, ...t.bits)] });
+    cv.setAttribute('aria-label', 'the chapter\'s ledger, ' + roads.length + ' roads, ' + t.n + ' arrivals: by ray ' + t.rays.map((v, i) => 'R' + i + ' ' + v).join(', ') + '; best work bits ' + t.bits.join(' '));
+    RAYS.ledger = c; const loop = now => { if (!cv.isConnected || $('won').hidden || RAYS.ledger !== c) return; c.frame(now); if (!c.done()) requestAnimationFrame(loop); }; requestAnimationFrame(loop);
+    return t;
+  }
   function flash(id) { const b = opsEl.querySelector('[data-op="' + id + '"]'); if (!b) return; b.style.boxShadow = '0 0 0 2px var(--gold)'; setTimeout(() => b.style.boxShadow = '', 900); }
   let typing = 0;
   const say = t => { if (t) { clearInterval(typing); $('voice').removeAttribute('aria-busy'); $('voice').textContent = t; } };
@@ -290,6 +385,7 @@ html.calm *{transition:none!important;animation:none!important}
     effort(S);
     const q = S.quest; $('quest').hidden = !q; if (q) { const done = G.answered(q); $('quest').className = done ? 'done' : ''; $('quest').textContent = (done ? '✓ ' : '? ') + q.ask; }
     A.paint({ current: S.current, target: S.target, home: S.home, visited: S.visited, reach: G.reach(), road: S.road, ops: S.opsList, rule: S.digit, moves: S.moves, chapter: S.mode === 'daily' ? chapterOf(S.level) + 1 : 8, strip: S.head, spec: S.spec, eye: S.kind === 'eye', ghost: S.ghost }); A.tape(D.pi, S.offset, S.spec);
+    raysSet(S); raysShow();
   }
   // ── the effort bar (H2): par + slack segments and one dim 2★; a counted move fills one by what it did to the solver's distance:
   // closer blue and full, kept grey and half height, further orange and notched below the line; whitened by the move's heat, the
@@ -319,10 +415,11 @@ html.calm *{transition:none!important;animation:none!important}
   // is only a longer wait
   const bullet = st => calm ? 1 : Math.max(1, Math.min(3, st | 0));
   function move(id) {
-    const S = G.S; if (slow && skip()) return; if (S.done || S.lost || busy) return; if (A.readEnd) A.readEnd(); const o = F.OP[id]; const v = G.apply(id); if (v == null) return;
+    const S = G.S; if (slow && skip()) return; if (S.done || S.lost || busy) return; if (A.readEnd) A.readEnd(); const o = F.OP[id], u = S.current; const v = G.apply(id); if (v == null) return;
     if (S.done && !S.lost && A.decode) A.decode(S.spec);   // M2: the start digits become the start cell's glyphs
     const k = S.done && !S.lost ? bullet(S.stars[S.level - 1]) : 1; if (S.done && !S.lost) S.doneAt = performance.now();
     busy = true; A.flow(o); if (k > 1) { A.A.flowDur *= k; A.A.slow = k; A.A.zoom = $('video').style.display !== 'block'; }   // flow() wrote flowDur; both timers below read it
+    raysMove(id, u);
     snd.op(id); roomFx(id, k); say(STORY && STORY.ops && STORY.ops[id] || o.tell); monStep(S);
     const lv = S.level, epoch = S.epoch = (S.epoch || 0) + 1, mine = () => G.S.level === lv && G.S.epoch === epoch;   // a timer of this move only
     setTimeout(() => { busy = false; if (mine()) snd.cell(v); }, A.A.flowDur * 1000 * 0.9);
@@ -374,13 +471,14 @@ html.calm *{transition:none!important;animation:none!important}
     if (id === 'gam' && warpU && FX.warpRun && STROBE) FX.warpRun(warpU, 0.35, 1100);   // Γ: the screen bends through the Möbius map
   }
   // ── THE BARDO (V3): a loss flies the ten discs on the lose sound's clock and comes to the card with AGAIN and REBIRTH; the view lifts
-  // only in drag mode with the camera off ('fold.void' off holds it), never under CALM or in the room; a tap, Enter or Esc skips ──
+  // only in drag mode with the camera off ('fold.void' off holds it), never under CALM or in the room; with the TUBE up (which skips the
+  // 3D frame) it goes straight to the card, as in the room; a tap, Enter or Esc skips ──
   // the bardo's lift and the eye's turn (S4) never fight: bardo() drops the crossing's turn and negative, and the turn waits out a lift
   let bard = null;
   function bardo() {
     const S = G.S; crossReset(); if (!VOID) return won(); say(STORY && STORY.void && STORY.void.death ? STORY.void.death.text : null);
     const lift = !calm && !A.A.deviceQ && $('video').style.display !== 'block' && LS.get('fold.void') !== 'off';
-    bard = VOID.bardo(S, { A, FX, calm, xr: A.A.renderer.xr.isPresenting, lift, done: () => { bard = null; won(); } });
+    bard = VOID.bardo(S, { A, FX, calm, xr: A.A.renderer.xr.isPresenting || RAYS.tube, lift, done: () => { bard = null; won(); } });
   }
   // REBIRTH taken: the same target and rule from 80, par from 80, no loss, closes at ★; the previous life a dim orange ghost
   function reborn() {
@@ -390,7 +488,7 @@ html.calm *{transition:none!important;animation:none!important}
   function voiceOf(n) { if (STORY && STORY.cells && STORY.cells[n]) { const lv = G.S.level; setTimeout(() => { if (G.S.level === lv) say(STORY.cells[n]); }, A.A.flowDur * 1000); } }
   function won() {
     const S = G.S, L = G.lineInfo(), t = G.cellInfo(S.target), st = S.stars[S.level - 1] || 0;
-    const h = S.lost ? '<h2 class="lost">' + (S.clock ? 'HALT' : 'SYNC') + ' · the level is lost</h2>' + (VOID ? VOID.card(S, { par: G.canRebirth() ? G.parFrom(G.REBIRTH) : 0, still: calm || A.A.renderer.xr.isPresenting }) : '') : '<h2>' + (S.kind === 'eye' && S.road.includes(F.INF) ? 'THROUGH THE EYE · ' : '') + (S.reborn ? 'REBORN' : S.moves <= S.par + S.slack ? 'CLOSED' : 'REACHED') + ' · ' + t.glyphs + ' ' + (t.n === F.INF ? '∞' : t.n) + ' ' + t.word + '</h2><div class="stars">' + '★'.repeat(st) + '<span style="color:var(--line)">' + '★'.repeat(3 - st) + '</span>' + (S.seen ? ' <span style="font-size:12px;color:var(--blue)">sighted</span>' : '') + (S.seenInf ? ' <span style="font-size:12px;color:var(--blue)">sighted ∞</span>' : '') + '</div>';
+    const h = S.lost ? '<h2 class="lost">' + (S.clock ? 'HALT' : 'SYNC') + ' · the level is lost</h2>' + (VOID ? VOID.card(S, { par: G.canRebirth() ? G.parFrom(G.REBIRTH) : 0, still: calm || A.A.renderer.xr.isPresenting || RAYS.tube }) : '') : '<h2>' + (S.kind === 'eye' && S.road.includes(F.INF) ? 'THROUGH THE EYE · ' : '') + (S.reborn ? 'REBORN' : S.moves <= S.par + S.slack ? 'CLOSED' : 'REACHED') + ' · ' + t.glyphs + ' ' + (t.n === F.INF ? '∞' : t.n) + ' ' + t.word + '</h2><div class="stars">' + '★'.repeat(st) + '<span style="color:var(--line)">' + '★'.repeat(3 - st) + '</span>' + (S.seen ? ' <span style="font-size:12px;color:var(--blue)">sighted</span>' : '') + (S.seenInf ? ' <span style="font-size:12px;color:var(--blue)">sighted ∞</span>' : '') + '</div>';
     const road = S.ops.map(id => F.OP[id].label).join(' ') || '—';
     // HALT: the proper seconds against the real ones (S3), and the zone plate's terraces left at the close (R5)
     const rings = Math.max(0, Math.ceil((S.clock - S.tau) / (S.clock / 10) - 1e-9));
@@ -399,15 +497,16 @@ html.calm *{transition:none!important;animation:none!important}
     const doorTxt = S.kind === 'door' && !S.lost ? '<p class="epi">' + (S.target === 6 ? doorOf('6174') : '') + '</p>' : '';
     const outro = S.mode === 'daily' && !S.lost && S.level % 8 === 0 && STORY && STORY.chapters && STORY.chapters[chapterOf(S.level)] ? '<p class="epi">' + STORY.chapters[chapterOf(S.level)].outro + '</p>' : '';
     const voice = STORY && STORY.cells && STORY.cells[S.target] ? '<p class="epi">' + STORY.cells[S.target] + '</p>' : '';
-    $('wonbody').innerHTML = h + voice + doorTxt + outro + '<p>road <b>' + road + '</b> · ' + S.moves + ' moves, par ' + S.par + '</p>' + halt
+    const chEnd = !!RY && S.mode === 'daily' && S.level % 8 === 0 && !S.lost, ledgerHtml = chEnd ? '<canvas class="ledger" id="ledger" role="img"></canvas><p>the chapter\'s roads as chords · under each ray R0–R11 its nm and its best work bits</p>' : '';
+    $('wonbody').innerHTML = h + voice + doorTxt + outro + ledgerHtml + '<p>road <b>' + road + '</b> · ' + S.moves + ' moves, par ' + S.par + '</p>' + halt
       + '<p>from ' + G.cellInfo(S.start).glyphs + ' ' + S.start + ' · ' + G.cellInfo(S.start).word + '</p>'
       + (S.lost ? '' : '<p>your line: <b>' + (L.txt || '—') + '</b></p><p>its letters add to ' + L.sum + ' ≡ <b>' + L.cell + ' ' + L.word + '</b>, the mirror ' + L.mirror + ' ' + D.cells[L.mirror].w + '</p>')
       + '<p>' + (S.current === S.home ? 'you stand on your own cell, ' + S.home + ' ' + D.cells[S.home].w : 'your cell ' + S.home + ' ' + D.cells[S.home].w + ' is ' + F.cost(F.solve(S.current, S.home, S.free, S.opsList), S.free) + ' moves away') + '</p>'
       + '<div class="btns"><button class="big" id="next">' + (S.lost ? 'AGAIN' : 'NEXT') + '</button>' + (S.lost && VOID && G.canRebirth() ? '<button class="big" id="rebirth" title="from 80 REBIRTH, par ' + G.parFrom(G.REBIRTH) + ': the second life cannot be lost and closes at ★">REBIRTH</button>' : '') + '<button id="share">SHARE</button>' + (S.mode === 'daily' ? '<button id="endday">END THE DAY</button>' : '') + '</div>';
-    $('won').hidden = false;
+    $('won').hidden = false; const lt = chEnd ? ledger(chapterOf(S.level)) : null;
     $('next').onclick = () => { $('won').hidden = true; if (S.lost) G.reset(); else G.next(); openLevel(); };
     if ($('rebirth')) $('rebirth').onclick = () => { $('won').hidden = true; if (G.rebirth()) reborn(); else { G.reset(); openLevel(); } };
-    $('share').onclick = () => { const txt = 'THE FOLD · ' + G.today() + ' · level ' + S.level + ' ' + '★'.repeat(st) + ' · ' + road + ' · ' + t.glyphs + ' ' + S.target + ' ' + t.word; if (navigator.share) navigator.share({ text: txt }).catch(() => {}); else { navigator.clipboard && navigator.clipboard.writeText(txt); toast('copied'); } };
+    $('share').onclick = () => { const txt = 'THE FOLD · ' + G.today() + ' · level ' + S.level + ' ' + '★'.repeat(st) + ' · ' + road + ' · ' + t.glyphs + ' ' + S.target + ' ' + t.word + (lt ? ' · rays ' + RY.spark(lt.rays) : ''); if (navigator.share) navigator.share({ text: txt }).catch(() => {}); else { navigator.clipboard && navigator.clipboard.writeText(txt); toast('copied'); } };
     if ($('endday')) $('endday').onclick = () => { $('won').hidden = true; G.S.ended = true; endDay(); };
   }
   function openLevel() {
@@ -437,9 +536,11 @@ html.calm *{transition:none!important;animation:none!important}
     const stars = S.stars.reduce((a, b) => a + (b || 0), 0);
     const fill = (t, k, v) => t.split('{' + k + '}').join(String(v));   // every occurrence, and old Safari has no replaceAll
     const txt = fill(fill(fill(fill(tpl, 'word', L.word), 'cell', L.cell), 'mirror', D.cells[L.mirror].w + ' ' + L.mirror), 'stars', stars);
-    $('wonbody').innerHTML = '<h2 class="ch">THE SEAL · ' + G.today() + '</h2><p class="epi">' + txt + '</p><p>' + S.closed + ' levels closed' + (S.rebirths && S.rebirths.length ? ' · reborn ' + S.rebirths.length : '') + ' · ' + stars + ' stars · the line: <b>' + (L.txt || '—') + '</b> ≡ ' + L.cell + ' ' + L.word + '</p>' + (seal ? '<p>product of the targets ≡ <b>' + seal.cell + ' ' + seal.word + '</b></p>' : '') + (dec && S.mode === 'daily' ? '<p>the tape decoded ' + dec.k + ' of ' + dec.of + ' windows · longest run ' + dec.run + '</p>' : '') + (Math.abs(S.borrowed || 0) >= 0.05 ? '<p>' + S.borrowed.toFixed(1) + ' s borrowed from the eye today</p>' : '') + (S.crossed ? '<p>∞ · crossed: through the eye to I AM</p>' : '') + '<div class="btns"><button class="big" id="again">WALK ON</button><button id="share2">SHARE</button></div>';
+    $('wonbody').innerHTML = '<h2 class="ch">THE SEAL · ' + G.today() + '</h2><p class="epi">' + txt + '</p><p>' + S.closed + ' levels closed' + (S.rebirths && S.rebirths.length ? ' · reborn ' + S.rebirths.length : '') + ' · ' + stars + ' stars · the line: <b>' + (L.txt || '—') + '</b> ≡ ' + L.cell + ' ' + L.word + '</p>' + (seal ? '<p>product of the targets ≡ <b>' + seal.cell + ' ' + seal.word + '</b></p>' : '') + (dec && S.mode === 'daily' ? '<p>the tape decoded ' + dec.k + ' of ' + dec.of + ' windows · longest run ' + dec.run + '</p>' : '') + (Math.abs(S.borrowed || 0) >= 0.05 ? '<p>' + S.borrowed.toFixed(1) + ' s borrowed from the eye today</p>' : '') + (S.crossed ? '<p>∞ · crossed: through the eye to I AM</p>' : '')
+      + (RY && S.rays ? '<canvas class="ledger" id="daybars" role="img"></canvas><p>the day\'s rays <b>' + RY.spark(S.rays) + '</b> · arrivals by ray on the roads closed, the best work bits beneath</p>' : '') + '<div class="btns"><button class="big" id="again">WALK ON</button><button id="share2">SHARE</button></div>';
+    const db = $('daybars'); if (db) { RY.drawBars(db, { size: Math.min(394, Math.floor(db.getBoundingClientRect().width) || 304), dpr: dpr2, rays: S.rays, bits: S.bits, home: F.ray(S.home), tick: F.ray(L.cell) }); db.setAttribute('aria-label', 'the day\'s ledger: by ray ' + S.rays.map((v, i) => 'R' + i + ' ' + v).join(', ') + '; best work bits ' + S.bits.join(' ')); }
     $('won').hidden = false; $('again').onclick = () => { $('won').hidden = true; const nm = $('name').value; G.start(nm, 'free', [LV && LV.free ? LV.free(nm) : { n: 1, kind: 'free', start: F.letterSum(nm) % 257, target: null, rule: 0, free: [] }]); openLevel(); };
-    $('share2').onclick = () => { const t = 'THE FOLD · ' + G.today() + ' · ' + S.closed + ' closed · ' + stars + ' stars · ' + txt; if (navigator.share) navigator.share({ text: t }).catch(() => {}); else { navigator.clipboard && navigator.clipboard.writeText(t); toast('copied'); } };
+    $('share2').onclick = () => { const t = 'THE FOLD · ' + G.today() + ' · ' + S.closed + ' closed · ' + stars + ' stars · ' + txt + (RY && S.rays ? ' · rays ' + RY.spark(S.rays) : ''); if (navigator.share) navigator.share({ text: t }).catch(() => {}); else { navigator.clipboard && navigator.clipboard.writeText(t); toast('copied'); } };
   }
   // ── the cell panel: tap a cell to read it ──
   function showCell(n) {
@@ -473,7 +574,7 @@ html.calm *{transition:none!important;animation:none!important}
   canvas.addEventListener('pointerdown', e => { if (!e.isPrimary) return; XS.look = null; drag = { x: e.clientX, y: e.clientY, yaw: A.A.yaw, pitch: A.A.pitch, ty: A.A.touchYaw }; moved = false; canvas.setPointerCapture(e.pointerId); });
   canvas.addEventListener('pointermove', e => { if (!drag) return; const dx = e.clientX - drag.x, dy = e.clientY - drag.y; if (Math.abs(dx) + Math.abs(dy) > 4) moved = true; const k = 0.0035; if (A.A.deviceQ) A.A.touchYaw = drag.ty + dx * k; else { A.A.yaw = drag.yaw + dx * k; A.A.pitch = Math.max(-1.4, Math.min(1.4, drag.pitch + dy * k)); } });
   canvas.addEventListener('pointerup', e => { const d = drag; drag = null; if (!d || moved || $('start').hidden === false) return; if (slow && skip()) return; if (bard && bard.skip()) return; if (A.readEnd && A.readEnd()) return; const r = canvas.getBoundingClientRect(); const nx = (e.clientX - r.left) / r.width * 2 - 1, ny = -((e.clientY - r.top) / r.height * 2 - 1); if (A.pickTape && A.pickTape(nx, ny)) return type(G.S.spec && G.S.spec.text || G.S.rule.tell); const n = A.pick(nx, ny); if (n != null) showCell(n); });
-  window.addEventListener('keydown', e => { if (slow && (e.key === ' ' || e.key === 'Escape') && skip()) return; if (bard && (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') && bard.skip()) { e.preventDefault(); return; } if ((e.key === ' ' || e.key === 'Escape') && A.readEnd && A.readEnd()) return; if (e.key === 'v' && !$('hud').hidden && document.activeElement !== $('name')) view(); const k = 0.08; if (e.key === 'ArrowLeft') A.A.yaw += k; if (e.key === 'ArrowRight') A.A.yaw -= k; if (e.key === 'ArrowUp') A.A.pitch = Math.min(1.4, A.A.pitch + k); if (e.key === 'ArrowDown') A.A.pitch = Math.max(-1.4, A.A.pitch - k); const m = { g: 'g', G: 'ig', f: 'fold', i: 'inv', q: 'i', r: 'gam' }[e.key]; if (m && !$('hud').hidden && $('chap').hidden && $('won').hidden && document.activeElement !== $('name')) move(m); if (e.key === 'u' && !busy && !$('hud').hidden && $('chap').hidden) { const was = G.S.current, id = G.undo(); if (id) { paint(); monStep(G.S); if (G.S.kind === 'eye') cross('undo', G.S.current, was, 600); } } });
+  window.addEventListener('keydown', e => { if (slow && (e.key === ' ' || e.key === 'Escape') && skip()) return; if (bard && (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') && bard.skip()) { e.preventDefault(); return; } if ((e.key === ' ' || e.key === 'Escape') && A.readEnd && A.readEnd()) return; if (raysKey(e)) return; if (e.key === 'v' && !$('hud').hidden && document.activeElement !== $('name')) view(); const k = 0.08; if (e.key === 'ArrowLeft') A.A.yaw += k; if (e.key === 'ArrowRight') A.A.yaw -= k; if (e.key === 'ArrowUp') A.A.pitch = Math.min(1.4, A.A.pitch + k); if (e.key === 'ArrowDown') A.A.pitch = Math.max(-1.4, A.A.pitch - k); const m = { g: 'g', G: 'ig', f: 'fold', i: 'inv', q: 'i', r: 'gam' }[e.key]; if (m && !$('hud').hidden && $('chap').hidden && $('won').hidden && document.activeElement !== $('name')) move(m); if (e.key === 'u' && !busy && !$('hud').hidden && $('chap').hidden) { const was = G.S.current, id = G.undo(); if (id) { paint(); monStep(G.S); if (G.S.kind === 'eye') cross('undo', G.S.current, was, 600); } } });
   async function sensors() { try { if (window.DeviceOrientationEvent && typeof DeviceOrientationEvent.requestPermission === 'function') { const r = await DeviceOrientationEvent.requestPermission(); if (r !== 'granted') return false; } } catch (e) { return false; } window.addEventListener('deviceorientation', A.onOrientation, true); return true; }
   async function cameraOn() { if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return false; try { const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 } }, audio: false }); const v = $('video'); v.srcObject = s; v.style.display = 'block'; await v.play().catch(() => {}); A.A.stars.visible = false; A.A.rainAlpha = 0.35; if (A.A.sky) A.A.sky.visible = false; return true; } catch (e) { return false; } }
   // ── the compass arrows and the clock ──
@@ -483,12 +584,16 @@ html.calm *{transition:none!important;animation:none!important}
     for (const [id, n] of [['arr-cur', S.current], ['arr-tg', S.target], ['arr-eye', slowClock ? A.EYE : null]]) {
       const el = $(id); if (n == null) { el.hidden = true; continue; }
       const s = A.onScreen(n); const off = !s.front || Math.abs(s.x) > 0.95 || Math.abs(s.y) > 0.9;
-      el.hidden = !off; if (off) { let x = s.x, y = s.y; if (!s.front) { x = -x; y = -y; } const ang = Math.atan2(x, y); el.style.transform = 'rotate(' + ang + 'rad)'; }
+      el.hidden = !off || RAYS.tube; if (off) { let x = s.x, y = s.y; if (!s.front) { x = -x; y = -y; } const ang = Math.atan2(x, y); el.style.transform = 'rotate(' + ang + 'rad)'; }
       if (n === S.target && !off && id !== 'arr-eye') S.seen = true;
     }
     // S1, S4: ∞ sighted while you stand on it, on the screen or by a tap on the arrow that points to it (under gyro ∞ needs a 55° tilt)
     const onInf = S.kind === 'eye' && S.current === F.INF && !S.done; $('arr-cur').classList.toggle('tap', onInf);
     if (onInf) { const s = A.onScreen(F.INF); if (s.front && Math.abs(s.x) <= 1 && Math.abs(s.y) <= 1) S.seenInf = true; }
+  }
+  // the clock, the plate and the lost check, apart from the arrows so the TUBE keeps them while it skips the 3D frame
+  function clockStep() {
+    const S = G.S; if (!S || !S.road || $('hud').hidden) return; const slowClock = !!(S.clock && G.FLAGS && G.FLAGS.dilate && S.target != null && !S.done && !S.lost);
     // the clock in proper seconds; under S3 with the rate tag and τ against the real seconds, the ticks and the drone slowed by the rate
     const left = G.tick(), rate = left != null && slowClock ? S.rate : 1;
     $('clock').textContent = left == null ? '' : left.toFixed(0) + ' s' + (slowClock ? ' · ×' + rate.toFixed(2) + ' · τ ' + S.tau.toFixed(1) + ' of ' + S.real.toFixed(1) + ' s real' : ''); if (left != null) snd.clock(left, rate); snd.dilate(rate);
@@ -503,7 +608,7 @@ html.calm *{transition:none!important;animation:none!important}
     if (mode === 'doors') { const d = ($('digits').value || '').replace(/\D/g, '').padStart(4, '0').slice(-4); if (!LV || !LV.doors) return toast('the doors need the level designer\'s module'); plan = LV.doors(d); if (!plan || !plan.length) return toast(d + ' reaches no door: four figures not all the same'); }
     if (mode === 'free') plan = [LV && LV.free ? LV.free(name) : { n: 1, kind: 'free', start: F.letterSum(name) % 257, target: null, rule: 0, free: [] }];
     snd.init(); G.start(name, mode, plan); snd.home(G.S.home); if (A.decode && G.S.plan && G.S.decoded.length) A.decode(G.S.plan.filter(sp => sp && G.S.decoded.includes(sp.window || sp.n)));
-    $('start').hidden = true; $('hud').hidden = false; $('ops').hidden = false; $('cross').hidden = false;
+    $('start').hidden = true; $('hud').hidden = false; $('ops').hidden = false; $('cross').hidden = false; raysShow();
     paint(); A.bloom(3.2); snd.bloom(3.2);
     const t0 = performance.now(); const gyro = await sensors(); const cam = await cameraOn();
     toast((gyro ? 'turn to look' : 'drag to look') + (cam ? ' · the room is behind the field' : '') + ' · tap a cell to read it', 3000);
@@ -511,15 +616,15 @@ html.calm *{transition:none!important;animation:none!important}
     if (xrSupported) { const b = aux('AR · the room', enterXR, 'open the field in the room itself'); b.style.gridColumn = 'span 2'; }
   };
   async function enterXR() {
-    const vid = $('video'), stream = vid.srcObject; if (stream) { stream.getTracks().forEach(t => t.stop()); vid.srcObject = null; }   // one client owns the camera: ARCore takes it
+    if (RAYS.tube) raysTube(false); const vid = $('video'), stream = vid.srcObject; if (stream) { stream.getTracks().forEach(t => t.stop()); vid.srcObject = null; }   // one client owns the camera: ARCore takes it
     try { const s = await navigator.xr.requestSession('immersive-ar', { requiredFeatures: ['local'], optionalFeatures: ['dom-overlay'], domOverlay: { root: $('ui') } });
       if (!s.domOverlayState) { await s.end(); throw new Error('this browser gives AR no page overlay, so the moves could not be shown'); } A.A.renderer.xr.enabled = true; A.A.renderer.xr.setReferenceSpaceType('local'); const had = { video: $('video').style.display, stars: A.A.stars.visible, sky: A.A.sky ? A.A.sky.visible : false, crt: crtQ ? crtQ.visible : false };
       await A.A.renderer.xr.setSession(s); $('video').style.display = 'none'; A.A.stars.visible = false; if (A.A.sky) A.A.sky.visible = false; if (crtQ) crtQ.visible = false; toast('the field is in the room');
       s.addEventListener('end', () => { A.A.renderer.xr.enabled = false; $('video').style.display = had.video; if (had.video !== 'none') cameraOn(); A.A.stars.visible = had.stars; if (A.A.sky) A.A.sky.visible = had.sky; if (crtQ) { crtQ.visible = had.crt; FX.resize(crtU, A.A.renderer); } A.resize(); }); } catch (e) { toast('AR did not open: ' + (e.message || e)); if (stream) cameraOn(); }
   }
   // ── the loop ──
-  A.A.renderer.setAnimationLoop(() => { const t = (performance.now() - A.A.t0) / 1000; if (A.A.sky && A.A.sky.material.uniforms.time) A.A.sky.material.uniforms.time.value = t; if (crtU) crtU.time.value = t; if (warpU) { warpU.time.value = t; warpQ.visible = warpU.t.value > 0 && !A.A.renderer.xr.isPresenting; } if (WELL) WELL.step(G.S, { cam: $('video').style.display === 'block' }); crossStep(performance.now()); A.frame(); arrows(); });
-  window.FOLD_DEBUG = { paint, openLevel, move, monFloor, monApply, monStep, MON, showCell, endDay, bardo, reborn, G, A };  // for a console or a test, not for play
+  A.A.renderer.setAnimationLoop(() => { const t = (performance.now() - A.A.t0) / 1000; if (A.A.sky && A.A.sky.material.uniforms.time) A.A.sky.material.uniforms.time.value = t; if (crtU) crtU.time.value = t; if (warpU) { warpU.time.value = t; warpQ.visible = warpU.t.value > 0 && !A.A.renderer.xr.isPresenting; } if (WELL) WELL.step(G.S, { cam: $('video').style.display === 'block' }); crossStep(performance.now()); const xr = A.A.renderer.xr.isPresenting; if (!RAYS.tube || xr) A.frame(); arrows(); clockStep(); raysFrame(xr); });   // the TUBE skips the 3D frame, never in the room
+  window.FOLD_DEBUG = { paint, openLevel, move, monFloor, monApply, monStep, MON, showCell, endDay, bardo, reborn, G, A, RAYS, raysTube };  // for a console or a test, not for play
   document.addEventListener('visibilitychange', () => { if (!document.hidden && ac && ac.state === 'suspended') ac.resume(); });
   if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
 })();
