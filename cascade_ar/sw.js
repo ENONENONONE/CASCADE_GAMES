@@ -1,5 +1,5 @@
 // THE FOLD — the app shell kept for offline play; one cache a version, the old one dropped. Bump CACHE on every change of a file here, or a browser that has the game keeps the old one.
-const CACHE = 'fold-v9';
+const CACHE = 'fold-v10';
 const SHELL = ['./', './index.html', './data.js', './field.js', './ar.js', './game.js', './vendor/three.min.js', './parts/story/story.js', './parts/sound/sound.js', './parts/levels/levels.js', './parts/shaders/fx.js', './parts/relief/relief.js', './parts/corpus/material.js', './manifest.webmanifest', './icon.svg', './icon-192.png', './icon-512.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => Promise.all(SHELL.map(u => c.add(u).catch(() => null)))).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });

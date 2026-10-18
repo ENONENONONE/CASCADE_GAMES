@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-# Generates ../cascade_ar/parts/corpus/material.js (kept out of the served folder) for THE FOLD from the corpus: every number computed here, none typed.
+# Generates cascade_ar/parts/corpus/material.js for THE FOLD from the corpus: every number computed here, none typed. It reads
+# cascade_ar/data.js (run build_data.py first) and the tablet, FOLD_TABLET=emerald_tablet.json or the corpus's own copy.
 import json, re, datetime, os
 P = 257
-HERE = os.path.dirname(os.path.abspath(__file__))          # cascade_machine/cascade_ar_tools
+HERE = os.path.dirname(os.path.abspath(__file__))          # cascade_machine/cascade_ar_tools, or the CASCADE_GAMES repo
 DOCS = os.path.abspath(os.path.join(HERE, '..', '..'))   # the directory holding cascade_machine/ and the corpus
 H = lambda rel: os.path.join(DOCS, rel)
-TAB = json.load(open(H('Φ≡c≡g≡∂ₜΦ≡Oc≡∂ₜΦ≡g≡c≡Φ/emerald_tablet.json'), encoding='utf-8'))
+AR = next((p for p in (os.path.join(HERE, 'cascade_ar'), os.path.join(HERE, '..', 'cascade_ar')) if os.path.isdir(p)), os.path.join(HERE, '..', 'cascade_ar'))   # the game: this folder's child or its sibling
+TAB = json.load(open(os.environ.get('FOLD_TABLET') or H('Φ≡c≡g≡∂ₜΦ≡Oc≡∂ₜΦ≡g≡c≡Φ/emerald_tablet.json'), encoding='utf-8'))
 NAME_CELLS = {44, 62, 70}   # the first word of these cells is a name the game's data does not carry; the next word stands for it
 def W(n):
     ws = TAB[str(n % P)]['words']
@@ -108,7 +110,7 @@ atb_fixed = {k: 27*k*129 % P for k in range(1, 13)}
 assert_eq([atb_fixed[k] for k in (1,2,3,4,5,6,7,8,9,12)], [142,27,169,54,196,81,223,108,250,162], 'atbash fixed')
 for w in ('LOVE', 'SAMSON', 'MOUNT SINAI', 'PRESERVATION'): assert_eq(27*K(w) - S(w), S(w), 'self-mirror %s' % w)
 # ── HALT points of π ──
-D = open(os.path.join(HERE, '..', 'cascade_ar', 'data.js'), encoding='utf-8').read()
+D = open(os.path.join(AR, 'data.js'), encoding='utf-8').read()
 pi = re.search(r'"pi":"([0-9]+)"', D).group(1)
 def need_pi(n, what):
     if n >= len(pi): raise SystemExit('the π tape in data.js has %d digits; %s needs digit %d — rebuild data.js from a longer tape' % (len(pi), what, n))
@@ -255,8 +257,8 @@ out = {
   'hebrew': {'atbash_constant': 23, 'gematria_pairs': heb_pairs, 'pairs_sum': 1495, 'pairs_cell': 210, 'names_sum_tablet_spellings': names_sum, 'names_cell': names_sum % P, 'self_mirror_by_length': {k: 23*k*129 % P for k in (1, 2, 4, 7, 8, 12, 14, 15, 22)}},
   'sphere': {'cells': 66048, 'tablet_stride': 258, 'gold_stride': 128, 'quarter_points': [0, 16512, 33024, 49536], 'g_cell': 34830, 'phi_cell': 65920, 'golden_angle': 137.508, 'spiral_arms': [377, 610, 233, 144, 89, 55]},
 }
-js = '// THE FOLD — the corpus\'s numbers for the game, generated %s by cascade_ar_tools/gen_material.py (every value computed and checked there). Do not edit by hand.\nwindow.FOLD_MATERIAL = %s;\n' % (today.isoformat(), J(out))
-dst = os.path.join(HERE, '..', 'cascade_ar', 'parts', 'corpus', 'material.js')
+js = '// THE FOLD — the corpus\'s numbers for the game, generated %s by gen_material.py (every value computed and checked there). Do not edit by hand.\nwindow.FOLD_MATERIAL = %s;\n' % (today.isoformat(), J(out))
+dst = os.path.join(AR, 'parts', 'corpus', 'material.js')
 open(dst, "w", encoding="utf-8").write(js)
 print('written', dst, len(js.encode()), 'bytes; all checks passed')
 print('today day', tn, 'head', tn + 13, 'opcode', pi[tn + 13])

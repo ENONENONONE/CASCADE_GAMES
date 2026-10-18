@@ -290,7 +290,9 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
   // ── the cell panel: tap a cell to read it ──
   function showCell(n) {
     const c = G.cellInfo(n); const S = G.S; const road = F.solve(S.current, n, S.free, S.opsList); const v = STORY && STORY.cells && STORY.cells[n];
-    const mirrors = D.mirrors.filter(p => (c.words || []).includes(p[0])).map(p => p[0] + ' ↔ ' + p[1]).slice(0, 4);
+    // a pair [w, v] is listed once: show it from w's cell, and from v's cell when it holds back too (w at v's own mirror cell)
+    const ws = c.words || [], backs = p => D.cells[((F.atbash(p[1]) % 257) + 257) % 257].ws.includes(p[0]);
+    const mirrors = D.mirrors.filter(p => ws.includes(p[0]) || (ws.includes(p[1]) && backs(p))).map(p => ws.includes(p[0]) ? p[0] + ' ↔ ' + p[1] : p[1] + ' ↔ ' + p[0]).slice(0, 4);
     $('panel-body').innerHTML = '<h3><span>' + c.glyphs + '</span>' + (n === F.INF ? '∞' : n) + ' · ' + c.word + '</h3>' + (v ? '<p class="v">' + v + '</p>' : '')
       + '<p>' + (c.words || []).slice(1).join(' · ') + '</p>'
       + '<p><span class="k">dlog</span> ' + c.dlog + ' <span class="k">ray</span> ' + c.ray + ' <span class="k">' + c.ch + '</span>' + (A.GOLD.has(n) ? ' <span class="k">· a quarter turn of the cycle</span>' : '') + (n === A.EYE ? ' <span class="k">· the pole: Γ sends it to ∞</span>' : '') + (A.MIRRORS.has(n) ? ' <span class="k">· a fixed point of Γ</span>' : '') + '</p>'
