@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // THE FOLD — the level designer's test: node test.js (from anywhere; the requires are relative to this file).
 // Plans today and day 9384 for TORAH, prints the 64 levels, asserts the plan's shape, plays every level by the field's own solver
-// and checks the target is reached in par, then prints the seal; then THE DOORS for a few numbers and FREE WALK.
+// and checks the target is reached in par, then prints the seal; then THE DOORS for a few numbers and FREE WALK; then game.js itself:
+// THE ENGINE, THE SLOW CLOCK and THE BARDO.
 'use strict';
 global.window = {};
 require('../../data.js'); require('../../field.js'); require('./levels.js');
@@ -180,6 +181,71 @@ require('../../game.js'); const G = window.GAME;
     assert(S.done && S.dist === 0 && S.climb.length === sp.road.length && S.climb.every((c, i) => i === 0 ? c[1] === d0 : c[1] === S.climb[i - 1][2]), 'level ' + sp.n + ': the road closes, the distance 0, a climb entry a move'); if (S.done) ok++;
   }
   console.log('  ' + ok + ' of 64 levels closed through game.js by their roads, the distance falling to 0');
+}
+// THE BARDO (V3): a lost SYNC or HALT level offered REBIRTH, the same target and rule from 80 with par from 80, no loss, closed at ★;
+// a reborn close counts in closed, the line, S.targets and the seal, so a day with every losable level reborn seals as the own-start day
+// with two stars less a rebirth (decision 4). The flag off offers nothing; a reload keeps the second life
+{
+  let wall = 0; performance.now = () => wall;
+  const S = G.S, R = G.REBIRTH, losable = sp => !!(sp.strict || sp.clock);
+  console.log('\n== THE BARDO ==');
+  // every losable level over the 100 days from 9422 (the scope's sweep): SYNC or HALT, never SHIFT, target not 80, a road from 80 of
+  // 0 < par ≤ 7 with the level's own moves (a gold day's free ×i, THE MIRROR's flip)
+  { let n = 0, sync = 0, at80 = 0, worst = 0, sum = 0, own = 0;
+    for (let d = 9422; d < 9522; d++) for (const sp of L.plan(d, 'SCRIBE')) {
+      if (!losable(sp)) continue; n++; if (sp.strict) sync++; assert(!sp.shift, 'day ' + d + ' level ' + sp.n + ': a losable level never SHIFTs');
+      if (sp.target === R) { at80++; continue; }
+      const free = new Set(sp.free); if (d % 128 === 0) free.add('i'); const ops = sp.flip || Math.floor((sp.n - 1) / 8) === 5 ? F.OPS.concat([F.FLIP]) : F.OPS;
+      const p = F.cost(F.solve(R, sp.target, free, ops) || [], free); assert(p > 0 && p <= 7, 'day ' + d + ' level ' + sp.n + ': par from 80 to ' + sp.target + ' is ' + p);
+      worst = Math.max(worst, p); sum += p; own += sp.par;
+    }
+    assert(n === 946 && sync === 509 && at80 === 0 && worst === 6, '946 losable levels in 100 days (509 SYNC, 437 HALT), none with target 80, the worst par from 80 6: ' + n + ', ' + sync + ', ' + at80 + ', ' + worst);
+    console.log('  100 days from 9422: ' + n + ' losable levels (' + sync + ' SYNC, ' + (n - sync) + ' HALT), all offered REBIRTH; par from 80 worst ' + worst + ', mean ' + (sum / (n - at80)).toFixed(2) + ' against ' + (own / (n - at80)).toFixed(2) + ' from their own starts'); }
+  // the first life lost: SYNC by going one over par away from the target, HALT by its thirty seconds run out (S.t0 and the dilated
+  // clock's last tick set back 31 s)
+  const lose = () => { if (S.strict) { while (!S.lost) G.apply(F.OPS.find(o => !S.free.has(o.id) && o.f(S.current) !== S.target && o.f(S.current) !== S.current).id); } else { G.arm(); S.t0 -= 31000; S.tLast -= 31000; G.tick(); } return S.lost; };
+  // a day through game.js, every level closed by its HINT, each losable level first lost and then reborn: FOLD FOLD (or INV INV where
+  // the fold would close), the clock set back 60 s, which loses nothing, and the road from 80, a close above par where the pair is paid
+  const day = (name, rebirth) => {
+    wall = 0; store.clear(); const plan = L.plan(today, name); G.start(name, 'daily', plan); const lost = [];
+    for (let n = 1; n <= 64; n++) {
+      G.level(n);
+      if (rebirth && losable(plan[n - 1])) {
+        assert(lose() && S.stars[n - 1] === 0 && G.canRebirth(), 'level ' + n + ' ' + S.rule.name + ' is lost and offered REBIRTH');
+        const road = S.road.slice(), p = G.parFrom(R); G.rebirth(); lost.push(n);
+        assert(S.reborn === n && S.start === R && S.current === R && S.road.join() === String(R) && !S.strict && S.clock === 0 && !S.lost && !S.done && S.par === p && S.par > 0 && S.ghost.join() === road.join(), 'level ' + n + ' reborn at 80: par ' + S.par + ', no strictness, no clock, the lost road its ghost');
+        const pair = ['fold', 'inv'].find(id => F.OP[id].f(R) !== S.target), paid = !S.free.has(pair);
+        G.apply(pair); G.apply(pair); S.t0 -= 60000; if (S.tLast != null) S.tLast -= 60000;
+        assert(G.tick() === null && !S.lost && S.current === R, 'level ' + n + ': ' + pair + ' ' + pair + ' and 60 s gone, the second life is not lost');
+        for (const id of G.hint()) G.apply(id);
+        assert(S.done && !S.lost && S.stars[n - 1] === 1 && S.rebirths.includes(n) && S.moves === S.par + (paid ? 2 : 0), 'level ' + n + ' reborn closes at ★ in ' + S.moves + ', par ' + S.par + ' from 80');
+        continue;
+      }
+      for (const id of G.hint()) G.apply(id);
+    }
+    return { plan, lost, targets: S.targets.join(), line: S.line.join(' '), closed: S.closed, stars: S.stars.reduce((a, b) => a + (b || 0), 0), rebirths: S.rebirths.slice(), seal: L.seal(S.targets) };
+  };
+  for (const name of ['SCRIBE', 'TORAH']) {
+    const own = day(name, false), re = day(name, true), k = re.lost.length, want = re.plan.filter(losable).map(sp => sp.n);
+    assert(own.rebirths.length === 0 && re.lost.join() === want.join() && re.rebirths.join() === want.join(), name + ': every losable level lost and reborn, ' + re.rebirths.join(' '));
+    assert(re.closed === 64 && re.closed === own.closed && re.targets === own.targets && re.line === own.line, name + ': the reborn day closes the same 64 cells and the same line');
+    assert(re.seal.cell === own.seal.cell && re.seal.by === own.seal.by, name + ': the seal is unchanged, ' + re.seal.cell + ' ' + re.seal.word);
+    assert(re.stars === own.stars - 2 * k, name + ': ' + re.stars + ' stars against ' + own.stars + ', two less a rebirth');
+    console.log('  ' + name + ': ' + k + ' losable levels (' + re.lost.join(' ') + ') lost and reborn · ' + re.stars + ' stars against ' + own.stars + ' · seal ' + re.seal.by + ' ≡ ' + re.seal.cell + ' ' + re.seal.word + ', unchanged · the line unchanged');
+  }
+  // the flag off: a lost level offers AGAIN only; and REBIRTH is hidden where the target is 80, or 80 reaches it at no cost
+  const plan = L.plan(today, 'SCRIBE'), first = plan.find(losable).n;
+  { wall = 0; store.clear(); G.start('SCRIBE', 'daily', plan); G.FLAGS.rebirth = false; G.level(first); lose(); assert(S.lost && !G.canRebirth() && G.rebirth() === null && S.lost && !S.reborn, 'flag off: level ' + first + ' lost, no REBIRTH'); G.FLAGS.rebirth = true; assert(G.canRebirth(), 'flag on again: offered'); }
+  const one = (t, free) => ({ n: 1, kind: 'tape', start: 5, target: t, rule: 8, free: free || [], slack: 0, strict: true, clock: 0, shift: false, offset: 0 });
+  { store.clear(); G.start('SCRIBE', 'daily', [one(R)]); lose(); assert(S.lost && !G.canRebirth() && G.rebirth() === null, 'target 80: only AGAIN'); }
+  { store.clear(); G.start('SCRIBE', 'daily', [one(F.gamma(R), ['gam'])]); lose(); assert(S.lost && G.parFrom(R) === 0 && !G.canRebirth(), 'par 0 from 80 (Γ free to 154): only AGAIN'); }
+  { store.clear(); G.start('SCRIBE', 'daily', [one(100)]); lose(); G.reset(); assert(!S.lost && !S.reborn && S.start === 5 && S.strict && S.stars[0] === 0, 'AGAIN: the level from its own start, its loss rule kept'); }
+  // a reload in the second life comes back in it, the ghost kept; a reload after its close moves on, the rebirth and the ★ kept
+  { wall = 0; store.clear(); G.start('SCRIBE', 'daily', plan); G.level(first); const tgt = S.target; lose(); const road = S.road.join(); G.rebirth(); G.apply(['fold', 'inv'].find(id => F.OP[id].f(R) !== tgt));
+    G.start('SCRIBE', 'daily', plan); assert(S.level === first && S.reborn === first && S.start === R && S.current === R && !S.strict && S.clock === 0 && S.ghost && S.ghost.join() === road, 'reload: level ' + first + ' still in its second life from 80, the ghost ' + road);
+    for (const id of G.hint()) G.apply(id); assert(S.done && S.stars[first - 1] === 1, 'reload: the second life closes at ★');
+    G.start('SCRIBE', 'daily', plan); assert(S.level === first + 1 && !S.reborn && S.rebirths.join() === String(first) && S.stars[first - 1] === 1 && S.closed === 1, 'reload after the close: level ' + S.level + ', reborn ' + S.rebirths.join() + ', ★ kept'); }
+  { G.start('TORAH', 'daily', plan); assert(!S.reborn && S.rebirths.length === 0, 'another name does not inherit the second life'); }
 }
 
 console.log('\n' + checks + ' checks, ' + fails + ' failed' + (fails ? '' : ' — the plan computes'));

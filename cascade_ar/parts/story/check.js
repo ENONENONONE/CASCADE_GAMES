@@ -2,7 +2,7 @@
 // Asserts: every chapter epigraph is a word of its cell; every key of cells[] and doors[] is a cell (257 the open point);
 // every word in capitals in a voice is one of that cell's own words; every "dlog N / inverse N / fold N / Γ N / ×i N / ×g N"
 // and every "… of N" in a voice is true of that cell; every entry of facts[] recomputes; every letter sum in sums[] is right;
-// the word limits hold; no exclamation mark anywhere; days[] covers the ten opcodes; ops[] the six moves and undo; every cell's
+// every void line is its cell's voice; the word limits hold; no exclamation mark anywhere; days[] covers the ten opcodes; ops[] the six moves and undo; every cell's
 // glyphs are whole code points, two a cell.
 'use strict';
 const fs = require('fs'), path = require('path');
@@ -47,6 +47,7 @@ function voice(cell, text, where) {
 let voiced = 0;
 for (const [k, text] of Object.entries(S.cells)) { const c = +k; ok(Number.isInteger(c) && c >= 0 && c <= 257, 'cell key ' + k); voice(c, text, 'cell ' + k); voiced++; }
 ok(voiced >= 60 && S.cells[257], voiced + ' voices with the open point');
+for (const [k, v] of Object.entries(S.void || {})) { ok(Number.isInteger(v.cell) && v.cell >= 0 && v.cell <= 257 && typeof v.text === 'string', 'void.' + k + ' has a cell and a text'); voice(v.cell, v.text, 'void.' + k); }
 for (const [k, d] of Object.entries(S.doors)) { ok(F.kaprekar(+k) === 6174, 'door ' + k + ' steps to 6174'); ok(+k % 257 === d.cell, 'door ' + k + ' reads as ' + d.cell); voice(d.cell, d.text, 'door ' + k); }
 // facts
 const pow = (b, e) => { let r = 1; for (let i = 0; i < e; i++) r = r * b % 257; return r; };
