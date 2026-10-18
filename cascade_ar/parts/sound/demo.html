@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0a0d10">
+<title>THE FOLD · sound demo</title>
+<style>
+:root{--ground:#0a0d10;--panel:rgba(12,16,20,.82);--line:#24302a;--text:#e8f3e4;--dim:#8fa796;--gold:#c9a84c;--green:#5fd37a;--blue:#7fb8ff;--red:#ff7b7b;--mono:ui-monospace,"SF Mono",Menlo,"DejaVu Sans Mono",monospace}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--ground);color:var(--text);font:14px/1.4 var(--mono)}
+body{padding:16px max(16px,env(safe-area-inset-left)) max(24px,env(safe-area-inset-bottom));max-width:860px;margin:0 auto}
+h1{font-size:22px;letter-spacing:.1em;color:var(--green);margin:0 0 4px}
+h2{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin:18px 0 6px}
+p{color:var(--dim);font-size:12px;margin:4px 0}
+.row{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+button{font:600 13px var(--mono);letter-spacing:.06em;color:var(--text);background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px;cursor:pointer;min-height:44px}
+button:active{transform:translateY(1px)} button.big{font-size:16px;padding:14px 22px;border-color:var(--green);color:var(--green)}
+button[aria-pressed="true"]{border-color:var(--gold);color:var(--gold)}
+button small{display:block;font-size:9px;color:var(--dim);font-weight:400;letter-spacing:.03em;margin-top:2px}
+select{font:13px var(--mono);color:var(--text);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px;min-height:44px}
+#state{color:var(--gold);font-size:12px;min-height:1.4em}
+#log{background:rgba(0,0,0,.35);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:11px;color:var(--dim);height:140px;overflow:auto;white-space:pre-wrap}
+#clockv{color:var(--red);min-width:4ch;display:inline-block}
+.gold{color:var(--gold)} .blue{color:var(--blue)}
+</style>
+</head>
+<body>
+<h1>THE FOLD · sound</h1>
+<p>Every button calls one function of <code>window.FOLD_SOUND</code>. Nothing sounds before ENTER (the user gesture that creates the AudioContext). Each cell plays with its own ray, character and name from <code>field.js</code> and <code>data.js</code>.</p>
+<div class="row"><button class="big" id="enter">ENTER · init()</button><button id="mute" aria-pressed="false">SOUND ON · setMuted()</button><button id="stop">STOP · stop()</button></div>
+<div id="state">not started</div>
+
+<h2>home and tuning</h2>
+<div class="row"><label>home ray <select id="home"></select></label><label>tuning <select id="tuning"></select></label></div>
+<p id="tuningtell"></p>
+
+<h2>cells · cell(n, ray, isResidue)</h2>
+<div class="row" id="cells"></div>
+<div class="row" style="margin-top:6px"><button id="walk">walk ×g twelve times from the last cell<small>op('g') then cell(3n): the step, and steady / breathing alternating</small></button></div>
+
+<h2>moves · op(id)</h2>
+<div class="row" id="ops"></div>
+
+<h2>the entry, the close, the fall, the clock</h2>
+<div class="row"><button id="bloom3">BLOOM 3.2 s · bloom(3.2)</button><button id="bloom6">BLOOM 6 s</button></div>
+<div class="row" style="margin-top:6px"><button id="win1">WIN ★ · win(ray, 1)</button><button id="win2">WIN ★★</button><button id="win3">WIN ★★★</button><button id="win0">WIN · 0 stars</button><button id="lose">LOSE · lose()</button></div>
+<div class="row" style="margin-top:6px"><button id="clock30">HALT · clock() from 30 s</button><button id="clock12">from 12 s</button><button id="clockstop">stop the clock</button><span>left <span id="clockv">—</span></span></div>
+<p>The clock is called every frame with the seconds left, as the game calls it; it throttles itself: a tick a second above ten seconds, then quickening to ten a second and rising an octave.</p>
+
+<h2>the day's rule · setRule(name)</h2>
+<div class="row" id="rules"></div>
+
+<h2>log</h2>
+<div id="log"></div>
+
+<script src="../../field.js"></script>
+<script src="../../data.js"></script>
+<script src="sound.js"></script>
+<script>
+(function () {
+  'use strict';
+  const S = window.FOLD_SOUND, F = window.FIELD, D = window.CASCADE_DATA, $ = id => document.getElementById(id);
+  const logEl = $('log'); const log = t => { logEl.textContent = new Date().toTimeString().slice(0, 8) + '  ' + t + '\n' + logEl.textContent; };
+  const show = () => { const s = S.state(); $('state').textContent = s.ready ? 'context ' + s.state + ' · tuning ' + s.tuning + ' · home ray ' + s.home + ' ' + s.note + ' ' + (s.hz ? s.hz.toFixed(1) + ' Hz' : '') + ' · last ray ' + s.lastRay + ' · rule ' + (s.rule || 'NOP') + (s.muted ? ' · muted' : '') : 'not started · every function is a no-op until ENTER'; };
+  let lastCell = 44, muted = false;
+  const nameOf = n => n === F.INF ? '∞' : D.cells[n].w;
+  for (let r = 0; r < 12; r++) { const o = document.createElement('option'); o.value = r; o.textContent = r + ' ' + S.NOTE[r] + ' · ' + S.NM[r] + ' nm'; $('home').appendChild(o); }
+  for (const k of Object.keys(S.TUNINGS)) { const o = document.createElement('option'); o.value = k; o.textContent = k; $('tuning').appendChild(o); }
+  const tell = () => { const k = $('tuning').value; $('tuningtell').textContent = S.TUNINGS[k].tell + ' · ' + Array.from({ length: 12 }, (_, r) => r + ':' + S.hz(r).toFixed(0)).join(' '); };
+  $('tuning').onchange = () => { S.setTuning($('tuning').value); tell(); show(); log('setTuning ' + $('tuning').value); };
+  $('home').onchange = () => { S.setHome(+$('home').value); show(); log('setHome ' + $('home').value); };
+  $('enter').onclick = () => { const ok = S.init(+$('home').value); S.setMuted(muted); show(); log('init() → ' + ok); };
+  $('mute').onclick = () => { muted = !muted; S.setMuted(muted); $('mute').setAttribute('aria-pressed', muted); $('mute').textContent = (muted ? 'SOUND OFF' : 'SOUND ON') + ' · setMuted()'; show(); };
+  $('stop').onclick = () => { S.stop(); stopClock(); show(); log('stop()'); };
+  // cells
+  const CELLS = [0, 1, 3, 9, 16, 44, 46, 62, 92, 106, 120, 137, 241, 256, 257];
+  for (const n of CELLS) {
+    const b = document.createElement('button'); const r = F.ray(n), ch = F.character(n);
+    b.innerHTML = (n === F.INF ? '∞' : n) + ' ' + F.glyphs(n) + (S.GOLD.has(n) ? ' <span class="gold">gold</span>' : S.MIRRORS.has(n) ? ' <span class="blue">mirror</span>' : n === S.EYE ? ' <span class="blue">eye</span>' : '') + '<small>' + nameOf(n) + ' · ' + (r < 0 ? ch : 'ray ' + r + ' ' + S.NOTE[r] + ' · ' + ch) + '</small>';
+    b.onclick = () => { S.cell(n, r, ch === 'residue'); if (n > 0 && n < 257) lastCell = n; show(); log('cell(' + n + ', ' + r + ', ' + (ch === 'residue') + ') ' + nameOf(n)); };
+    $('cells').appendChild(b);
+  }
+  $('walk').onclick = () => { let n = lastCell, k = 0; const step = () => { if (k++ >= 12) return; S.op('g'); const v = F.mul(n, 3); setTimeout(() => { S.cell(v, F.ray(v), F.character(v) === 'residue'); show(); }, 110); n = v; lastCell = v; setTimeout(step, 260); }; step(); log('walk ×g from ' + lastCell); };
+  // ops
+  for (const o of F.OPS) { const b = document.createElement('button'); b.innerHTML = o.label + '<small>' + o.name + ' · op(\'' + o.id + '\')</small>'; b.style.borderColor = 'hsl(' + o.hue + ' 60% 45%)'; b.onclick = () => { S.op(o.id); log('op(' + o.id + ') ' + o.tell); }; $('ops').appendChild(b); }
+  // bloom, win, lose
+  $('bloom3').onclick = () => { S.bloom(3.2); log('bloom(3.2)'); }; $('bloom6').onclick = () => { S.bloom(6); log('bloom(6)'); };
+  const ray = () => F.ray(lastCell);
+  for (const k of [0, 1, 2, 3]) $('win' + k).onclick = () => { S.win(ray(), k); log('win(ray ' + ray() + ', ' + k + ' stars)'); };
+  $('lose').onclick = () => { S.lose(); log('lose()'); };
+  // the clock: every frame with the seconds left, as the game does it
+  let clockEnd = 0, raf = 0;
+  const runClock = () => { const left = (clockEnd - performance.now()) / 1000; if (left <= 0) { $('clockv').textContent = '0'; stopClock(); log('the clock ran out'); return; } $('clockv').textContent = left.toFixed(1); S.clock(left); raf = requestAnimationFrame(runClock); };
+  const startClock = s => { clockEnd = performance.now() + s * 1000; cancelAnimationFrame(raf); raf = requestAnimationFrame(runClock); log('clock from ' + s + ' s'); };
+  function stopClock() { cancelAnimationFrame(raf); raf = 0; $('clockv').textContent = '—'; }
+  $('clock30').onclick = () => startClock(30); $('clock12').onclick = () => startClock(12); $('clockstop').onclick = stopClock;
+  // rules
+  const TELL = { NOP: 'the drone alone', IDENT: 'the mirror ray held under the drone', EXIST: 'the drone turns', SEED: 'a thump every 4 s, a sprout reaching higher', SHIFT: 'an endless rise', STORE: 'each arrival echoes once', FOLD: 'the far ray, an octave down', JUMP: 'a Möbius sweep every 7 s', SYNC: 'a metronome at 60 bpm', HALT: 'a faint clock' };
+  for (const name of F.OPCODES) { const b = document.createElement('button'); b.innerHTML = name + '<small>' + TELL[name] + '</small>'; b.onclick = () => { S.setRule(name); for (const x of $('rules').children) x.setAttribute('aria-pressed', x === b); show(); log('setRule(' + name + ')'); }; $('rules').appendChild(b); }
+  tell(); show();
+})();
+</script>
+</body>
+</html>

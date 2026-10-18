@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>THE FOLD · relief demo</title>
+<style>
+:root{--ground:#0a0d10;--panel:rgba(12,16,20,.85);--line:#24302a;--text:#e8f3e4;--dim:#8fa796;--gold:#c9a84c;--green:#5fd37a;--mono:ui-monospace,"SF Mono",Menlo,monospace}
+html,body{margin:0;height:100%;background:var(--ground);color:var(--text);font:13px/1.4 system-ui,sans-serif;overflow:hidden}
+#c{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:grab}
+#ui{position:fixed;left:10px;top:10px;max-width:min(560px,calc(100vw - 20px));background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+#ui h1{font:600 14px var(--mono);margin:0 0 6px;color:var(--gold)}
+.row{display:flex;flex-wrap:wrap;gap:4px;margin:4px 0;align-items:center}
+.row span.k{color:var(--dim);font:11px var(--mono);margin-right:4px;min-width:52px}
+button{font:12px var(--mono);color:var(--text);background:transparent;border:1px solid var(--line);border-radius:4px;padding:3px 7px;cursor:pointer}
+button[aria-pressed="true"]{background:var(--gold);color:#111;border-color:var(--gold)}
+#read{font:11px var(--mono);color:var(--dim);margin-top:6px;white-space:pre-wrap}
+#hint{font:11px var(--mono);color:var(--dim);margin-top:4px}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="ui">
+  <h1>THE FOLD · parts/relief · the relief in the game's world</h1>
+  <div class="row"><span class="k">floor</span><button data-b="norm">NORM points</button><button data-b="norm-wire">NORM wire</button><button data-b="norm-mesh">NORM mesh</button><button data-b="norm-value">NORM by value</button><button data-b="norm-vertex">NORM by vertex</button></div>
+  <div class="row"><span class="k">conic</span><button data-b="circle">CIRCLE r=1</button><button data-b="circle0">CIRCLE r=0</button><button data-b="ellipse">ELLIPSE r=1</button><button data-b="hyperbola">HYPERBOLA r=1</button><button data-b="parabola">PARABOLA r=7</button><button data-b="cnorm">NORM r=44</button></div>
+  <div class="row"><span class="k">turn</span><button data-b="turn">TURN by index</button><button data-b="turn-dlog">TURN by dlog</button><button id="play" aria-pressed="false">PLAY the marker</button><button id="stepb">STEP +1</button></div>
+  <div class="row"><span class="k">sheet</span><button data-b="sheet-product">PRODUCT ×1 ceiling</button><button data-b="sheet-norm4">NORM ×4 ceiling</button><button data-b="sheet-wall">CIRCLE ×2 wall</button><button data-b="sheet-wire">HYPERBOLA ×1 wire</button><span class="k">t</span><button id="tm">−</button><button id="tp">+</button></div>
+  <div class="row"><span class="k">view</span><button id="eye" aria-pressed="false">AT THE PLAYER</button><button id="clear">CLEAR</button></div>
+  <div id="read"></div>
+  <div id="hint">drag · orbit (at the player: look) · wheel · zoom · the ring at radius 3 is the 210-gon at y = −2.4, the ring at 6 the horizon, the cross the player</div>
+</div>
+<script src="../../vendor/three.min.js"></script>
+<script src="relief.js"></script>
+<script>
+(function () {
+  'use strict';
+  const R = window.FOLD_RELIEF, T = window.THREE, $ = id => document.getElementById(id);
+  const canvas = $('c'), renderer = new T.WebGLRenderer({ canvas, antialias: false, powerPreference: 'low-power' });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5)); renderer.setClearColor(0x0a0d10, 1);
+  const scene = new T.Scene(), camera = new T.PerspectiveCamera(60, 1, 0.05, 80);
+  // the world's marks: the 210-gon at radius 3 on the floor, the horizon at radius 6, the player's cross at the origin, the sphere's zenith
+  const ring = (r, y, col, n) => { const p = []; for (let k = 0; k <= n; k++) { const a = k / n * Math.PI * 2; p.push(new T.Vector3(Math.sin(a) * r, y, -Math.cos(a) * r)); } return new T.Line(new T.BufferGeometry().setFromPoints(p), new T.LineBasicMaterial({ color: col, transparent: true, opacity: 0.6 })); };
+  scene.add(ring(3, -2.4, 0x3f8a52, 210)); scene.add(ring(6, 0, 0x2a5a3a, 256)); scene.add(ring(3.32, 5, 0x24302a, 64));
+  const cross = new T.LineSegments(new T.BufferGeometry().setFromPoints([new T.Vector3(-0.3, 0, 0), new T.Vector3(0.3, 0, 0), new T.Vector3(0, -0.3, 0), new T.Vector3(0, 0.3, 0), new T.Vector3(0, 0, -0.3), new T.Vector3(0, 0, 0.3)]), new T.LineBasicMaterial({ color: 0xc9a84c })); scene.add(cross);
+  const fwd = new T.Line(new T.BufferGeometry().setFromPoints([new T.Vector3(0, -2.4, 0), new T.Vector3(0, -2.4, -3)]), new T.LineBasicMaterial({ color: 0x5fd37a, transparent: true, opacity: 0.5 })); scene.add(fwd);
+  const held = {};   // one object a slot: floor, conic, turn, sheet
+  const put = (slot, obj) => { if (held[slot]) R.dispose(held[slot]); held[slot] = obj; if (obj) scene.add(obj); read(); };
+  let t = 0;
+  const builders = {
+    'norm': () => put('floor', R.norm({ t })), 'norm-wire': () => put('floor', R.norm({ mode: 'wire', t })), 'norm-mesh': () => put('floor', R.norm({ mode: 'mesh', t })),
+    'norm-value': () => put('floor', R.norm({ colour: 'value', t })), 'norm-vertex': () => put('floor', R.norm({ colour: 'vertex', height: 'dlog', t })),
+    'circle': () => put('conic', R.conic('circle', 1)), 'circle0': () => put('conic', R.conic('circle', 0)), 'ellipse': () => put('conic', R.conic('ellipse', 1)), 'hyperbola': () => put('conic', R.conic('hyperbola', 1)),
+    'parabola': () => put('conic', R.conic('parabola', 7, { colour: 'index' })), 'cnorm': () => put('conic', R.conic('norm', 44)),
+    'turn': () => put('turn', R.turn()), 'turn-dlog': () => put('turn', R.turn({ angle: 'dlog' })),
+    'sheet-product': () => put('sheet', R.sheet('product', 1, { t })), 'sheet-norm4': () => put('sheet', R.sheet('norm', 4, { t })), 'sheet-wall': () => put('sheet', R.sheet('circle', 2, { place: 'wall', t })), 'sheet-wire': () => put('sheet', R.sheet('hyperbola', 1, { mode: 'wire', t })),
+  };
+  document.querySelectorAll('[data-b]').forEach(b => { b.onclick = () => { const t0 = performance.now(); builders[b.dataset.b](); last = b.dataset.b + ' built in ' + (performance.now() - t0).toFixed(1) + ' ms'; read(); }; });
+  let last = '';
+  function read() {
+    const lines = [];
+    let total = 0; for (const k in held) if (held[k]) { const o = held[k], u = o.userData, n = R.count(o); total += n; lines.push(k + ': ' + (u.kind || '') + (u.form ? ' ' + u.form : '') + (u.r != null ? ' ≡ ' + u.r : '') + (u.mult ? ' ×' + u.mult : '') + (u.count != null ? ' · ' + u.count + ' points' : '') + (u.u != null ? ' · u = ' + u.u + ' dlog ' + u.udlog + (u.closed ? ', closed' : '') : '') + (u.t ? ' · t = ' + u.t : '') + ' · ' + n + ' vertices'); }
+    lines.push('on screen: ' + total + ' vertices' + (held.turn ? ' · marker at step ' + held.turn.k + ' ' + JSON.stringify(held.turn.at(held.turn.k)).replace(/"position":\[[^\]]*\]/, '').replace(/,}/, '}') : '') + (last ? ' · ' + last : ''));
+    $('read').textContent = lines.join('\n');
+  }
+  // the turn's marker
+  let playing = false, acc = 0;
+  $('play').onclick = () => { playing = !playing; $('play').setAttribute('aria-pressed', playing); };
+  $('stepb').onclick = () => { if (held.turn) { held.turn.step(held.turn.k + 1); read(); } };
+  // the time step of the sheets, v → v·g^t
+  const setT = d => { t = ((t + d) % 256 + 256) % 256; for (const k of ['floor', 'sheet']) if (held[k] && held[k].setT) held[k].setT(t); read(); };
+  $('tm').onclick = () => setT(-1); $('tp').onclick = () => setT(1);
+  $('clear').onclick = () => { for (const k in held) put(k, null); };
+  // the camera: an orbit about the origin, or the player's own eye at the origin
+  const cam = { yaw: 0.6, pitch: 0.35, dist: 11, eye: false };
+  const look = () => {
+    if (cam.eye) { camera.position.set(0, 0, 0); camera.rotation.set(cam.pitch, cam.yaw, 0, 'YXZ'); camera.fov = 70; }
+    else { camera.position.set(Math.sin(cam.yaw) * Math.cos(cam.pitch) * cam.dist, Math.sin(cam.pitch) * cam.dist, Math.cos(cam.yaw) * Math.cos(cam.pitch) * cam.dist); camera.lookAt(0, 0, 0); camera.fov = 60; }
+    camera.updateProjectionMatrix();
+  };
+  $('eye').onclick = () => { cam.eye = !cam.eye; $('eye').setAttribute('aria-pressed', cam.eye); if (cam.eye) { cam.yaw = 0; cam.pitch = -0.3; } else { cam.yaw = 0.6; cam.pitch = 0.35; } look(); };
+  let drag = null;
+  canvas.addEventListener('pointerdown', e => { drag = { x: e.clientX, y: e.clientY, yaw: cam.yaw, pitch: cam.pitch }; canvas.setPointerCapture(e.pointerId); });
+  canvas.addEventListener('pointermove', e => { if (!drag) return; const k = 0.005, dx = e.clientX - drag.x, dy = e.clientY - drag.y; cam.yaw = drag.yaw + (cam.eye ? dx : -dx) * k; cam.pitch = Math.max(-1.5, Math.min(1.5, drag.pitch + (cam.eye ? dy : -dy) * k)); look(); });
+  canvas.addEventListener('pointerup', () => { drag = null; });
+  canvas.addEventListener('wheel', e => { e.preventDefault(); cam.dist = Math.max(1, Math.min(40, cam.dist * (1 + e.deltaY * 0.001))); look(); }, { passive: false });
+  const resize = () => { const w = window.innerWidth, h = window.innerHeight; renderer.setSize(w, h, false); camera.aspect = w / h; look(); }; window.addEventListener('resize', resize); resize();
+  builders['norm'](); builders['circle'](); builders['turn'](); builders['sheet-product'](); last = 'floor, circle, turn and ceiling built at load'; read();
+  let lastT = performance.now();
+  renderer.setAnimationLoop(() => { const now = performance.now(); if (playing && held.turn) { acc += (now - lastT) / 1000 * 16; const s = Math.floor(acc); if (s) { acc -= s; held.turn.step(held.turn.k + s); read(); } } lastT = now; renderer.render(scene, camera); });
+})();
+</script>
+</body>
+</html>

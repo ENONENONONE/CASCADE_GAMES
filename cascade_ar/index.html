@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#0a0d10">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="description" content="THE FOLD: the field GF(257) stood round you as an augmented-reality game. You do not move; the field does.">
+<title>THE FOLD</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+:root{--ground:#0a0d10;--panel:rgba(12,16,20,.82);--line:#24302a;--text:#e8f3e4;--dim:#8fa796;--gold:#c9a84c;--green:#5fd37a;--blue:#7fb8ff;--red:#ff7b7b;--mono:ui-monospace,"SF Mono",Menlo,"DejaVu Sans Mono",monospace;--sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--ground);color:var(--text);font:15px/1.4 var(--sans);overflow:hidden;overscroll-behavior:none}
+#video{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;display:none;filter:saturate(.75) brightness(.8);transition:transform .6s cubic-bezier(.2,.7,.2,1),filter .6s}
+#c{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+#crt{position:fixed;inset:0;pointer-events:none;background:repeating-linear-gradient(rgba(0,0,0,0) 0 2px,rgba(0,0,0,.18) 2px 3px);mix-blend-mode:multiply;opacity:.55}
+#crt::after{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 50%,rgba(0,0,0,0) 55%,rgba(0,0,0,.55) 100%)}
+#ui{position:fixed;inset:0;pointer-events:none}
+#ui>*{pointer-events:auto}
+.scr{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:24px;background:radial-gradient(ellipse at 50% 30%,rgba(30,60,40,.55),var(--ground) 70%);overflow:auto}
+.scr[hidden]{display:none}
+h1{font:600 clamp(40px,12vw,84px)/1 var(--mono);letter-spacing:.08em;margin:0;color:var(--green);text-shadow:0 0 24px rgba(95,211,122,.35)}
+.sub{color:var(--dim);font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;text-align:center;max-width:40ch}
+.glyphs{font:400 26px var(--mono);color:var(--gold);letter-spacing:.3em;margin:4px 0 8px;animation:turn 48s linear infinite}
+@keyframes turn{from{filter:hue-rotate(0)}to{filter:hue-rotate(360deg)}}
+input#name,input#digits{font:600 22px var(--mono);letter-spacing:.2em;text-transform:uppercase;text-align:center;width:min(80vw,320px);padding:12px;background:rgba(0,0,0,.4);color:var(--text);border:1px solid var(--line);border-radius:10px;outline:none}
+input:focus{border-color:var(--green)}
+.namecell{font-family:var(--mono);color:var(--dim);font-size:13px;min-height:1.4em;text-align:center}
+.modes{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.modes button[aria-pressed="true"]{border-color:var(--gold);color:var(--gold)}
+button{font:600 14px var(--mono);letter-spacing:.1em;color:var(--text);background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 18px;cursor:pointer;backdrop-filter:blur(6px)}
+button:active{transform:translateY(1px)} button.big{font-size:17px;padding:16px 28px;border-color:var(--green);color:var(--green)}
+button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.note{color:var(--dim);font-size:12px;text-align:center;max-width:46ch;font-family:var(--mono)}
+#hud{position:absolute;top:0;left:0;right:0;padding:max(10px,env(safe-area-inset-top)) 12px 8px;display:flex;flex-direction:column;gap:6px;background:linear-gradient(rgba(10,13,16,.92),rgba(10,13,16,0))}
+#hud[hidden]{display:none}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-family:var(--mono);font-size:12px;color:var(--dim)}
+.row b{color:var(--text);font-weight:600}
+.stand{display:flex;align-items:baseline;gap:10px;font-family:var(--mono)}
+.stand .g{font-size:30px;color:var(--green)} .stand .n{font-size:22px;color:var(--text)} .stand .w{font-size:13px;color:var(--dim);letter-spacing:.06em}
+.tgt{display:flex;align-items:baseline;gap:8px;font-family:var(--mono);font-size:13px;color:var(--gold)} .tgt .g{font-size:20px}
+.pill{border:1px solid var(--line);border-radius:999px;padding:2px 9px;background:var(--panel)} .pill.rule{color:var(--gold);border-color:rgba(201,168,76,.4)} .pill.ch{color:var(--blue);border-color:rgba(127,184,255,.35)}
+.voice{font:italic 12px/1.4 var(--sans);color:var(--dim);max-width:60ch;min-height:1.4em}
+#ops{position:absolute;left:0;right:0;bottom:0;padding:8px 10px max(12px,env(safe-area-inset-bottom));display:grid;grid-template-columns:repeat(6,1fr);gap:6px;background:linear-gradient(rgba(10,13,16,0),rgba(10,13,16,.92))}
+#ops[hidden]{display:none}
+#ops button{padding:14px 4px;font-size:15px;border-color:var(--c,var(--line));color:var(--c,var(--text));position:relative}
+#ops button small{display:block;font-size:9px;letter-spacing:.04em;color:var(--dim);margin-top:3px;font-weight:400}
+#ops button.free::after{content:'free';position:absolute;top:-7px;right:6px;font-size:9px;color:var(--gold);background:var(--ground);padding:0 4px;border-radius:4px}
+#ops .aux{grid-column:span 2;font-size:11px;color:var(--dim);padding:9px 4px}
+#ops .aux[aria-pressed="true"]{color:var(--blue);border-color:var(--blue)}
+#cross{position:absolute;left:50%;top:50%;width:26px;height:26px;margin:-13px;border:1px solid rgba(232,243,228,.45);border-radius:50%;pointer-events:none}
+#cross::after{content:'';position:absolute;left:12px;top:12px;width:2px;height:2px;background:var(--green);border-radius:50%}
+.arrow{position:absolute;left:50%;top:50%;width:0;height:0;pointer-events:none;transform-origin:0 0}
+.arrow i{position:absolute;left:-6px;top:-110px;width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:14px solid var(--green)}
+.arrow.tg i{border-bottom-color:var(--gold)}
+#panel{position:absolute;left:10px;right:10px;bottom:150px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-family:var(--mono);font-size:12px;backdrop-filter:blur(8px);max-height:40vh;overflow:auto}
+#panel[hidden]{display:none}
+#panel h3{margin:0 0 4px;font-size:16px;color:var(--text)} #panel h3 span{color:var(--gold);margin-right:8px;font-size:22px}
+#panel .k{color:var(--dim)} #panel p{margin:4px 0} #panel .v{font:italic 12px var(--sans);color:var(--gold)}
+#panel .x{position:absolute;top:6px;right:8px;padding:4px 8px;font-size:12px}
+#won,#chap{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(10,13,16,.74)}
+#won[hidden],#chap[hidden]{display:none}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px 22px;max-width:440px;width:100%;font-family:var(--mono);backdrop-filter:blur(10px);max-height:86vh;overflow:auto}
+.card h2{margin:0 0 6px;font-size:22px;color:var(--green)} .card h2.lost{color:var(--red)} .card h2.ch{color:var(--gold);font-size:18px;letter-spacing:.08em}
+.card .epi{font:italic 13px/1.5 var(--sans);color:var(--text);margin:6px 0 10px}
+.stars{font-size:26px;color:var(--gold);letter-spacing:.2em;margin:4px 0 10px}
+.card p{margin:6px 0;font-size:13px;color:var(--dim)} .card p b{color:var(--text)}
+.card .btns{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+#toast{position:absolute;left:50%;bottom:160px;transform:translateX(-50%);background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:6px 14px;font:12px var(--mono);color:var(--text);opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap;max-width:92vw;overflow:hidden;text-overflow:ellipsis}
+#toast.on{opacity:1}
+#clock{color:var(--red)}
+#quest{position:absolute;right:10px;bottom:178px;max-width:min(60vw,360px);background:var(--panel);border:1px solid rgba(127,184,255,.35);border-radius:10px;padding:6px 10px;font:11px/1.4 var(--mono);color:var(--blue)}
+#quest[hidden]{display:none} #quest.done{color:var(--green);border-color:var(--green)}
+@media (max-width:420px){#ops button{font-size:13px;padding:12px 2px}.stand .g{font-size:24px}.stand .n{font-size:18px}#quest{bottom:196px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<video id="video" playsinline muted autoplay></video>
+<canvas id="c"></canvas>
+<div id="crt"></div>
+<div id="ui">
+  <section class="scr" id="start">
+    <h1>THE FOLD</h1>
+    <div class="glyphs">Φ ∂ φ ∞ ⊟ ⊗ ♯ ⅗ ε δ Ω Γ Q Σ ψ 𝟙</div>
+    <div class="sub">You do not move. The field does. Six operations, the π tape for the day, the tablet's words on every cell.</div>
+    <input id="name" placeholder="YOUR NAME" autocomplete="off" autocapitalize="characters" maxlength="24" aria-label="Your name">
+    <div class="namecell" id="namecell">your letters add to a cell</div>
+    <div class="modes" role="group" aria-label="Mode">
+      <button data-mode="daily" aria-pressed="true" title="The day's levels from the π tape">DAILY</button>
+      <button data-mode="free" aria-pressed="false" title="No target: walk the field, read its cells">FREE WALK</button>
+      <button data-mode="doors" aria-pressed="false" title="Four figures of your own, walked to 6174 by Kaprekar's step">THE DOORS</button>
+    </div>
+    <input id="digits" placeholder="FOUR FIGURES" inputmode="numeric" maxlength="4" aria-label="Four figures" hidden>
+    <button class="big" id="enter">ENTER THE FIELD</button>
+    <div class="note" id="startnote">Turn with the device to look round the field; the camera shows the room behind it when you allow it. Without a camera or gyro, drag to look.</div>
+    <div class="note" id="xrnote" hidden>This browser can open the field in the room itself.</div>
+    <div class="row" style="justify-content:center"><span id="daynote"></span></div>
+    <div class="row" style="justify-content:center"><button id="mute" aria-pressed="false" style="font-size:11px;padding:6px 10px">SOUND ON</button></div>
+  </section>
+
+  <div id="hud" hidden>
+    <div class="row"><span id="date"></span><span class="pill" id="daypill"></span><span class="pill rule" id="rulepill"></span><span class="pill ch" id="chpill"></span><span class="pill" id="lvl"></span><span id="clock"></span></div>
+    <div class="stand"><span class="g" id="cur-g"></span><span class="n" id="cur-n"></span><span class="w" id="cur-w"></span></div>
+    <div class="tgt" id="tgtrow">→ <span class="g" id="tg-g"></span><span id="tg-n"></span><span id="tg-w"></span><span class="pill" id="moves"></span></div>
+    <div class="voice" id="voice"></div>
+  </div>
+  <div id="quest" hidden></div>
+  <div id="cross" hidden></div>
+  <div class="arrow" id="arr-cur" hidden><i></i></div>
+  <div class="arrow tg" id="arr-tg" hidden><i></i></div>
+  <div id="panel" hidden><button class="x" id="panel-x">×</button><div id="panel-body"></div></div>
+  <div id="ops" hidden></div>
+  <div id="chap" hidden><div class="card" id="chapbody"></div></div>
+  <div id="won" hidden><div class="card" id="wonbody"></div></div>
+  <div id="toast"></div>
+</div>
+<script src="vendor/three.min.js"></script>
+<script src="data.js"></script>
+<script src="field.js"></script>
+<script src="ar.js"></script>
+<script src="game.js"></script>
+<script src="parts/story/story.js"></script>
+<script src="parts/sound/sound.js"></script>
+<script src="parts/levels/levels.js"></script>
+<script src="parts/shaders/fx.js"></script>
+<script src="parts/relief/relief.js"></script>
+<script src="parts/corpus/material.js"></script>
+<script>
+(function () {
+  'use strict';
+  const F = window.FIELD, G = window.GAME, A = window.AR, D = window.CASCADE_DATA, $ = id => document.getElementById(id);
+  const STORY = window.FOLD_STORY || null, SND = window.FOLD_SOUND || null, LV = window.FOLD_LEVELS || null, FX = window.FOLD_FX || null, RL = window.FOLD_RELIEF || null;
+  const toast = (t, ms) => { const e = $('toast'); e.textContent = t; e.classList.add('on'); clearTimeout(e._t); e._t = setTimeout(() => e.classList.remove('on'), ms || 1800); };
+  // ── sound: the designed set when it is loaded, else a sine a cell ──
+  const LS = { get: k => { try { return localStorage.getItem(k); } catch (e) { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} } };
+  let ac = null, muted = LS.get('fold.muted') === '1';
+  const beep = (ray, dur, gain) => { if (muted) return; try { if (!ac) ac = new (window.AudioContext || window.webkitAudioContext)(); const o = ac.createOscillator(), g = ac.createGain(); o.type = 'sine'; o.frequency.value = 220 * Math.pow(2, (ray < 0 ? -12 : ray) / 12); g.gain.value = 0; g.gain.linearRampToValueAtTime(gain || 0.08, ac.currentTime + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + (dur || 0.35)); o.connect(g).connect(ac.destination); o.start(); o.stop(ac.currentTime + (dur || 0.35) + 0.05); } catch (e) {} };
+  const snd = {
+    init: () => { if (SND && SND.init) SND.init(); if (SND && SND.setMuted) SND.setMuted(muted); },
+    cell: n => SND && SND.cell ? SND.cell(n, F.ray(n), F.character(n) === 'residue') : beep(F.ray(n), 0.3, 0.06),
+    op: id => SND && SND.op ? SND.op(id) : null,
+    bloom: s => SND && SND.bloom ? SND.bloom(s) : null,
+    win: (n, st) => SND && SND.win ? SND.win(F.ray(n), st) : beep(F.ray(n), 0.9, 0.1),
+    lose: () => SND && SND.lose ? SND.lose() : beep(-1, 0.8, 0.08),
+    rule: name => SND && SND.setRule ? SND.setRule(name) : null,
+    home: n => SND && SND.setHome ? SND.setHome(F.ray(n)) : null,
+    clock: s => SND && SND.clock ? SND.clock(s) : null,
+  };
+  $('mute').setAttribute('aria-pressed', muted); $('mute').textContent = muted ? 'SOUND OFF' : 'SOUND ON';
+  $('mute').onclick = () => { muted = !muted; LS.set('fold.muted', muted ? '1' : '0'); $('mute').setAttribute('aria-pressed', muted); $('mute').textContent = muted ? 'SOUND OFF' : 'SOUND ON'; if (SND && SND.setMuted) SND.setMuted(muted); };
+  // ── the name box and the modes ──
+  $('name').value = LS.get('fold.name') || '';
+  const nameCell = () => { const s = F.letterSum($('name').value); $('namecell').textContent = $('name').value.trim() ? s + ' → cell ' + (s % 257) + ' · ' + D.cells[s % 257].w : 'your letters add to a cell'; };
+  $('name').addEventListener('input', nameCell); nameCell();
+  let mode = 'daily';
+  for (const b of document.querySelectorAll('.modes button')) b.onclick = () => { mode = b.dataset.mode; for (const x of document.querySelectorAll('.modes button')) x.setAttribute('aria-pressed', x === b); $('digits').hidden = mode !== 'doors'; };
+  const dn = F.dayNumber(new Date()); $('daynote').textContent = 'day ' + dn + ' from 2000-12-31 · tape head ' + (dn + 13) + ' · π[' + (dn + 13) + '] = ' + D.pi[dn + 13] + ' ' + F.OPCODES[+D.pi[dn + 13]] + (dn % 128 === 0 ? ' · A GOLD DAY: the quarter turn is free' : dn % 258 === 0 ? ' · a tablet day: the day\'s cell is ' + (dn % 257) + ' ' + D.cells[dn % 257].w : '');
+  // ── the scene ──
+  const canvas = $('c'); A.init(canvas, D.cells);
+  const gpu = (() => { try { const gl = A.A.renderer.getContext(), x = gl.getExtension('WEBGL_debug_renderer_info'); return x ? String(gl.getParameter(x.UNMASKED_RENDERER_WEBGL)) : ''; } catch (e) { return ''; } })();
+  const tiny = /VideoCore|V3D|Broadcom|llvmpipe|SwiftShader/i.test(gpu), lowEnd = tiny || /Mali|PowerVR|Adreno \(TM\) [3-5]/i.test(gpu) || (navigator.hardwareConcurrency || 8) <= 4 || /Raspbian|armv7/i.test(navigator.userAgent);
+  if (FX && FX.sky && A.A.scene) { try { const s = FX.sky({ samples: tiny ? 0 : lowEnd ? 13 : 23 }); const q = FX.quad(THREE, s); q.renderOrder = -10; /* opaque, drawn first: the relief's marks stand over it */ A.A.camera.add(q); q.position.z = -1; A.A.sky = q; A.A.stars.visible = false; } catch (e) { console.warn('sky shader', e); } }
+  // the CRT as a shader overlay when the module is loaded: scanlines bowed by the barrel, the tube's edge, a phosphor pulse on each move
+  let crtU = null, warpU = null, crtQ = null, warpQ = null;
+  if (FX && FX.crt && FX.quad) { try { const spec = FX.crt(); const q = FX.quad(THREE, spec); q.renderOrder = 998; crtQ = q; A.A.scene.add(q); crtU = spec.uniforms; FX.resize(crtU, A.A.renderer); $('crt').style.display = 'none'; window.addEventListener('resize', () => FX.resize(crtU, A.A.renderer)); } catch (e) { console.warn('crt', e); } }
+  if (FX && FX.warp && FX.quad) { try { const spec = FX.warp(); const q = FX.quad(THREE, spec); q.renderOrder = 999; q.visible = false; warpQ = q; A.A.scene.add(q); warpU = spec.uniforms; window.addEventListener('resize', () => { warpU.aspect.value = window.innerWidth / Math.max(1, window.innerHeight); }); } catch (e) { console.warn('warp', e); } }
+  let xrSupported = false; if (navigator.xr && navigator.xr.isSessionSupported) navigator.xr.isSessionSupported('immersive-ar').then(ok => { xrSupported = !!ok; $('xrnote').hidden = !ok; }).catch(() => {});
+  // ── ops ──
+  const opsEl = $('ops');
+  for (const o of F.OPS.concat([F.FLIP])) { const b = document.createElement('button'); b.dataset.op = o.id; if (o.id === 'flip') b.hidden = true; b.style.setProperty('--c', 'hsl(' + o.hue + ' 70% 65%)'); b.innerHTML = o.label + '<small>' + o.name + '</small>'; b.title = o.tell; b.onclick = () => move(o.id); opsEl.appendChild(b); }
+  const aux = (t, f, title) => { const b = document.createElement('button'); b.className = 'aux'; b.textContent = t; b.title = title || ''; b.onclick = f; opsEl.appendChild(b); return b; };
+  aux('UNDO', () => { if (busy) return; const id = G.undo(); if (id) { say(STORY && STORY.ops && STORY.ops.undo || 'the move is taken back'); paint(); } }, 'take the last move back');
+  aux('HINT', () => { const h = G.hint(); if (!h || !h.length) return toast(G.S.target == null ? 'no target in a free walk: read the cells' : 'you are there'); const o = F.OP[h[0]]; toast('the road: ' + h.map(id => F.OP[id].label).join(' ') + ' · first ' + o.label + ', ' + o.name); flash(o.id); }, 'the next move of the shortest road');
+  const bRel = aux('RELIEF', () => { MON.mode = (MON.mode + 1) % 3; bRel.setAttribute('aria-pressed', MON.mode > 0); monFloor(); monApply(G.S); toast(['relief off', 'the norm as the floor: a² + ab − b² mod 257, its five stars lit', 'and the product a·b as the ceiling'][MON.mode], 2400); }, 'the conics relief in the world: the norm floor, the sheets, the rings');
+  bRel.setAttribute('aria-pressed', 'true');
+  const bLad = aux('LADDER', () => { A.A.showLadder = !A.A.showLadder; bLad.setAttribute('aria-pressed', !!A.A.showLadder); toast(A.A.showLadder ? 'the halving ladder of your cell: sixteen rungs, ×129 each' : 'ladder off'); }, 'the sixteen rungs of halving from your cell');
+  bLad.setAttribute('aria-pressed', 'false');
+  function flash(id) { const b = opsEl.querySelector('[data-op="' + id + '"]'); if (!b) return; b.style.boxShadow = '0 0 0 2px var(--gold)'; setTimeout(() => b.style.boxShadow = '', 900); }
+  const say = t => { if (t) $('voice').textContent = t; };
+  // ── the monuments: the conics relief in the world — the norm as the floor, a conic ring for the doors, THE TURN's orbit for the last
+  // chapter and the eye, the product sheet as a ceiling for the mirrors, each refilled as the moves go on ──
+  const MON = { level: 0, floor: null, kind: null, obj: null, mode: 1 };
+  function monFloor() { if (!RL) return; if (MON.mode >= 1 && !MON.floor) { MON.floor = RL.norm({ size: 0.03, opacity: 0.8 }); A.A.scene.add(MON.floor); } if (MON.mode < 1 && MON.floor) { RL.dispose(MON.floor); MON.floor = null; } }
+  function monApply(S) {
+    if (!RL) return; if (MON.obj) { RL.dispose(MON.obj); MON.obj = null; MON.kind = null; }
+    if (MON.mode < 1) return;
+    const ch = Math.floor((S.level - 1) / 8);
+    try {
+      if (S.kind === 'door') { MON.obj = RL.conic('circle', S.start, { opacity: 0.6 }); MON.kind = 'circle'; }
+      else if (S.kind === 'eye' || (S.mode === 'daily' && ch === 7)) { MON.obj = RL.turn({ angle: 'dlog' }); MON.kind = 'turn'; MON.obj.step(0); }
+      else if (S.kind === 'mirror' || (MON.mode >= 2)) { MON.obj = RL.sheet('product', 1, { place: 'ceiling' }); MON.kind = 'sheet'; }
+      else if (S.kind === 'ladder') { MON.obj = RL.conic('hyperbola', S.home, { opacity: 0.5 }); MON.kind = 'hyperbola'; }
+      if (MON.obj) A.A.scene.add(MON.obj);
+    } catch (e) { console.warn('monument', e); MON.obj = null; }
+  }
+  function monStep(S) { if (!MON.obj) return; try { if (MON.kind === 'turn') MON.obj.step(S.moves % 256); if (MON.kind === 'sheet' && MON.obj.setT) MON.obj.setT(S.moves); } catch (e) {} }
+  // ── the HUD ──
+  const chapterOf = L => Math.floor((L - 1) / 8);
+  function titleOf(S) {
+    if (S.target == null) return 'free walk';
+    if (S.spec && S.spec.title) return S.spec.title;
+    const t = STORY && STORY.titles && STORY.titles.length ? STORY.titles[(S.level - 1) % STORY.titles.length] : '{startWord} to {targetWord}';
+    return t.replace('{start}', S.start).replace('{target}', S.target0 == null ? '' : S.target0).replace('{startWord}', D.cells[S.start] ? D.cells[S.start].w : '∞').replace('{targetWord}', D.cells[S.target0] ? D.cells[S.target0].w : '∞');
+  }
+  function paint() {
+    const S = G.S; if (S.ended) return endDay(); const c = G.cellInfo(S.current);
+    $('date').textContent = G.today(); $('daypill').textContent = S.mode === 'daily' ? 'day ' + S.day + ' · π[' + S.offset + '] = ' + S.digit : S.mode === 'doors' ? 'the doors' : 'free walk';
+    $('rulepill').textContent = S.target == null ? 'no target' : S.rule.name + ' · ' + S.rule.tell + (S.flip ? ' · the 6↔9 flip is open' : '') + (S.goldDay && S.mode === 'daily' ? ' · gold day, ×i free' : ''); $('rulepill').hidden = S.target == null;
+    const ch = STORY && STORY.chapters && STORY.chapters[chapterOf(S.level)]; $('chpill').textContent = ch ? ch.title : ''; $('chpill').hidden = !ch || S.mode !== 'daily';
+    $('lvl').textContent = (S.mode === 'free' ? '' : 'level ' + S.level + (S.kind && S.kind !== 'tape' && S.kind !== 'free' ? ' · ' + S.kind.toUpperCase() : '') + ' · ') + S.closed + ' closed';
+    $('cur-g').textContent = c.glyphs; $('cur-n').textContent = c.n === F.INF ? '∞' : c.n; $('cur-w').textContent = c.word;
+    if (S.target == null) { $('tgtrow').style.visibility = 'hidden'; } else { $('tgtrow').style.visibility = ''; const t = G.cellInfo(S.target); $('tg-g').textContent = t.glyphs; $('tg-n').textContent = t.n === F.INF ? '∞' : t.n; $('tg-w').textContent = t.word + (S.shift ? ' (shifting)' : ''); $('moves').textContent = S.moves + ' / par ' + S.par + (S.slack ? ' +' + S.slack : ''); }
+    for (const b of opsEl.querySelectorAll('[data-op]')) { b.classList.toggle('free', S.free.has(b.dataset.op)); if (b.dataset.op === 'flip') { b.hidden = !S.flip; b.disabled = S.flip && F.flip69(S.current) === S.current; } }
+    opsEl.style.gridTemplateColumns = S.flip ? 'repeat(7,1fr)' : 'repeat(6,1fr)';
+    const q = S.quest; $('quest').hidden = !q; if (q) { const done = S.quests.includes(q.cell); $('quest').className = done ? 'done' : ''; $('quest').textContent = (done ? '✓ ' : '? ') + q.ask; }
+    A.paint({ current: S.current, target: S.target, home: S.home, visited: S.visited, reach: G.reach(), road: S.road, ops: S.opsList }); A.tape(D.pi, S.offset);
+  }
+  // ── a move: the field flows, the room folds, the scribe speaks ──
+  let busy = false;
+  function move(id) {
+    const S = G.S; if (S.done || S.lost || busy) return; const o = F.OP[id]; const v = G.apply(id); if (v == null) return;
+    busy = true; A.flow(o); snd.op(id); roomFx(id); say(STORY && STORY.ops && STORY.ops[id] || o.tell); monStep(S);
+    const lv = S.level, epoch = S.epoch = (S.epoch || 0) + 1, mine = () => G.S.level === lv && G.S.epoch === epoch;   // a timer of this move only
+    setTimeout(() => { busy = false; if (mine()) snd.cell(v); }, A.A.flowDur * 1000 * 0.9);
+    paint(); voiceOf(v);
+    if (S.done || S.lost) { S._lostShown = true; setTimeout(() => { if (!mine()) return; if (S.done && !S.lost) snd.win(S.target, S.stars[S.level - 1]); else snd.lose(); won(); }, A.A.flowDur * 1000 + 150); }
+  }
+  function roomFx(id) {
+    const v = $('video'); if (v.style.display === 'none') { crtPulse(id); return; }
+    const css = FX && FX.cssFilter ? FX.cssFilter(id) : { fold: 'scaleX(-1)', inv: 'scaleY(-1)', i: 'rotate(90deg) scale(1.6)', gam: 'scale(1.08)', g: 'rotate(1.4deg)', ig: 'rotate(-1.4deg)' }[id];
+    if (typeof css === 'string') v.style.transform = css; else if (css && css.transform) { v.style.transform = css.transform; v.style.filter = css.filter || ''; }
+    if (id === 'gam') v.style.filter = 'saturate(.75) brightness(.8) invert(1) hue-rotate(180deg)';
+    setTimeout(() => { v.style.transform = ''; v.style.filter = 'saturate(.75) brightness(.8)'; }, A.A.flowDur * 1000 * 0.8); crtPulse(id);
+  }
+  function crtPulse(id) {
+    if (A.A.renderer.xr.isPresenting) return;   // no tube in the room
+    if (crtU && FX.pulse) { const o = id && F.OP[id]; const c = o ? new THREE.Color().setHSL(o.hue / 360, 0.7, 0.6) : null; FX.pulse(crtU, c ? [c.r, c.g, c.b] : null, id === 'gam' ? 1 : 0.6, id === 'gam' ? 1100 : 600); }
+    else { const e = $('crt'); e.style.opacity = '.85'; setTimeout(() => e.style.opacity = '.55', 180); }
+    if (id === 'gam' && warpU && FX.warpRun) FX.warpRun(warpU, 0.35, 1100);   // Γ: the screen bends through the Möbius map
+  }
+  function voiceOf(n) { if (STORY && STORY.cells && STORY.cells[n]) { const lv = G.S.level; setTimeout(() => { if (G.S.level === lv) say(STORY.cells[n]); }, A.A.flowDur * 1000); } }
+  function won() {
+    const S = G.S, L = G.lineInfo(), t = G.cellInfo(S.target), st = S.stars[S.level - 1] || 0;
+    const h = S.lost ? '<h2 class="lost">' + (S.clock ? 'HALT' : 'SYNC') + ' · the level is lost</h2>' : '<h2>' + (S.moves <= S.par + S.slack ? 'CLOSED' : 'REACHED') + ' · ' + t.glyphs + ' ' + (t.n === F.INF ? '∞' : t.n) + ' ' + t.word + '</h2><div class="stars">' + '★'.repeat(st) + '<span style="color:var(--line)">' + '★'.repeat(3 - st) + '</span>' + (S.seen ? ' <span style="font-size:12px;color:var(--blue)">sighted</span>' : '') + '</div>';
+    const road = S.ops.map(id => F.OP[id].label).join(' ') || '—';
+    const doorOf = k => { const d = STORY && STORY.doors && STORY.doors[k]; return d ? (d.text || d) : ''; };
+    const doorTxt = S.kind === 'door' && !S.lost ? '<p class="epi">' + (S.target === 6 ? doorOf('6174') : '') + '</p>' : '';
+    const outro = S.mode === 'daily' && !S.lost && S.level % 8 === 0 && STORY && STORY.chapters && STORY.chapters[chapterOf(S.level)] ? '<p class="epi">' + STORY.chapters[chapterOf(S.level)].outro + '</p>' : '';
+    const voice = STORY && STORY.cells && STORY.cells[S.target] ? '<p class="epi">' + STORY.cells[S.target] + '</p>' : '';
+    $('wonbody').innerHTML = h + voice + doorTxt + outro + '<p>road <b>' + road + '</b> · ' + S.moves + ' moves, par ' + S.par + '</p>'
+      + '<p>from ' + G.cellInfo(S.start).glyphs + ' ' + S.start + ' · ' + G.cellInfo(S.start).word + '</p>'
+      + (S.lost ? '' : '<p>your line: <b>' + (L.txt || '—') + '</b></p><p>its letters add to ' + L.sum + ' ≡ <b>' + L.cell + ' ' + L.word + '</b>, the mirror ' + L.mirror + ' ' + D.cells[L.mirror].w + '</p>')
+      + '<p>' + (S.current === S.home ? 'you stand on your own cell, ' + S.home + ' ' + D.cells[S.home].w : 'your cell ' + S.home + ' ' + D.cells[S.home].w + ' is ' + F.cost(F.solve(S.current, S.home, S.free, S.opsList), S.free) + ' moves away') + '</p>'
+      + '<div class="btns"><button class="big" id="next">' + (S.lost ? 'AGAIN' : 'NEXT') + '</button><button id="share">SHARE</button>' + (S.mode === 'daily' ? '<button id="endday">END THE DAY</button>' : '') + '</div>';
+    $('won').hidden = false;
+    $('next').onclick = () => { $('won').hidden = true; if (S.lost) G.reset(); else G.next(); openLevel(); };
+    $('share').onclick = () => { const txt = 'THE FOLD · ' + G.today() + ' · level ' + S.level + ' ' + '★'.repeat(st) + ' · ' + road + ' · ' + t.glyphs + ' ' + S.target + ' ' + t.word; if (navigator.share) navigator.share({ text: txt }).catch(() => {}); else { navigator.clipboard && navigator.clipboard.writeText(txt); toast('copied'); } };
+    if ($('endday')) $('endday').onclick = () => { $('won').hidden = true; G.S.ended = true; endDay(); };
+  }
+  function openLevel() {
+    const S = G.S; if (S.ended) return endDay();
+    paint(); snd.rule(S.rule.name); monFloor(); monApply(S);
+    const ch = chapterOf(S.level); if (S.mode === 'daily' && (S.level - 1) % 8 === 0 && STORY && STORY.chapters && STORY.chapters[ch]) return chapter(ch);
+    const dayLine = STORY && STORY.days && STORY.days[S.digit] ? STORY.days[S.digit].line : S.rule.tell;
+    toast((S.mode === 'free' ? 'free walk' : 'level ' + S.level + ' · ' + titleOf(S)) + ' · ' + S.rule.name, 2600);
+    const dd = S.kind === 'door' && STORY && STORY.doors && S.spec ? STORY.doors[String(S.spec.number)] : null, doorLine = dd ? (dd.text || dd) : null;
+    say(doorLine || (S.kind === 'tape' && dayLine ? dayLine + (S.spec && S.spec.text ? ' · ' + S.spec.text : '') : (S.spec && S.spec.text ? S.spec.text : dayLine))); G.arm();
+  }
+  function chapter(ch) {
+    const c = STORY.chapters[ch]; const S = G.S;
+    const epi = c.epigraph ? (typeof c.epigraph === 'string' ? c.epigraph : c.epigraph.text + (c.epigraph.cell != null ? ' · ' + c.epigraph.cell : '')) : '';
+    $('chapbody').innerHTML = '<h2 class="ch">' + (ch + 1) + ' · ' + c.title + '</h2>' + (epi ? '<p class="epi">' + epi + '</p>' : '') + '<p>' + (c.intro || '') + '</p>' + (S.quest ? '<p style="color:var(--blue)">the chapter\'s quest: ' + S.quest.ask + '</p>' : '') + '<div class="btns"><button class="big" id="chapgo">GO</button></div>';
+    $('chap').hidden = false; $('chapgo').onclick = () => { $('chap').hidden = true; const dayLine = STORY.days && STORY.days[S.digit] ? STORY.days[S.digit].line : S.rule.tell; toast('level ' + S.level + ' · ' + titleOf(S) + ' · ' + S.rule.name, 2600); say(dayLine + (S.spec && S.spec.text ? ' · ' + S.spec.text : '')); G.arm(); };
+  }
+  function endDay() {
+    const S = G.S; const seal = LV && LV.seal ? LV.seal(S.targets) : null; const L = G.lineInfo();
+    const tpl = STORY && STORY.seal ? STORY.seal : 'The day closes on {word}, cell {cell}; its mirror {mirror}. {stars} stars.';
+    const stars = S.stars.reduce((a, b) => a + (b || 0), 0);
+    const fill = (t, k, v) => t.split('{' + k + '}').join(String(v));   // every occurrence, and old Safari has no replaceAll
+    const txt = fill(fill(fill(fill(tpl, 'word', L.word), 'cell', L.cell), 'mirror', D.cells[L.mirror].w + ' ' + L.mirror), 'stars', stars);
+    $('wonbody').innerHTML = '<h2 class="ch">THE SEAL · ' + G.today() + '</h2><p class="epi">' + txt + '</p><p>' + S.closed + ' levels closed · ' + stars + ' stars · the line: <b>' + (L.txt || '—') + '</b> ≡ ' + L.cell + ' ' + L.word + '</p>' + (seal ? '<p>product of the targets ≡ <b>' + seal.cell + ' ' + seal.word + '</b></p>' : '') + '<div class="btns"><button class="big" id="again">WALK ON</button><button id="share2">SHARE</button></div>';
+    $('won').hidden = false; $('again').onclick = () => { $('won').hidden = true; const nm = $('name').value; G.start(nm, 'free', [LV && LV.free ? LV.free(nm) : { n: 1, kind: 'free', start: F.letterSum(nm) % 257, target: null, rule: 0, free: [] }]); openLevel(); };
+    $('share2').onclick = () => { const t = 'THE FOLD · ' + G.today() + ' · ' + S.closed + ' closed · ' + stars + ' stars · ' + txt; if (navigator.share) navigator.share({ text: t }).catch(() => {}); else { navigator.clipboard && navigator.clipboard.writeText(t); toast('copied'); } };
+  }
+  // ── the cell panel: tap a cell to read it ──
+  function showCell(n) {
+    const c = G.cellInfo(n); const S = G.S; const road = F.solve(S.current, n, S.free, S.opsList); const v = STORY && STORY.cells && STORY.cells[n];
+    const mirrors = D.mirrors.filter(p => (c.words || []).includes(p[0])).map(p => p[0] + ' ↔ ' + p[1]).slice(0, 4);
+    $('panel-body').innerHTML = '<h3><span>' + c.glyphs + '</span>' + (n === F.INF ? '∞' : n) + ' · ' + c.word + '</h3>' + (v ? '<p class="v">' + v + '</p>' : '')
+      + '<p>' + (c.words || []).slice(1).join(' · ') + '</p>'
+      + '<p><span class="k">dlog</span> ' + c.dlog + ' <span class="k">ray</span> ' + c.ray + ' <span class="k">' + c.ch + '</span>' + (A.GOLD.has(n) ? ' <span class="k">· a quarter turn of the cycle</span>' : '') + (n === A.EYE ? ' <span class="k">· the pole: Γ sends it to ∞</span>' : '') + (A.MIRRORS.has(n) ? ' <span class="k">· a fixed point of Γ</span>' : '') + '</p>'
+      + '<p><span class="k">fold</span> ' + c.fold + ' <span class="k">inverse</span> ' + (c.inv === F.INF ? '∞' : c.inv) + ' <span class="k">Γ</span> ' + (c.gam === F.INF ? '∞' : c.gam) + (mirrors.length ? ' <span class="k">· mirrors</span> ' + mirrors.join(', ') : '') + '</p>'
+      + '<p><span class="k">from where you stand</span> ' + (road && road.length ? road.map(id => F.OP[id].label).join(' ') + ' · ' + F.cost(road, S.free) + ' moves' : 'here') + '</p>';
+    $('panel').hidden = false; snd.cell(n);
+    if (G.questDone(n)) { toast('the quest is answered: ' + n + ' ' + c.word, 2600); paint(); }
+  }
+  $('panel-x').onclick = () => $('panel').hidden = true;
+  // ── looking: device orientation, drag, keys ──
+  let drag = null, moved = false;
+  canvas.addEventListener('pointercancel', () => { drag = null; });
+  canvas.addEventListener('pointerdown', e => { if (!e.isPrimary) return; drag = { x: e.clientX, y: e.clientY, yaw: A.A.yaw, pitch: A.A.pitch, ty: A.A.touchYaw }; moved = false; canvas.setPointerCapture(e.pointerId); });
+  canvas.addEventListener('pointermove', e => { if (!drag) return; const dx = e.clientX - drag.x, dy = e.clientY - drag.y; if (Math.abs(dx) + Math.abs(dy) > 4) moved = true; const k = 0.0035; if (A.A.deviceQ) A.A.touchYaw = drag.ty + dx * k; else { A.A.yaw = drag.yaw + dx * k; A.A.pitch = Math.max(-1.4, Math.min(1.4, drag.pitch + dy * k)); } });
+  canvas.addEventListener('pointerup', e => { const d = drag; drag = null; if (!d || moved || $('start').hidden === false) return; const r = canvas.getBoundingClientRect(); const nx = (e.clientX - r.left) / r.width * 2 - 1, ny = -((e.clientY - r.top) / r.height * 2 - 1); const n = A.pick(nx, ny); if (n != null) showCell(n); });
+  window.addEventListener('keydown', e => { const k = 0.08; if (e.key === 'ArrowLeft') A.A.yaw += k; if (e.key === 'ArrowRight') A.A.yaw -= k; if (e.key === 'ArrowUp') A.A.pitch = Math.min(1.4, A.A.pitch + k); if (e.key === 'ArrowDown') A.A.pitch = Math.max(-1.4, A.A.pitch - k); const m = { g: 'g', G: 'ig', f: 'fold', i: 'inv', q: 'i', r: 'gam' }[e.key]; if (m && !$('hud').hidden && $('chap').hidden && $('won').hidden && document.activeElement !== $('name')) move(m); if (e.key === 'u' && !busy && !$('hud').hidden && $('chap').hidden) { const id = G.undo(); if (id) paint(); } });
+  async function sensors() { try { if (window.DeviceOrientationEvent && typeof DeviceOrientationEvent.requestPermission === 'function') { const r = await DeviceOrientationEvent.requestPermission(); if (r !== 'granted') return false; } } catch (e) { return false; } window.addEventListener('deviceorientation', A.onOrientation, true); return true; }
+  async function cameraOn() { if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return false; try { const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 } }, audio: false }); const v = $('video'); v.srcObject = s; v.style.display = 'block'; await v.play().catch(() => {}); A.A.stars.visible = false; if (A.A.sky) A.A.sky.visible = false; return true; } catch (e) { return false; } }
+  // ── the compass arrows and the clock ──
+  function arrows() {
+    const S = G.S; if (!S || !S.road || $('hud').hidden) return;
+    for (const [id, n] of [['arr-cur', S.current], ['arr-tg', S.target]]) {
+      const el = $(id); if (n == null) { el.hidden = true; continue; }
+      const s = A.onScreen(n); const off = !s.front || Math.abs(s.x) > 0.95 || Math.abs(s.y) > 0.9;
+      el.hidden = !off; if (off) { let x = s.x, y = s.y; if (!s.front) { x = -x; y = -y; } const ang = Math.atan2(x, y); el.style.transform = 'rotate(' + ang + 'rad)'; }
+      if (n === S.target && !off) S.seen = true;
+    }
+    const left = G.tick(); $('clock').textContent = left == null ? '' : left.toFixed(0) + ' s'; if (left != null) snd.clock(left);
+    if (S.lost && $('won').hidden && !S._lostShown) { S._lostShown = true; snd.lose(); won(); }
+  }
+  // ── enter ──
+  $('enter').onclick = async () => {
+    const name = $('name').value; let plan = null;
+    if (mode === 'daily' && LV && LV.plan) { try { plan = LV.plan(F.dayNumber(new Date()), name); } catch (e) { console.warn('plan', e); plan = null; } }
+    if (mode === 'doors') { const d = ($('digits').value || '').replace(/\D/g, '').padStart(4, '0').slice(-4); if (!LV || !LV.doors) return toast('the doors need the level designer\'s module'); plan = LV.doors(d); if (!plan || !plan.length) return toast(d + ' reaches no door: four figures not all the same'); }
+    if (mode === 'free') plan = [LV && LV.free ? LV.free(name) : { n: 1, kind: 'free', start: F.letterSum(name) % 257, target: null, rule: 0, free: [] }];
+    snd.init(); G.start(name, mode, plan); snd.home(G.S.home);
+    $('start').hidden = true; $('hud').hidden = false; $('ops').hidden = false; $('cross').hidden = false;
+    paint(); A.bloom(3.2); snd.bloom(3.2);
+    const t0 = performance.now(); const gyro = await sensors(); const cam = await cameraOn();
+    toast((gyro ? 'turn to look' : 'drag to look') + (cam ? ' · the room is behind the field' : '') + ' · tap a cell to read it', 3000);
+    setTimeout(openLevel, Math.max(0, 3900 - (performance.now() - t0)));
+    if (xrSupported) { const b = aux('AR · the room', enterXR, 'open the field in the room itself'); b.style.gridColumn = 'span 2'; }
+  };
+  async function enterXR() {
+    const vid = $('video'), stream = vid.srcObject; if (stream) { stream.getTracks().forEach(t => t.stop()); vid.srcObject = null; }   // one client owns the camera: ARCore takes it
+    try { const s = await navigator.xr.requestSession('immersive-ar', { requiredFeatures: ['local'], optionalFeatures: ['dom-overlay'], domOverlay: { root: $('ui') } });
+      if (!s.domOverlayState) { await s.end(); throw new Error('this browser gives AR no page overlay, so the moves could not be shown'); } A.A.renderer.xr.enabled = true; A.A.renderer.xr.setReferenceSpaceType('local'); const had = { video: $('video').style.display, stars: A.A.stars.visible, sky: A.A.sky ? A.A.sky.visible : false, crt: crtQ ? crtQ.visible : false };
+      await A.A.renderer.xr.setSession(s); $('video').style.display = 'none'; A.A.stars.visible = false; if (A.A.sky) A.A.sky.visible = false; if (crtQ) crtQ.visible = false; toast('the field is in the room');
+      s.addEventListener('end', () => { A.A.renderer.xr.enabled = false; $('video').style.display = had.video; if (had.video !== 'none') cameraOn(); A.A.stars.visible = had.stars; if (A.A.sky) A.A.sky.visible = had.sky; if (crtQ) { crtQ.visible = had.crt; FX.resize(crtU, A.A.renderer); } A.resize(); }); } catch (e) { toast('AR did not open: ' + (e.message || e)); if (stream) cameraOn(); }
+  }
+  // ── the loop ──
+  A.A.renderer.setAnimationLoop(() => { const t = (performance.now() - A.A.t0) / 1000; if (A.A.sky && A.A.sky.material.uniforms.time) A.A.sky.material.uniforms.time.value = t; if (crtU) crtU.time.value = t; if (warpU) { warpU.time.value = t; warpQ.visible = warpU.t.value > 0 && !A.A.renderer.xr.isPresenting; } A.frame(); arrows(); });
+  window.FOLD_DEBUG = { paint, openLevel, move, monApply, monStep, showCell, endDay, G, A };  // for a console or a test, not for play
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && ac && ac.state === 'suspended') ac.resume(); });
+  if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
+})();
+</script>
+</body>
+</html>
