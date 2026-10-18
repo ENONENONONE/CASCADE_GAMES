@@ -18,6 +18,8 @@ window.GAME = (function () {
     9: { name: 'HALT', tell: 'the clock runs: thirty seconds', clock: 30 },
   };
   const S = {};
+  // a quest is kept answered by its chapter ('c6') as well as its cell, so a data update mid-day that moves a chapter's quest does not ask it again
+  const answered = q => !!q && (S.quests.includes(q.cell) || S.quests.includes('c' + q.chapter));
   // the flags: every change of the plan's rules lands behind one, and test.js plays both settings; fold.prefs may carry {flags: {…}}
   const FLAGS = { dilate: true };   // S3: HALT's clock runs on proper time, slower near the eye
   try { Object.assign(FLAGS, (JSON.parse(localStorage.getItem('fold.prefs') || '{}') || {}).flags || {}); } catch (e) {}
@@ -65,6 +67,12 @@ window.GAME = (function () {
     S.goldDay = S.day % 128 === 0; S.tabletDay = S.day % 258 === 0; S.dayCell = S.day % 257;   // the day table: cell = day mod 66048, gold every 128th, a tablet cell every 258th
     const kept = S.mode === 'daily' ? load() : null; const mine = kept && kept.name === S.name;
     S.level = mine ? kept.level : 1; S.stars = mine ? kept.stars : []; S.line = mine ? kept.line : []; S.closed = mine ? kept.closed : 0; S.targets = mine ? (kept.targets || []) : []; S.quests = mine ? (kept.quests || []) : []; S.borrowed = mine ? (kept.borrowed || 0) : 0;
+    // a save from before chapter marks holds quest cells only. Chapters are answered in order, so match them one cell each, as a multiset, and
+    // credit a cell left over (a quest the data moved since it was answered) to the earliest chapter reached whose quest is still open
+    if (S.plan && S.mode === 'daily' && S.quests.length && !S.quests.some(x => typeof x === 'string')) {
+      const reached = Math.floor((S.level - 1) / 8) + 1, qs = S.plan.filter(sp => sp.quest && sp.quest.chapter <= reached).map(sp => sp.quest), left = S.quests.slice(), open = [];
+      for (const q of qs) { const k = left.indexOf(q.cell); if (k >= 0) { left.splice(k, 1); S.quests.push('c' + q.chapter); } else open.push(q); }
+      for (let n = Math.min(left.length, open.length), k = 0; k < n; k++) S.quests.push('c' + open[k].chapter); }
     level(S.level); save(); return S;
   }
   function level(L) {
@@ -120,6 +128,6 @@ window.GAME = (function () {
   // what is left of the last hint's road while the moves since keep to it, else null (off it, or taken back past where it was asked)
   function hintLeft() { const h = S.hinted; if (!h || S.road[h.at] !== h.from) return null; const did = S.ops.slice(h.at); return did.every((id, j) => id === h.road[j]) ? h.road.slice(did.length) : null; }
   // the quest of the chapter: a cell to find by its words; done by a tap on it
-  function questDone(n) { const q = S.quest; if (!q || S.quests.includes(q.cell)) return false; if (n === q.cell) { S.quests.push(q.cell); save(); return true; } return false; }
-  return { S, RULES, FLAGS, toEye, start, level, arm, apply, undo, reset, next, tick, reach, lineInfo, cellInfo, hint, askHint, hintLeft, roadTo, today, solveShift, tapeSpec, questDone };
+  function questDone(n) { const q = S.quest; if (!q || answered(q)) return false; if (n === q.cell) { S.quests.push(q.cell, 'c' + q.chapter); save(); return true; } return false; }
+  return { S, RULES, FLAGS, toEye, start, level, arm, apply, undo, reset, next, tick, reach, lineInfo, cellInfo, hint, askHint, hintLeft, roadTo, today, solveShift, tapeSpec, questDone, answered };
 })();

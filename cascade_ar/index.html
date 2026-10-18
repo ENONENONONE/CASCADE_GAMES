@@ -265,7 +265,7 @@ html.calm *{transition:none!important;animation:none!important}
     for (const b of opsEl.querySelectorAll('[data-op]')) { b.classList.toggle('free', S.free.has(b.dataset.op)); if (b.dataset.op === 'flip') { b.hidden = !S.flip; b.disabled = S.flip && F.flip69(S.current) === S.current; } }
     opsEl.style.gridTemplateColumns = S.flip ? 'repeat(7,1fr)' : 'repeat(6,1fr)';
     effort(S);
-    const q = S.quest; $('quest').hidden = !q; if (q) { const done = S.quests.includes(q.cell); $('quest').className = done ? 'done' : ''; $('quest').textContent = (done ? '✓ ' : '? ') + q.ask; }
+    const q = S.quest; $('quest').hidden = !q; if (q) { const done = G.answered(q); $('quest').className = done ? 'done' : ''; $('quest').textContent = (done ? '✓ ' : '? ') + q.ask; }
     A.paint({ current: S.current, target: S.target, home: S.home, visited: S.visited, reach: G.reach(), road: S.road, ops: S.opsList }); A.tape(D.pi, S.offset);
   }
   // ── the effort bar (H2): par + slack segments and one dim 2★; a counted move fills one by what it did to the solver's distance:
