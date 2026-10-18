@@ -27,7 +27,7 @@ window.GAME = (function () {
   const today = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
   const key = () => 'fold.run.' + F.dayNumber(new Date()) + '.' + (S.mode || 'daily');
   function load() { try { return JSON.parse(localStorage.getItem(key()) || 'null'); } catch (e) { return null; } }
-  function save() { try { localStorage.setItem(key(), JSON.stringify({ name: S.name, level: (S.done && !S.lost) ? S.level + 1 : S.level, stars: S.stars, line: S.line, closed: S.closed, targets: S.targets, quests: S.quests, borrowed: S.borrowed })); localStorage.setItem('fold.name', S.name); } catch (e) {} }
+  function save() { try { localStorage.setItem(key(), JSON.stringify({ name: S.name, level: (S.done && !S.lost) ? S.level + 1 : S.level, stars: S.stars, line: S.line, closed: S.closed, targets: S.targets, quests: S.quests, borrowed: S.borrowed, crossed: S.crossed })); localStorage.setItem('fold.name', S.name); } catch (e) {} }
   const at = o => ((o % (D.pi.length - 4)) + D.pi.length - 4) % (D.pi.length - 4);   // past the tape's end the head wraps, as the plan reads it
   const window4 = o => parseInt(D.pi.slice(at(o), at(o) + 4), 10) % 257;
   // SHIFT: the target is t·3^k after k moves; the shortest road is the least k with a road of k moves from s to t·3^k
@@ -66,7 +66,7 @@ window.GAME = (function () {
     S.day = F.dayNumber(new Date()); S.head = S.day + 13; S.plan = plan || null;
     S.goldDay = S.day % 128 === 0; S.tabletDay = S.day % 258 === 0; S.dayCell = S.day % 257;   // the day table: cell = day mod 66048, gold every 128th, a tablet cell every 258th
     const kept = S.mode === 'daily' ? load() : null; const mine = kept && kept.name === S.name;
-    S.level = mine ? kept.level : 1; S.stars = mine ? kept.stars : []; S.line = mine ? kept.line : []; S.closed = mine ? kept.closed : 0; S.targets = mine ? (kept.targets || []) : []; S.quests = mine ? (kept.quests || []) : []; S.borrowed = mine ? (kept.borrowed || 0) : 0;
+    S.level = mine ? kept.level : 1; S.stars = mine ? kept.stars : []; S.line = mine ? kept.line : []; S.closed = mine ? kept.closed : 0; S.targets = mine ? (kept.targets || []) : []; S.quests = mine ? (kept.quests || []) : []; S.borrowed = mine ? (kept.borrowed || 0) : 0; S.crossed = !!(mine && kept.crossed);
     // a save from before chapter marks holds quest cells only. Chapters are answered in order, so match them one cell each, as a multiset, and
     // credit a cell left over (a quest the data moved since it was answered) to the earliest chapter reached whose quest is still open
     if (S.plan && S.mode === 'daily' && S.quests.length && !S.quests.some(x => typeof x === 'string')) {
@@ -84,9 +84,10 @@ window.GAME = (function () {
     S.flip = !!spec.flip || (S.mode === 'daily' && Math.floor((L - 1) / 8) === 5);   // THE MIRROR's chapter opens the 6 ↔ 9 flip
     S.opsList = S.flip ? F.OPS.concat([F.FLIP]) : F.OPS;
     S.start = spec.start; S.target0 = spec.target; S.target = spec.target; S.current = S.start; S.road = [S.start]; S.moves = 0; S.ops = []; S.visited = new Set([S.start]);
-    S.par = spec.target == null ? null : S.shift ? solveShift(S.start, S.target).length : (spec.par != null && !S.flip && !(S.goldDay && S.mode === 'daily' && !S.shift)) ? spec.par : F.cost(F.solve(S.start, S.target, S.free, S.opsList), S.free);
+    // a level that counts its free moves keeps its own par: on a gold day THE EYE's Γ Γ stays par 2, not the 0 of a recount (S4)
+    S.par = spec.target == null ? null : S.shift ? solveShift(S.start, S.target).length : (spec.par != null && (S.countFree || (!S.flip && !(S.goldDay && S.mode === 'daily' && !S.shift)))) ? spec.par : F.cost(F.solve(S.start, S.target, S.free, S.opsList), S.free);
     S.toEye = toEye(S.opsList); S.dist = dist(); S.climb = []; S.tau = 0; S.real = 0; S.rate = 1;
-    S.t0 = performance.now(); S.armed = false; S.done = false; S.lost = false; S.seen = false; S._lostShown = false; S.ended = false;
+    S.t0 = performance.now(); S.armed = false; S.done = false; S.lost = false; S.seen = false; S.seenInf = false; S._lostShown = false; S.ended = false;
     S.hints = 0; S.hinted = null;   // HINT: the presses on this level, and the last road it gave ({at: the moves made then, from, road})
     return S;
   }
@@ -104,7 +105,7 @@ window.GAME = (function () {
     if (v === S.target) {
       if (S.clock) S.borrowed += S.real - S.tau;
       S.done = true; S.stars[S.level - 1] = Math.min(S.hints > 1 ? 2 : 3, S.moves <= S.par + S.slack ? 3 : S.moves <= S.par + 1 + S.slack ? 2 : 1);   // STORE's slack: par + 1 still closes; a second HINT caps at ★★
-      if (S.strict && S.moves > S.par) { S.stars[S.level - 1] = 0; S.lost = true; } else { S.closed++; S.line.push(D.cells[S.target].w); S.targets.push(S.target); }
+      if (S.strict && S.moves > S.par) { S.stars[S.level - 1] = 0; S.lost = true; } else { S.closed++; S.line.push(D.cells[S.target].w); S.targets.push(S.target); if (S.kind === 'eye' && S.road.includes(F.INF)) S.crossed = true; }   // S4: closed through ∞
       save();
     } else if (S.strict && S.moves > S.par) { S.lost = true; S.stars[S.level - 1] = 0; save(); }
     return v;

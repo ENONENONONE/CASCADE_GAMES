@@ -60,6 +60,9 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 .arrow i{position:absolute;left:-6px;top:-110px;width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:14px solid var(--green)}
 .arrow.tg i{border-bottom-color:var(--gold)}
 .arrow.eye i{top:-92px;border-bottom-color:var(--text);opacity:.7}
+.arrow.tap::after{content:'';position:absolute;left:-22px;top:-126px;width:44px;height:44px;pointer-events:auto;cursor:pointer}
+#slam{position:absolute;left:0;right:0;top:36%;padding:0 16px;text-align:center;font:600 clamp(24px,6.5vw,52px)/1.15 var(--mono);letter-spacing:.08em;color:var(--gold);text-shadow:0 0 16px rgba(0,0,0,.95);opacity:0;transition:opacity .3s ease-out;pointer-events:none}
+#slam.on{opacity:1;transition:opacity .08s ease-in}
 .effort{display:inline-flex;align-items:flex-end;gap:2px;height:14px;position:relative;padding-bottom:3px}
 .effort[hidden]{display:none}
 .effort .s{width:9px;height:12px;border:1px solid var(--line);border-radius:2px;box-sizing:border-box;position:relative}
@@ -134,6 +137,7 @@ html.calm *{transition:none!important;animation:none!important}
   <div class="arrow" id="arr-cur" hidden><i></i></div>
   <div class="arrow tg" id="arr-tg" hidden><i></i></div>
   <div class="arrow eye" id="arr-eye" hidden><i></i></div>
+  <div id="slam" role="status" aria-live="polite"></div>
   <div id="panel" hidden><button class="x" id="panel-x">×</button><div id="panel-body"></div></div>
   <div id="ops" hidden></div>
   <div id="chap" hidden><div class="card" id="chapbody"></div></div>
@@ -151,11 +155,12 @@ html.calm *{transition:none!important;animation:none!important}
 <script src="parts/shaders/fx.js"></script>
 <script src="parts/relief/relief.js"></script>
 <script src="parts/corpus/material.js"></script>
+<script src="parts/well/well.js"></script>
 <script>
 (function () {
   'use strict';
   const F = window.FIELD, G = window.GAME, A = window.AR, D = window.CASCADE_DATA, $ = id => document.getElementById(id);
-  const STORY = window.FOLD_STORY || null, SND = window.FOLD_SOUND || null, LV = window.FOLD_LEVELS || null, FX = window.FOLD_FX || null, RL = window.FOLD_RELIEF || null;
+  const STORY = window.FOLD_STORY || null, SND = window.FOLD_SOUND || null, LV = window.FOLD_LEVELS || null, FX = window.FOLD_FX || null, RL = window.FOLD_RELIEF || null, WELL = window.FOLD_WELL || null;
   const toast = (t, ms) => { const e = $('toast'); e.textContent = t; e.classList.add('on'); clearTimeout(e._t); e._t = setTimeout(() => e.classList.remove('on'), ms || 1800); };
   // ── sound: the designed set when it is loaded, else a sine a cell ──
   const LS = { get: k => { try { return localStorage.getItem(k); } catch (e) { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} } };
@@ -193,17 +198,21 @@ html.calm *{transition:none!important;animation:none!important}
   const canvas = $('c'); A.init(canvas, D.cells);
   const gpu = (() => { try { const gl = A.A.renderer.getContext(), x = gl.getExtension('WEBGL_debug_renderer_info'); return x ? String(gl.getParameter(x.UNMASKED_RENDERER_WEBGL)) : ''; } catch (e) { return ''; } })();
   const tiny = /VideoCore|V3D|Broadcom|llvmpipe|SwiftShader/i.test(gpu), lowEnd = tiny || /Mali|PowerVR|Adreno \(TM\) [3-5]/i.test(gpu) || (navigator.hardwareConcurrency || 8) <= 4 || /Raspbian|armv7/i.test(navigator.userAgent);
-  if (FX && FX.sky && A.A.scene) { try { const s = FX.sky({ samples: tiny ? 0 : lowEnd ? 13 : 23 }); const q = FX.quad(THREE, s); q.renderOrder = -10; /* opaque, drawn first: the relief's marks stand over it */ A.A.camera.add(q); q.position.z = -1; A.A.sky = q; A.A.stars.visible = false; } catch (e) { console.warn('sky shader', e); } }
+  // the eye's lens (S1) by tier: 'full' bends the sky, the cells and their lines; 'tiny' draws the shadow and the ring only, as a quad;
+  // fold.prefs {lens: 'full' | 'tiny' | 'off'} overrides; in the room (XR) the cells bend alone
+  const LENS = WELL ? (PREFS.lens || (tiny ? 'tiny' : 'full')) : 'off';
+  if (FX && FX.sky && A.A.scene) { try { const s = FX.sky({ samples: tiny ? 0 : lowEnd ? 13 : 23, lens: LENS === 'full' }); const q = FX.quad(THREE, s); q.renderOrder = -10; /* opaque, drawn first: the relief's marks stand over it */ A.A.camera.add(q); q.position.z = -1; A.A.sky = q; A.A.stars.visible = false; } catch (e) { console.warn('sky shader', e); } }
   // the CRT as a shader overlay when the module is loaded: scanlines bowed by the barrel, the tube's edge, a phosphor pulse on each move
   let crtU = null, warpU = null, crtQ = null, warpQ = null;
   if (FX && FX.crt && FX.quad) { try { const spec = FX.crt(); const q = FX.quad(THREE, spec); q.renderOrder = 998; crtQ = q; A.A.scene.add(q); crtU = spec.uniforms; FX.resize(crtU, A.A.renderer); $('crt').style.display = 'none'; window.addEventListener('resize', () => FX.resize(crtU, A.A.renderer)); } catch (e) { console.warn('crt', e); } }
   if (FX && FX.warp && FX.quad) { try { const spec = FX.warp(); const q = FX.quad(THREE, spec); q.renderOrder = 999; q.visible = false; warpQ = q; A.A.scene.add(q); warpU = spec.uniforms; window.addEventListener('resize', () => { warpU.aspect.value = window.innerWidth / Math.max(1, window.innerHeight); }); } catch (e) { console.warn('warp', e); } }
+  if (WELL && WELL.mount && LENS !== 'off') { try { WELL.mount(THREE, A, { tier: LENS, FX, sky: A.A.sky }); } catch (e) { console.warn('well', e); } }
   let xrSupported = false; if (navigator.xr && navigator.xr.isSessionSupported) navigator.xr.isSessionSupported('immersive-ar').then(ok => { xrSupported = !!ok; $('xrnote').hidden = !ok; }).catch(() => {});
   // ── ops ──
   const opsEl = $('ops');
   for (const o of F.OPS.concat([F.FLIP])) { const b = document.createElement('button'); b.dataset.op = o.id; if (o.id === 'flip') b.hidden = true; b.style.setProperty('--c', 'hsl(' + o.hue + ' 70% 65%)'); b.innerHTML = o.label + '<small>' + o.name + '</small>'; b.title = o.tell; b.onclick = () => move(o.id); opsEl.appendChild(b); }
   const aux = (t, f, title) => { const b = document.createElement('button'); b.className = 'aux'; b.textContent = t; b.title = title || ''; b.onclick = f; opsEl.appendChild(b); return b; };
-  aux('UNDO', () => { if (busy) return; const id = G.undo(); if (id) { say(STORY && STORY.ops && STORY.ops.undo || 'the move is taken back'); paint(); monStep(G.S); } }, 'take the last move back');
+  aux('UNDO', () => { if (busy) return; const was = G.S.current, id = G.undo(); if (id) { say(STORY && STORY.ops && STORY.ops.undo || 'the move is taken back'); paint(); monStep(G.S); if (G.S.kind === 'eye') cross('undo', G.S.current, was, 600); } }, 'take the last move back');
   // HINT: the road from where you stand as chips under the target, its first move flashed; the first of a level is free, each one after
   // caps the level at ★★ (game.js askHint)
   aux('HINT', () => { const S = G.S, h = G.askHint(); if (!h || !h.length) return toast(S.target == null ? 'no target in a free walk: read the cells' : S.current === S.target ? 'you are there' : 'the level is over'); flash(h[0]); paint(); toast(S.hints > 1 ? 'hint ' + S.hints + ' · this level closes at ★★ at most' : 'free hint · another caps the level at ★★', 2600); }, 'the road from where you stand: the first hint of a level is free, each one after caps the level at ★★');
@@ -266,7 +275,7 @@ html.calm *{transition:none!important;animation:none!important}
     opsEl.style.gridTemplateColumns = S.flip ? 'repeat(7,1fr)' : 'repeat(6,1fr)';
     effort(S);
     const q = S.quest; $('quest').hidden = !q; if (q) { const done = G.answered(q); $('quest').className = done ? 'done' : ''; $('quest').textContent = (done ? '✓ ' : '? ') + q.ask; }
-    A.paint({ current: S.current, target: S.target, home: S.home, visited: S.visited, reach: G.reach(), road: S.road, ops: S.opsList }); A.tape(D.pi, S.offset);
+    A.paint({ current: S.current, target: S.target, home: S.home, visited: S.visited, reach: G.reach(), road: S.road, ops: S.opsList, eye: S.kind === 'eye' }); A.tape(D.pi, S.offset);
   }
   // ── the effort bar (H2): par + slack segments and one dim 2★; a counted move fills one by what it did to the solver's distance:
   // closer blue and full, kept grey and half height, further orange and notched below the line; whitened by the move's heat, the
@@ -302,9 +311,29 @@ html.calm *{transition:none!important;animation:none!important}
     snd.op(id); roomFx(id, k); say(STORY && STORY.ops && STORY.ops[id] || o.tell); monStep(S);
     const lv = S.level, epoch = S.epoch = (S.epoch || 0) + 1, mine = () => G.S.level === lv && G.S.epoch === epoch;   // a timer of this move only
     setTimeout(() => { busy = false; if (mine()) snd.cell(v); }, A.A.flowDur * 1000 * 0.9);
-    paint(); voiceOf(v);
-    if (S.done || S.lost) { S._lostShown = true; slow = k > 1 ? mine : null; setTimeout(() => { if (!mine()) return; slow = null; if (S.done && !S.lost) snd.win(S.target, S.stars[S.level - 1]); else snd.lose(); won(); }, A.A.flowDur * 1000 + 150); }
+    paint(); voiceOf(v); if (S.kind === 'eye') cross(id, v, S.road[S.road.length - 2], A.A.flowDur * 1000);
+    const wait = S.kind === 'eye' && S.done && !S.lost && S.road.includes(F.INF) ? Math.max(A.A.flowDur * 1000, 3350) : A.A.flowDur * 1000;   // the crossing's card waits out the 3.35 s rebirth
+    if (S.done || S.lost) { S._lostShown = true; slow = k > 1 ? mine : null; setTimeout(() => { if (!mine()) return; slow = null; if (S.done && !S.lost) snd.win(S.target, S.stars[S.level - 1]); else snd.lose(); won(); }, wait + 150); }
   }
+  // ── the crossing (S4): on THE EYE, Γ from 137 slams ∞'s own words in and turns the sky to its negative over the flow, and on a screen with
+  // no camera, gyro or room eases the view up toward the zenith, as far as the pitch goes (1.4 rad); Γ out of ∞ to 1 slams I AM, eases the
+  // view back and the field is reborn by the bloom, 1 first after SEED. Leaving ∞ any other way (a move, UNDO) brings the sky back. The
+  // negative is one gated onset (dL ≤ 0.02 on the dark sky, under the gate, so never refused); the slams are type only ──
+  const XS = { neg: 0, from: 0, to: 0, t0: 0, ms: 1, look: null, back: null }, NEG = { dL: 0.02, area: 1 };
+  const slam = t => { const e = $('slam'); e.textContent = t; e.classList.add('on'); clearTimeout(e._t); e._t = setTimeout(() => e.classList.remove('on'), 680); };   // 80 ms in, 600 held, 300 out
+  const lift = () => !calm && !A.A.deviceQ && $('video').style.display !== 'block' && !A.A.renderer.xr.isPresenting;   // never move the view under gyro, camera or room
+  const look = (to, ms) => { XS.look = { from: { yaw: A.A.yaw, pitch: A.A.pitch }, to, t0: performance.now(), ms }; };
+  function cross(id, v, from, ms) {
+    const want = v === F.INF ? 1 : 0;
+    if (want !== XS.to && (!want || !FX || !FX.strobe || FX.strobe(NEG))) { XS.from = XS.neg; XS.to = want; XS.t0 = performance.now(); XS.ms = ms; }
+    if (id === 'gam' && from === A.EYE && v === F.INF) { slam('∞ · 1/0 · the open circuit'); if (lift()) { XS.back = { yaw: A.A.yaw, pitch: A.A.pitch }; look({ yaw: A.A.yaw, pitch: 1.4 }, ms); } }
+    else if (from === F.INF) { if (id === 'gam' && v === 1) { slam('I AM'); A.bloom(3.2); snd.bloom(3.2); } if (XS.back) { look(XS.back, ms); XS.back = null; } }
+  }
+  function crossStep(now) {
+    const u = A.A.sky && A.A.sky.material.uniforms.negate; if (u && (u.value || XS.to)) { const x = Math.min(1, (now - XS.t0) / XS.ms); XS.neg = XS.from + (XS.to - XS.from) * x * x * (3 - 2 * x); u.value = XS.neg; }
+    const l = XS.look; if (l) { const x = Math.min(1, (now - l.t0) / l.ms), s = x * x * (3 - 2 * x); A.A.yaw = l.from.yaw + (l.to.yaw - l.from.yaw) * s; A.A.pitch = l.from.pitch + (l.to.pitch - l.from.pitch) * s; if (x >= 1) XS.look = null; }
+  }
+  const crossReset = () => { XS.neg = XS.from = XS.to = 0; XS.look = XS.back = null; const u = A.A.sky && A.A.sky.material.uniforms.negate; if (u) u.value = 0; };
   // a tap during bullet time: the pending card's timer dropped (the epoch moves on), the flow landed, the chord and the card at once
   function skip() { const m = slow; slow = null; if (!m || !m()) return false; const S = G.S; S.epoch++; busy = false; A.A.flowT0 = -10; snd.win(S.target, S.stars[S.level - 1]); won(); return true; }
   // the room's moves pass the one flash gate (U3): Γ's inversion and the FOLD, INV and ×i flips change the whole screen, 0.652 over a
@@ -332,7 +361,7 @@ html.calm *{transition:none!important;animation:none!important}
   function voiceOf(n) { if (STORY && STORY.cells && STORY.cells[n]) { const lv = G.S.level; setTimeout(() => { if (G.S.level === lv) say(STORY.cells[n]); }, A.A.flowDur * 1000); } }
   function won() {
     const S = G.S, L = G.lineInfo(), t = G.cellInfo(S.target), st = S.stars[S.level - 1] || 0;
-    const h = S.lost ? '<h2 class="lost">' + (S.clock ? 'HALT' : 'SYNC') + ' · the level is lost</h2>' : '<h2>' + (S.moves <= S.par + S.slack ? 'CLOSED' : 'REACHED') + ' · ' + t.glyphs + ' ' + (t.n === F.INF ? '∞' : t.n) + ' ' + t.word + '</h2><div class="stars">' + '★'.repeat(st) + '<span style="color:var(--line)">' + '★'.repeat(3 - st) + '</span>' + (S.seen ? ' <span style="font-size:12px;color:var(--blue)">sighted</span>' : '') + '</div>';
+    const h = S.lost ? '<h2 class="lost">' + (S.clock ? 'HALT' : 'SYNC') + ' · the level is lost</h2>' : '<h2>' + (S.kind === 'eye' && S.road.includes(F.INF) ? 'THROUGH THE EYE · ' : '') + (S.moves <= S.par + S.slack ? 'CLOSED' : 'REACHED') + ' · ' + t.glyphs + ' ' + (t.n === F.INF ? '∞' : t.n) + ' ' + t.word + '</h2><div class="stars">' + '★'.repeat(st) + '<span style="color:var(--line)">' + '★'.repeat(3 - st) + '</span>' + (S.seen ? ' <span style="font-size:12px;color:var(--blue)">sighted</span>' : '') + (S.seenInf ? ' <span style="font-size:12px;color:var(--blue)">sighted ∞</span>' : '') + '</div>';
     const road = S.ops.map(id => F.OP[id].label).join(' ') || '—';
     // HALT: the proper seconds against the real ones (S3), and the zone plate's terraces left at the close (R5)
     const rings = Math.max(0, Math.ceil((S.clock - S.tau) / (S.clock / 10) - 1e-9));
@@ -353,7 +382,7 @@ html.calm *{transition:none!important;animation:none!important}
   }
   function openLevel() {
     const S = G.S; if (S.ended) return endDay();
-    paint(); snd.rule(S.rule.name); monFloor(); monApply(S); if (MON.floor && MON.floor.reset) MON.floor.reset(); slow = null;
+    paint(); snd.rule(S.rule.name); monFloor(); monApply(S); if (MON.floor && MON.floor.reset) MON.floor.reset(); slow = null; crossReset();
     const ch = chapterOf(S.level); if (S.mode === 'daily' && (S.level - 1) % 8 === 0 && STORY && STORY.chapters && STORY.chapters[ch]) return chapter(ch);
     const dayLine = STORY && STORY.days && STORY.days[S.digit] ? STORY.days[S.digit].line : S.rule.tell;
     toast((S.mode === 'free' ? 'free walk' : 'level ' + S.level + ' · ' + titleOf(S)) + ' · ' + S.rule.name, 2600);
@@ -372,7 +401,7 @@ html.calm *{transition:none!important;animation:none!important}
     const stars = S.stars.reduce((a, b) => a + (b || 0), 0);
     const fill = (t, k, v) => t.split('{' + k + '}').join(String(v));   // every occurrence, and old Safari has no replaceAll
     const txt = fill(fill(fill(fill(tpl, 'word', L.word), 'cell', L.cell), 'mirror', D.cells[L.mirror].w + ' ' + L.mirror), 'stars', stars);
-    $('wonbody').innerHTML = '<h2 class="ch">THE SEAL · ' + G.today() + '</h2><p class="epi">' + txt + '</p><p>' + S.closed + ' levels closed · ' + stars + ' stars · the line: <b>' + (L.txt || '—') + '</b> ≡ ' + L.cell + ' ' + L.word + '</p>' + (seal ? '<p>product of the targets ≡ <b>' + seal.cell + ' ' + seal.word + '</b></p>' : '') + (Math.abs(S.borrowed || 0) >= 0.05 ? '<p>' + S.borrowed.toFixed(1) + ' s borrowed from the eye today</p>' : '') + '<div class="btns"><button class="big" id="again">WALK ON</button><button id="share2">SHARE</button></div>';
+    $('wonbody').innerHTML = '<h2 class="ch">THE SEAL · ' + G.today() + '</h2><p class="epi">' + txt + '</p><p>' + S.closed + ' levels closed · ' + stars + ' stars · the line: <b>' + (L.txt || '—') + '</b> ≡ ' + L.cell + ' ' + L.word + '</p>' + (seal ? '<p>product of the targets ≡ <b>' + seal.cell + ' ' + seal.word + '</b></p>' : '') + (Math.abs(S.borrowed || 0) >= 0.05 ? '<p>' + S.borrowed.toFixed(1) + ' s borrowed from the eye today</p>' : '') + (S.crossed ? '<p>∞ · crossed: through the eye to I AM</p>' : '') + '<div class="btns"><button class="big" id="again">WALK ON</button><button id="share2">SHARE</button></div>';
     $('won').hidden = false; $('again').onclick = () => { $('won').hidden = true; const nm = $('name').value; G.start(nm, 'free', [LV && LV.free ? LV.free(nm) : { n: 1, kind: 'free', start: F.letterSum(nm) % 257, target: null, rule: 0, free: [] }]); openLevel(); };
     $('share2').onclick = () => { const t = 'THE FOLD · ' + G.today() + ' · ' + S.closed + ' closed · ' + stars + ' stars · ' + txt; if (navigator.share) navigator.share({ text: t }).catch(() => {}); else { navigator.clipboard && navigator.clipboard.writeText(t); toast('copied'); } };
   }
@@ -401,13 +430,14 @@ html.calm *{transition:none!important;animation:none!important}
     if (G.questDone(n)) { toast('the quest is answered: ' + n + ' ' + c.word, 2600); paint(); }
   }
   $('panel-x').onclick = () => $('panel').hidden = true;
+  $('arr-cur').onclick = () => { const S = G.S; if (S.kind === 'eye' && S.current === F.INF && !S.done && !S.seenInf) { S.seenInf = true; toast('∞ sighted: the open circuit at the zenith'); } };
   // ── looking: device orientation, drag, keys ──
   let drag = null, moved = false;
   canvas.addEventListener('pointercancel', () => { drag = null; });
-  canvas.addEventListener('pointerdown', e => { if (!e.isPrimary) return; drag = { x: e.clientX, y: e.clientY, yaw: A.A.yaw, pitch: A.A.pitch, ty: A.A.touchYaw }; moved = false; canvas.setPointerCapture(e.pointerId); });
+  canvas.addEventListener('pointerdown', e => { if (!e.isPrimary) return; XS.look = null; drag = { x: e.clientX, y: e.clientY, yaw: A.A.yaw, pitch: A.A.pitch, ty: A.A.touchYaw }; moved = false; canvas.setPointerCapture(e.pointerId); });
   canvas.addEventListener('pointermove', e => { if (!drag) return; const dx = e.clientX - drag.x, dy = e.clientY - drag.y; if (Math.abs(dx) + Math.abs(dy) > 4) moved = true; const k = 0.0035; if (A.A.deviceQ) A.A.touchYaw = drag.ty + dx * k; else { A.A.yaw = drag.yaw + dx * k; A.A.pitch = Math.max(-1.4, Math.min(1.4, drag.pitch + dy * k)); } });
   canvas.addEventListener('pointerup', e => { const d = drag; drag = null; if (!d || moved || $('start').hidden === false) return; if (slow && skip()) return; const r = canvas.getBoundingClientRect(); const nx = (e.clientX - r.left) / r.width * 2 - 1, ny = -((e.clientY - r.top) / r.height * 2 - 1); const n = A.pick(nx, ny); if (n != null) showCell(n); });
-  window.addEventListener('keydown', e => { if (slow && (e.key === ' ' || e.key === 'Escape') && skip()) return; const k = 0.08; if (e.key === 'ArrowLeft') A.A.yaw += k; if (e.key === 'ArrowRight') A.A.yaw -= k; if (e.key === 'ArrowUp') A.A.pitch = Math.min(1.4, A.A.pitch + k); if (e.key === 'ArrowDown') A.A.pitch = Math.max(-1.4, A.A.pitch - k); const m = { g: 'g', G: 'ig', f: 'fold', i: 'inv', q: 'i', r: 'gam' }[e.key]; if (m && !$('hud').hidden && $('chap').hidden && $('won').hidden && document.activeElement !== $('name')) move(m); if (e.key === 'u' && !busy && !$('hud').hidden && $('chap').hidden) { const id = G.undo(); if (id) { paint(); monStep(G.S); } } });
+  window.addEventListener('keydown', e => { if (slow && (e.key === ' ' || e.key === 'Escape') && skip()) return; const k = 0.08; if (e.key === 'ArrowLeft') A.A.yaw += k; if (e.key === 'ArrowRight') A.A.yaw -= k; if (e.key === 'ArrowUp') A.A.pitch = Math.min(1.4, A.A.pitch + k); if (e.key === 'ArrowDown') A.A.pitch = Math.max(-1.4, A.A.pitch - k); const m = { g: 'g', G: 'ig', f: 'fold', i: 'inv', q: 'i', r: 'gam' }[e.key]; if (m && !$('hud').hidden && $('chap').hidden && $('won').hidden && document.activeElement !== $('name')) move(m); if (e.key === 'u' && !busy && !$('hud').hidden && $('chap').hidden) { const was = G.S.current, id = G.undo(); if (id) { paint(); monStep(G.S); if (G.S.kind === 'eye') cross('undo', G.S.current, was, 600); } } });
   async function sensors() { try { if (window.DeviceOrientationEvent && typeof DeviceOrientationEvent.requestPermission === 'function') { const r = await DeviceOrientationEvent.requestPermission(); if (r !== 'granted') return false; } } catch (e) { return false; } window.addEventListener('deviceorientation', A.onOrientation, true); return true; }
   async function cameraOn() { if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return false; try { const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 } }, audio: false }); const v = $('video'); v.srcObject = s; v.style.display = 'block'; await v.play().catch(() => {}); A.A.stars.visible = false; if (A.A.sky) A.A.sky.visible = false; return true; } catch (e) { return false; } }
   // ── the compass arrows and the clock ──
@@ -420,6 +450,9 @@ html.calm *{transition:none!important;animation:none!important}
       el.hidden = !off; if (off) { let x = s.x, y = s.y; if (!s.front) { x = -x; y = -y; } const ang = Math.atan2(x, y); el.style.transform = 'rotate(' + ang + 'rad)'; }
       if (n === S.target && !off && id !== 'arr-eye') S.seen = true;
     }
+    // S1, S4: ∞ sighted while you stand on it, on the screen or by a tap on the arrow that points to it (under gyro ∞ needs a 55° tilt)
+    const onInf = S.kind === 'eye' && S.current === F.INF && !S.done; $('arr-cur').classList.toggle('tap', onInf);
+    if (onInf) { const s = A.onScreen(F.INF); if (s.front && Math.abs(s.x) <= 1 && Math.abs(s.y) <= 1) S.seenInf = true; }
     // the clock in proper seconds; under S3 with the rate tag and τ against the real seconds, the ticks and the drone slowed by the rate
     const left = G.tick(), rate = left != null && slowClock ? S.rate : 1;
     $('clock').textContent = left == null ? '' : left.toFixed(0) + ' s' + (slowClock ? ' · ×' + rate.toFixed(2) + ' · τ ' + S.tau.toFixed(1) + ' of ' + S.real.toFixed(1) + ' s real' : ''); if (left != null) snd.clock(left, rate); snd.dilate(rate);
@@ -449,7 +482,7 @@ html.calm *{transition:none!important;animation:none!important}
       s.addEventListener('end', () => { A.A.renderer.xr.enabled = false; $('video').style.display = had.video; if (had.video !== 'none') cameraOn(); A.A.stars.visible = had.stars; if (A.A.sky) A.A.sky.visible = had.sky; if (crtQ) { crtQ.visible = had.crt; FX.resize(crtU, A.A.renderer); } A.resize(); }); } catch (e) { toast('AR did not open: ' + (e.message || e)); if (stream) cameraOn(); }
   }
   // ── the loop ──
-  A.A.renderer.setAnimationLoop(() => { const t = (performance.now() - A.A.t0) / 1000; if (A.A.sky && A.A.sky.material.uniforms.time) A.A.sky.material.uniforms.time.value = t; if (crtU) crtU.time.value = t; if (warpU) { warpU.time.value = t; warpQ.visible = warpU.t.value > 0 && !A.A.renderer.xr.isPresenting; } A.frame(); arrows(); });
+  A.A.renderer.setAnimationLoop(() => { const t = (performance.now() - A.A.t0) / 1000; if (A.A.sky && A.A.sky.material.uniforms.time) A.A.sky.material.uniforms.time.value = t; if (crtU) crtU.time.value = t; if (warpU) { warpU.time.value = t; warpQ.visible = warpU.t.value > 0 && !A.A.renderer.xr.isPresenting; } if (WELL) WELL.step(G.S, { cam: $('video').style.display === 'block' }); crossStep(performance.now()); A.frame(); arrows(); });
   window.FOLD_DEBUG = { paint, openLevel, move, monFloor, monApply, monStep, MON, showCell, endDay, G, A };  // for a console or a test, not for play
   document.addEventListener('visibilitychange', () => { if (!document.hidden && ac && ac.state === 'suspended') ac.resume(); });
   if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
