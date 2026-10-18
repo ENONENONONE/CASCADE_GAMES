@@ -168,11 +168,12 @@ html.calm *{transition:none!important;animation:none!important}
 <script src="parts/well/well.js"></script>
 <script src="parts/void/void.js"></script>
 <script src="parts/rays/rays.js"></script>
+<script src="parts/glow/glow.js"></script>
 <script>
 (function () {
   'use strict';
   const F = window.FIELD, G = window.GAME, A = window.AR, D = window.CASCADE_DATA, $ = id => document.getElementById(id);
-  const STORY = window.FOLD_STORY || null, SND = window.FOLD_SOUND || null, LV = window.FOLD_LEVELS || null, FX = window.FOLD_FX || null, RL = window.FOLD_RELIEF || null, WELL = window.FOLD_WELL || null, VOID = window.FOLD_VOID || null;
+  const STORY = window.FOLD_STORY || null, SND = window.FOLD_SOUND || null, LV = window.FOLD_LEVELS || null, FX = window.FOLD_FX || null, RL = window.FOLD_RELIEF || null, WELL = window.FOLD_WELL || null, VOID = window.FOLD_VOID || null, GLW = window.FOLD_GLOW || null;
   const toast = (t, ms) => { const e = $('toast'); e.textContent = t; e.classList.add('on'); clearTimeout(e._t); e._t = setTimeout(() => e.classList.remove('on'), ms || 1800); };
   // ── sound: the designed set when it is loaded, else a sine a cell ──
   const LS = { get: k => { try { return localStorage.getItem(k); } catch (e) { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} } };
@@ -218,11 +219,16 @@ html.calm *{transition:none!important;animation:none!important}
   // `tiny` GPU, off on llvmpipe (software, no GPU at all); fold.prefs {rain: 'full' | 'sparse' | 'off'} overrides. VIEW or v hides it
   const RAIN = ['full', 'sparse', 'off'].includes(PREFS.rain) ? PREFS.rain : /llvmpipe/i.test(gpu) ? 'off' : tiny ? 'sparse' : 'full';
   if (A.rainInit) { try { A.rainInit(D.pi, RAIN); if (A.A.rainB) A.A.rainB.mesh.visible = LS.get('fold.view') !== 'none'; } catch (e) { console.warn('rain', e); A.A.rainB = null; } }
-  // the CRT as a shader overlay when the module is loaded: scanlines bowed by the barrel, the tube's edge, a phosphor pulse on each move
-  let crtU = null, warpU = null, crtQ = null, warpQ = null;
-  if (FX && FX.crt && FX.quad) { try { const spec = FX.crt(); const q = FX.quad(THREE, spec); q.renderOrder = 998; crtQ = q; A.A.scene.add(q); crtU = spec.uniforms; FX.resize(crtU, A.A.renderer); $('crt').style.display = 'none'; window.addEventListener('resize', () => FX.resize(crtU, A.A.renderer)); } catch (e) { console.warn('crt', e); } }
+  // the CRT as a shader overlay when the module is loaded: scanlines bowed by the barrel, the tube's edge, a phosphor pulse on each move; it
+  // lives in a scene of its own (`over`), drawn after the GLOW composite, so the scanlines are never bloomed. The Γ warp stays in the scene
+  let crtU = null, warpU = null, crtQ = null, warpQ = null; const over = new THREE.Scene();
+  if (FX && FX.crt && FX.quad) { try { const spec = FX.crt(); const q = FX.quad(THREE, spec); q.renderOrder = 998; crtQ = q; over.add(q); crtU = spec.uniforms; FX.resize(crtU, A.A.renderer); $('crt').style.display = 'none'; window.addEventListener('resize', () => FX.resize(crtU, A.A.renderer)); } catch (e) { console.warn('crt', e); } }
   if (FX && FX.warp && FX.quad) { try { const spec = FX.warp(); const q = FX.quad(THREE, spec); q.renderOrder = 999; q.visible = false; warpQ = q; A.A.scene.add(q); warpU = spec.uniforms; window.addEventListener('resize', () => { warpU.aspect.value = window.innerWidth / Math.max(1, window.innerHeight); }); } catch (e) { console.warn('warp', e); } }
   if (WELL && WELL.mount && LENS !== 'off') { try { WELL.mount(THREE, A, { tier: LENS, FX, sky: A.A.sky }); } catch (e) { console.warn('well', e); } }
+  // GLOW (parts/glow): the scene into a half-res target, then bloom, the eye's and the floor's shafts, glitter and the grade as one pass;
+  // fold.prefs {glow: 'on' | 'off' | 'auto'}: auto leaves `tiny` off and `lowEnd` with bloom alone, on is the full pass anywhere; never in XR
+  let glow = null; const glowTier = () => GLW ? GLW.tierFor(PREFS.glow, { tiny, lowEnd }) : 'off';
+  if (GLW && GLW.mount) { try { glow = GLW.mount(THREE, A.A.renderer, { tier: glowTier(), FX, scene: A.A.scene }); } catch (e) { console.warn('glow', e); glow = null; } }
   let xrSupported = false; if (navigator.xr && navigator.xr.isSessionSupported) navigator.xr.isSessionSupported('immersive-ar').then(ok => { xrSupported = !!ok; $('xrnote').hidden = !ok; }).catch(() => {});
   // ── ops ──
   const opsEl = $('ops');
@@ -241,6 +247,11 @@ html.calm *{transition:none!important;animation:none!important}
   const bView = aux('VIEW', () => view(), 'the π tape as the rain behind the field, on or off (key v)');
   function view() { const B = A.A.rainB; if (!B) return toast('the rain is off on this device'); B.mesh.visible = !B.mesh.visible; LS.set('fold.view', B.mesh.visible ? 'rain' : 'none'); bView.setAttribute('aria-pressed', B.mesh.visible); if (!B.mesh.visible) A.readEnd(); toast(B.mesh.visible ? 'the rain: the π tape, 78 digits a column, a column a dlog tick' : 'rain off', 2400); }
   bView.setAttribute('aria-pressed', !!(A.A.rainB && A.A.rainB.mesh.visible));
+  // GLOW: the post pass on or off (key b), kept in fold.prefs; off ↔ the device's own tier, or the full pass where that tier is off. The
+  // change is under the gate's threshold (the pass adds ~0.03 of luminance over the dark sky), and it ramps over 600 ms; a step under CALM
+  const bGlow = GLW ? aux('GLOW', () => glowToggle(), 'bloom, golden shafts, glitter and the grade over the field, on or off (key b)') : null;
+  function glowToggle() { if (!glow) return toast('no glow on this device'); const on = glow.tier !== 'off' && glow.want !== 'off'; PREFS.glow = on ? 'off' : GLW.tierFor('auto', { tiny, lowEnd }) === 'off' ? 'on' : 'auto'; LS.set('fold.prefs', JSON.stringify(PREFS)); glow.setTier(glowTier()); bGlow.setAttribute('aria-pressed', !on); toast(on ? 'glow off' : 'the glow: the field blooms in its own colours, the eye and the floor cast their shafts, the brightest points glitter', 2600); }
+  if (bGlow) bGlow.setAttribute('aria-pressed', !!(glow && glow.tier !== 'off'));
   // ── the twelve rays (T1, T4): the field drawn flat, spoke dlog mod 12 and ring dlog div 12, an inset by the quest box; a tap on it or t
   // opens the TUBE, in which the whole day plays in 2D and the 3D frame is skipped, never in the room, where the inset alone rides the
   // dom-overlay. `tiny` draws the inset at 30 fps. RAYS or m toggles the inset, kept in fold.prefs ──
@@ -574,7 +585,7 @@ html.calm *{transition:none!important;animation:none!important}
   canvas.addEventListener('pointerdown', e => { if (!e.isPrimary) return; XS.look = null; drag = { x: e.clientX, y: e.clientY, yaw: A.A.yaw, pitch: A.A.pitch, ty: A.A.touchYaw }; moved = false; canvas.setPointerCapture(e.pointerId); });
   canvas.addEventListener('pointermove', e => { if (!drag) return; const dx = e.clientX - drag.x, dy = e.clientY - drag.y; if (Math.abs(dx) + Math.abs(dy) > 4) moved = true; const k = 0.0035; if (A.A.deviceQ) A.A.touchYaw = drag.ty + dx * k; else { A.A.yaw = drag.yaw + dx * k; A.A.pitch = Math.max(-1.4, Math.min(1.4, drag.pitch + dy * k)); } });
   canvas.addEventListener('pointerup', e => { const d = drag; drag = null; if (!d || moved || $('start').hidden === false) return; if (slow && skip()) return; if (bard && bard.skip()) return; if (A.readEnd && A.readEnd()) return; const r = canvas.getBoundingClientRect(); const nx = (e.clientX - r.left) / r.width * 2 - 1, ny = -((e.clientY - r.top) / r.height * 2 - 1); if (A.pickTape && A.pickTape(nx, ny)) return type(G.S.spec && G.S.spec.text || G.S.rule.tell); const n = A.pick(nx, ny); if (n != null) showCell(n); });
-  window.addEventListener('keydown', e => { if (slow && (e.key === ' ' || e.key === 'Escape') && skip()) return; if (bard && (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') && bard.skip()) { e.preventDefault(); return; } if ((e.key === ' ' || e.key === 'Escape') && A.readEnd && A.readEnd()) return; if (raysKey(e)) return; if (e.key === 'v' && !$('hud').hidden && document.activeElement !== $('name')) view(); const k = 0.08; if (e.key === 'ArrowLeft') A.A.yaw += k; if (e.key === 'ArrowRight') A.A.yaw -= k; if (e.key === 'ArrowUp') A.A.pitch = Math.min(1.4, A.A.pitch + k); if (e.key === 'ArrowDown') A.A.pitch = Math.max(-1.4, A.A.pitch - k); const m = { g: 'g', G: 'ig', f: 'fold', i: 'inv', q: 'i', r: 'gam' }[e.key]; if (m && !$('hud').hidden && $('chap').hidden && $('won').hidden && document.activeElement !== $('name')) move(m); if (e.key === 'u' && !busy && !$('hud').hidden && $('chap').hidden) { const was = G.S.current, id = G.undo(); if (id) { paint(); monStep(G.S); if (G.S.kind === 'eye') cross('undo', G.S.current, was, 600); } } });
+  window.addEventListener('keydown', e => { if (slow && (e.key === ' ' || e.key === 'Escape') && skip()) return; if (bard && (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') && bard.skip()) { e.preventDefault(); return; } if ((e.key === ' ' || e.key === 'Escape') && A.readEnd && A.readEnd()) return; if (raysKey(e)) return; if (e.key === 'v' && !$('hud').hidden && document.activeElement !== $('name')) view(); if (e.key === 'b' && !$('hud').hidden && document.activeElement !== $('name')) glowToggle(); const k = 0.08; if (e.key === 'ArrowLeft') A.A.yaw += k; if (e.key === 'ArrowRight') A.A.yaw -= k; if (e.key === 'ArrowUp') A.A.pitch = Math.min(1.4, A.A.pitch + k); if (e.key === 'ArrowDown') A.A.pitch = Math.max(-1.4, A.A.pitch - k); const m = { g: 'g', G: 'ig', f: 'fold', i: 'inv', q: 'i', r: 'gam' }[e.key]; if (m && !$('hud').hidden && $('chap').hidden && $('won').hidden && document.activeElement !== $('name')) move(m); if (e.key === 'u' && !busy && !$('hud').hidden && $('chap').hidden) { const was = G.S.current, id = G.undo(); if (id) { paint(); monStep(G.S); if (G.S.kind === 'eye') cross('undo', G.S.current, was, 600); } } });
   async function sensors() { try { if (window.DeviceOrientationEvent && typeof DeviceOrientationEvent.requestPermission === 'function') { const r = await DeviceOrientationEvent.requestPermission(); if (r !== 'granted') return false; } } catch (e) { return false; } window.addEventListener('deviceorientation', A.onOrientation, true); return true; }
   async function cameraOn() { if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return false; try { const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 } }, audio: false }); const v = $('video'); v.srcObject = s; v.style.display = 'block'; await v.play().catch(() => {}); A.A.stars.visible = false; A.A.rainAlpha = 0.35; if (A.A.sky) A.A.sky.visible = false; return true; } catch (e) { return false; } }
   // ── the compass arrows and the clock ──
@@ -622,9 +633,28 @@ html.calm *{transition:none!important;animation:none!important}
       await A.A.renderer.xr.setSession(s); $('video').style.display = 'none'; A.A.stars.visible = false; if (A.A.sky) A.A.sky.visible = false; if (crtQ) crtQ.visible = false; toast('the field is in the room');
       s.addEventListener('end', () => { A.A.renderer.xr.enabled = false; $('video').style.display = had.video; if (had.video !== 'none') cameraOn(); A.A.stars.visible = had.stars; if (A.A.sky) A.A.sky.visible = had.sky; if (crtQ) { crtQ.visible = had.crt; FX.resize(crtU, A.A.renderer); } A.resize(); }); } catch (e) { toast('AR did not open: ' + (e.message || e)); if (stream) cameraOn(); }
   }
+  // ── the 3D frame: the scene (into GLOW's half-res target when it is on), GLOW's passes and composite, then the CRT overlay; in the room
+  // the compositor owns the frame, so neither. The glow's lights are read after the frame, from the camera as it was drawn: the eye's ring
+  // (well.js: a and e above 0) at 137's screen place, SEED at the floor's centre with the twelve spokes' screen directions, each fading out
+  // as it leaves the screen; over the camera the shafts go faint ──
+  const GS = { eye: [0, 0], eyeA: 0, floor: [0, 0], floorA: 0, spokes: new Float32Array(24), spokeCol: new Float32Array(36), room: false, calm: false }, gv = new THREE.Vector3();
+  const SPOKES = []; for (let r = 0; r < 12; r++) { const a = r / 12 * Math.PI * 2; SPOKES.push(new THREE.Vector3(Math.sin(a) * 3, -2.4, -Math.cos(a) * 3)); const c = A.RAY_RGB[r]; GS.spokeCol.set(c, r * 3); }
+  const edge = s => 1 - Math.min(1, Math.max(0, (Math.max(Math.abs(s.x), Math.abs(s.y)) - 1) / 0.4));   // 1 on the screen, 0 past 1.4 of it
+  function glowState() {
+    const cam = A.A.camera, asp = cam.aspect, ws = WELL ? WELL.state() : null, s = A.onScreen(A.EYE);
+    GS.eye[0] = (s.x + 1) / 2; GS.eye[1] = (s.y + 1) / 2; GS.eyeA = ws && ws.a > 0 && ws.e > 0 && s.front ? ws.a * edge(s) : 0;
+    const f = A.onScreen(0); GS.floor[0] = (f.x + 1) / 2; GS.floor[1] = (f.y + 1) / 2; GS.floorA = f.front ? edge(f) : 0;
+    if (GS.floorA > 0) for (let r = 0; r < 12; r++) { gv.copy(SPOKES[r]).project(cam); let dx = (gv.x - f.x) * asp, dy = gv.y - f.y; const l = Math.hypot(dx, dy) || 1; GS.spokes[2 * r] = dx / l; GS.spokes[2 * r + 1] = dy / l; }
+    GS.room = $('video').style.display === 'block'; GS.calm = calm; return GS;
+  }
+  function frame3d(xr) {
+    const g = !!glow && !xr && glow.tier !== 'off'; if (g) glow.begin();
+    A.frame(); if (g) glow.end(glowState());
+    if (!xr && crtQ && crtQ.visible) { const r = A.A.renderer; r.autoClear = false; r.render(over, A.A.camera); r.autoClear = true; }
+  }
   // ── the loop ──
-  A.A.renderer.setAnimationLoop(() => { const t = (performance.now() - A.A.t0) / 1000; if (A.A.sky && A.A.sky.material.uniforms.time) A.A.sky.material.uniforms.time.value = t; if (crtU) crtU.time.value = t; if (warpU) { warpU.time.value = t; warpQ.visible = warpU.t.value > 0 && !A.A.renderer.xr.isPresenting; } if (WELL) WELL.step(G.S, { cam: $('video').style.display === 'block' }); crossStep(performance.now()); const xr = A.A.renderer.xr.isPresenting; if (!RAYS.tube || xr) A.frame(); arrows(); clockStep(); raysFrame(xr); });   // the TUBE skips the 3D frame, never in the room
-  window.FOLD_DEBUG = { paint, openLevel, move, monFloor, monApply, monStep, MON, showCell, endDay, bardo, reborn, G, A, RAYS, raysTube };  // for a console or a test, not for play
+  A.A.renderer.setAnimationLoop(() => { const t = (performance.now() - A.A.t0) / 1000; if (A.A.sky && A.A.sky.material.uniforms.time) A.A.sky.material.uniforms.time.value = t; if (crtU) crtU.time.value = t; if (warpU) { warpU.time.value = t; warpQ.visible = warpU.t.value > 0 && !A.A.renderer.xr.isPresenting; } if (WELL) WELL.step(G.S, { cam: $('video').style.display === 'block' }); crossStep(performance.now()); const xr = A.A.renderer.xr.isPresenting; if (!RAYS.tube || xr) frame3d(xr); arrows(); clockStep(); raysFrame(xr); });   // the TUBE skips the 3D frame, never in the room
+  window.FOLD_DEBUG = { paint, openLevel, move, monFloor, monApply, monStep, MON, showCell, endDay, bardo, reborn, G, A, RAYS, raysTube, frame3d, glowToggle, glowState, get glow() { return glow; } };  // for a console or a test, not for play
   document.addEventListener('visibilitychange', () => { if (!document.hidden && ac && ac.state === 'suspended') ac.resume(); });
   if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
 })();
