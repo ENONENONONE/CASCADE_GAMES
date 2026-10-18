@@ -34,6 +34,15 @@ Tune: `uniforms.stars` (star brightness), `rays` (spokes), `breath` (0..1, depth
 `sky({stars: N})` for another lattice (N < 2048 keeps every index exact in mediump); in the GLSL the core width `exp(-q * 24000.0)`
 (≈ 0.4° radius) and the star magnitudes `0.3 + 0.7 h²`. `time` is seconds, unbounded: the shader wraps it in highp before use.
 
+`sky({lens: true})` (S1, parts/well/notes.md) adds the eye's lens: uniforms `lensDir`, `lensE` (θE, radians, 0 off), `lensA` (the
+shadow and ring, 0..1) and `horizon` (the shadow's radius), and splices `halo()` in. Before anything is drawn the view direction θ
+from the eye is replaced by its source β = θ − θE²/θ (θ by atan, not acos), so the stars, band and spokes bend; after the breathing
+the shadow darkens by smoothstep(horizon, 1.15·horizon, θ) and the gold ring, airyGlow(1.3405·θ/θE, 0.45) × `LENS_GAIN` 2.5 for
+1 ≤ r ≤ 1.831 only, is laid over it (relative luminance 0.059 at its peak). Off (lensE 0) it is one uniform branch; lit about 45 ops,
+an atan, a sqrt, a sin, a cos and airyGlow's pow and cos (+3 % at 23 samples). Left out of the sky where it has no stars to bend
+(`tiny`, 0 samples): well.js draws the shadow and ring as a quad there. `negate` (S4, always present, 0 by default) turns the field
+to its negative, max(0.120·green − col, 0), before the breathing: never brighter than the band, stars and spokes black.
+
 ## halo() — `float airy(float r)` for the cells
 
 A GLSL string to splice above `main()` of the cell fragment shader. `airy(0) = 1`, the first dark ring at `r = 1`, the second at
