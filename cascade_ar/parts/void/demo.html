@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0a0d10">
+<title>THE FOLD · void demo</title>
+<style>
+:root{--ground:#0a0d10;--panel:rgba(12,16,20,.82);--line:#24302a;--text:#e8f3e4;--dim:#8fa796;--gold:#c9a84c;--green:#5fd37a;--blue:#7fb8ff;--red:#ff7b7b;--mono:ui-monospace,"SF Mono",Menlo,"DejaVu Sans Mono",monospace}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--ground);color:var(--text);font:14px/1.4 var(--mono);overflow:hidden}
+#c{position:fixed;inset:0;width:100%;height:100%;display:block}
+#ui{position:fixed;inset:0;pointer-events:none} #ui>*{pointer-events:auto}
+#bar{position:absolute;left:0;right:0;top:0;padding:10px 12px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;background:linear-gradient(rgba(10,13,16,.92),rgba(10,13,16,0))}
+button{font:600 13px var(--mono);letter-spacing:.06em;color:var(--text);background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px;cursor:pointer;min-height:44px}
+button[aria-pressed="true"]{border-color:var(--gold);color:var(--gold)} button.big{border-color:var(--green);color:var(--green)}
+#state{color:var(--dim);font-size:12px}
+#chap{display:none}
+#won{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(10,13,16,.74)} #won[hidden]{display:none}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px 22px;max-width:440px;width:100%;max-height:86vh;overflow:auto}
+.card h2{margin:0 0 6px;font-size:18px;color:var(--gold);letter-spacing:.08em} .card p{margin:6px 0;font-size:13px;color:var(--dim)} .card .epi{font:italic 13px/1.5 system-ui,sans-serif;color:var(--text)}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="ui">
+  <div id="bar"><button class="big" id="go">LOSE · THE BARDO</button><button id="calm" aria-pressed="false">CALM</button><button id="lift" aria-pressed="true">LIFT</button><button id="again">THE FIELD BACK</button><span id="state">drag to look · a tap, Enter or Esc skips</span></div>
+  <div id="chap"></div>
+  <div id="won" hidden><div class="card" id="wonbody"></div></div>
+</div>
+<script src="../../vendor/three.min.js"></script>
+<script src="../../data.js"></script>
+<script src="../../field.js"></script>
+<script src="../../ar.js"></script>
+<script src="../story/story.js"></script>
+<script src="../shaders/fx.js"></script>
+<script src="../corpus/material.js"></script>
+<script src="void.js"></script>
+<script>
+// the bardo on its own: a lost SYNC level from 50 to 233 (day 9422's level 8) played as the page plays it, the field drawn by ar.js
+(function () {
+  'use strict';
+  const F = window.FIELD, A = window.AR, V = window.FOLD_VOID, FX = window.FOLD_FX, $ = id => document.getElementById(id);
+  A.init($('c'), window.CASCADE_DATA.cells);
+  const road = [50, 150, 193, 65, 195, 71, 213], S = { day: 9422, mode: 'demo', level: 8, start: 50, target: 233, free: new Set(), opsList: F.OPS };
+  const paint = () => A.paint({ current: road[road.length - 1], target: S.target, home: 56, visited: new Set(road), reach: new Set(), road, ops: F.OPS });
+  paint(); A.bloom(0);
+  let calm = false, lift = true, bard = null, n = 0;
+  $('calm').onclick = () => { calm = !calm; A.A.calm = calm; FX.calm(calm); $('calm').setAttribute('aria-pressed', calm); };
+  $('lift').onclick = () => { lift = !lift; $('lift').setAttribute('aria-pressed', lift); };
+  $('again').onclick = () => { $('won').hidden = true; A.life(); paint(); }; $('won').onclick = () => { $('won').hidden = true; };   // a tap on the card puts it away
+  $('go').onclick = () => { $('won').hidden = true; A.life(); paint(); S.level = 8 + 100 * n++;   // a fresh level each press: the full flight once a level
+    const t0 = performance.now(); bard = V.bardo(S, { A, FX, calm, xr: false, lift: lift && !calm, done: () => { bard = null; $('state').textContent = 'card at ' + Math.round(performance.now() - t0) + ' ms'; $('wonbody').innerHTML = V.card(S, { par: 2, still: calm }); $('won').hidden = false; } }); };
+  window.addEventListener('keydown', e => { if (bard && (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape')) bard.skip(); const k = 0.08; if (e.key === 'ArrowLeft') A.A.yaw += k; if (e.key === 'ArrowRight') A.A.yaw -= k; });
+  let drag = null; $('c').addEventListener('pointerdown', e => { drag = { x: e.clientX, y: e.clientY, yaw: A.A.yaw, pitch: A.A.pitch }; });
+  $('c').addEventListener('pointermove', e => { if (!drag) return; A.A.yaw = drag.yaw + (e.clientX - drag.x) * 0.0035; A.A.pitch = Math.max(-1.4, Math.min(1.4, drag.pitch + (e.clientY - drag.y) * 0.0035)); });
+  $('c').addEventListener('pointerup', e => { const d = drag; drag = null; if (bard && d && Math.abs(e.clientX - d.x) + Math.abs(e.clientY - d.y) < 5) bard.skip(); });
+  A.A.renderer.setAnimationLoop(() => A.frame());
+})();
+</script>
+</body>
+</html>

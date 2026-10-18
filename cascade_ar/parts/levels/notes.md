@@ -3,7 +3,8 @@
 `levels.js` defines `window.FOLD_LEVELS`, pure functions over `FIELD` and `CASCADE_DATA`. `plan(day, name)` gives the same 64
 levels for the same day and name on every device; nothing is kept in the module. `test.js` (`node test.js`) plans today and day 9384
 for TORAH, plays every level by the field's own solver and checks it closes in par, then loads game.js in node and plays today by its
-HINT (THE ENGINE) and HALT's slow clock and the effort (THE SLOW CLOCK): 3226 checks on day 9422, 0 failed.
+HINT (THE ENGINE), HALT's slow clock and the effort (THE SLOW CLOCK), and the second life (THE BARDO: every losable level lost and
+reborn from 80, the flag off, a reload in the second life): 5208 checks on day 9422, 0 failed.
 
 ## The day: eight chapters of eight
 

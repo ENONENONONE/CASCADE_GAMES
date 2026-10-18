@@ -54,6 +54,10 @@ window.FOLD_STORY = (function () {
     8532: { cell: 51, text: 'The third door, 8532: one step to 6174. It reads as 51, the NONCE, the LEDGER, GEMATRIA, the WAVE. Three doors, each a single step from the room.' },
     6174: { cell: 6, text: 'The room: 6174, which stays 6174. The field reads it as 6, F, ABBA, CARBON Z: twice the generator. Every four-figure number with two digits unalike arrives in seven steps or fewer.' },
   };
+  // ── the void (V1–V4): what is said when the view leaves the body; the bardo's death is spoken from 38, the node ──
+  const voids = {
+    death: { cell: 38, text: 'DEATH at the node: dlog 173; Γ 19; inverse 115.' },
+  };
   // ── the seal at the end of the day; index.html fills the braces from GAME.lineInfo and the stars ──
   const seal = 'Night. The line of the day reads {word}; its letters add to {cell}, and its mirror is {mirror}. {stars} stars were earned on the road. Sealed under {word}, cell {cell}, until the tape moves on.';
   // ── level titles; {start} {target} are cells, {startWord} {targetWord} their first words ──
@@ -227,9 +231,11 @@ window.FOLD_STORY = (function () {
     ['mirror', 'TEMPLE', 91], ['mirror', 'THOTH', 64], ['mirror', 'SAMSON', 81], ['mirror', 'PRESERVATION', 162],
     ['letters', 'AIM', 23], ['letters', 'I AM', 23],
     ['seedMoves', 0],                                                      // SEED: which moves leave cell 0
+    ['pow', 129, 8, 256],                                                  // the tunnel: a fold is eight halvings, 129⁸ ≡ −1
   ];
   // ── letter sums the prose cites (A = 1 … Z = 26, letters only) ──
   const sums = { 'SUNRISE': 105, 'FOLD': 37, 'QUARTER TURN': 173, 'DOORS': 71, 'MIRROR': 91, 'EYE OF HORUS': 137, 'AS ABOVE SO BELOW': 156,
-    'SCRIBE': 56, 'AIM': 23, 'I AM': 23, 'SELF-FOLD': 79, 'INFINITY': 106, 'REFLECTION': 107, 'PRESERVATION': 162, 'SAMSON': 81, 'TEMPLE': 71, 'THOTH': 71 };
-  return { chapters, days, cells, doors, seal, titles, ops, facts, sums, chapterOf: L => Math.min(8, Math.floor((L - 1) / 8) + 1) };
+    'SCRIBE': 56, 'AIM': 23, 'I AM': 23, 'SELF-FOLD': 79, 'INFINITY': 106, 'REFLECTION': 107, 'PRESERVATION': 162, 'SAMSON': 81, 'TEMPLE': 71, 'THOTH': 71,
+    'REBIRTH': 80, 'DEATH': 38, 'TUNNEL': 86 };
+  return { chapters, days, cells, doors, void: voids, seal, titles, ops, facts, sums, chapterOf: L => Math.min(8, Math.floor((L - 1) / 8) + 1) };
 })();
