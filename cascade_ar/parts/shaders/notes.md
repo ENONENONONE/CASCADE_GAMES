@@ -107,6 +107,28 @@ and that spot smears at large t — run t to 0.3 … 0.45 and back, not to 1.
   scene of its own (or made visible after the grab), since one `render()` cannot copy the buffer between two of its meshes.
 `warpRun(uniforms, peak = 0.35, ms = 900)` raises t to the peak over the first third and lets the persistence law bring it down.
 
+## calm() / strobe() — CALM and the one flash gate (WCAG 2.3.1)
+
+`calm(on)` sets CALM (no argument reads it). index.html sets it from `matchMedia('(prefers-reduced-motion: reduce)')`, live on
+'change', or from the MOTION pref (`fold.prefs` {motion: 'system' | 'full' | 'reduced'}), and keeps its own flag too, since FX may be
+absent. Under CALM `pulse()` and `warpRun()` do not start and one already running ends on its next frame, `cssFilter()` holds the
+picture still with Γ as a hue turn without the inversion, and `strobe()` admits no flash. ar.js reads the page's `A.calm`: the flow is
+pinned (no cell travels; the busy gate keeps its time) and the bloom is a still.
+
+`strobe({dL, area, rgb, lo}, now)` is asked before every large change of luminance and answers true or false. A flash is an opposing
+change of relative luminance `dL` ≥ 0.1 with its darker state `lo` below 0.8 (0 if not given), over `area` ≥ 21824/786432 of the screen
+(2.8 %: a quarter of WCAG's 10° field, 341 × 256 px at 1024 × 768; 1 if not given), or a saturated red over that area,
+R/(R + G + B) ≥ 0.8 on the linear R, G, B of `rgb` (sRGB 0..1). At most 3 onsets in any 1000 ms, at least 334 ms apart, none under
+CALM; anything below the threshold passes and is not counted. A refused flash runs its fallback, a fade by the persistence law over
+600 ms: in index.html the room holds still (Γ a hue turn), and Γ's red CRT tint (0.82; the warp's [1, 0.55, 0.5] is 0.68 and passes)
+gives way to the phosphor's green. Sources today: the Γ room inversion and the FOLD, INV and ×i flips (dL 0.652 over a grey-0.2 room,
+full screen), and Γ's CRT tint, which rides an admitted room flash as the same onset. The CRT pulse itself is under the threshold
+(0.033 at most) and passes; STROBE off (`fold.prefs` {strobe: 'off'}) drops the inversion, caps the pulse at 0.42 and drops the warp.
+
+`node parts/shaders/check.js` drives the gate by a fake clock, 20 requests a second for 5 s, and asserts at most 3 admitted onsets in
+every sliding second, 334 ms apart, none under CALM, every sub-threshold request admitted, and the gate not shut (3 in the first
+second). It is a node check, kept out of sw.js SHELL.
+
 ## mediump, and what was checked
 
 Every fragment is written for a 16-bit float: no fract of a product past 2048, no coefficient below 6 × 10⁻⁵, no sin or cos of an
