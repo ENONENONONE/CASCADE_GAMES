@@ -8,8 +8,8 @@ model's thinking goes to stderr. It does not edit files itself; for an agent tha
 use the subagent in Claude Code or the Claude Agent SDK.
 
     pip install -r requirements.txt
-    python3 games_designer_api.py "add a night sky mode to THE FOLD" ../cascade_ar/index.html ../cascade_ar/ar.js
-    python3 games_designer_api.py --out answer.md "review game.js for bugs" ../cascade_ar/game.js
+    python3 games_designer_api.py "add a night sky mode to THE FOLD" cascade_ar/index.html cascade_ar/ar.js
+    python3 games_designer_api.py --out answer.md "review game.js for bugs" cascade_ar/game.js
 
 Credentials: ANTHROPIC_API_KEY, or an `ant auth login` profile.
 """
