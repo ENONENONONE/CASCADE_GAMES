@@ -1,7 +1,8 @@
 // THE FOLD — the shaders. window.FOLD_FX: the sky when there is no camera, the Airy halo of a cell, the phosphor overlay, the room's
-// CSS moves and the Γ warp. Everything is WebGL1 GLSL ES 1.00 for three.js r128 (PlaneBufferGeometry, ShaderMaterial), written for
-// phones (iOS Safari, Android Chrome), a Raspberry Pi and the RK3588's Mali: precision mediump by default, highp only where a raster
-// coordinate or a long time needs it, loops of 23, no derivatives, no 3-D textures, normal alpha blending only, one draw call each.
+// CSS moves, the Γ warp, and CALM with the one flash gate every large change of luminance passes. Everything is WebGL1 GLSL ES 1.00
+// for three.js r128 (PlaneBufferGeometry, ShaderMaterial), written for phones (iOS Safari, Android Chrome), a Raspberry Pi and the
+// RK3588's Mali: precision mediump by default, highp only where a raster coordinate or a long time needs it, loops of 23, no
+// derivatives, no 3-D textures, normal alpha blending only, one draw call each.
 //
 // The look is the machine's: the P22 phosphor and its persistence F(T) = cos(πT)·exp(−0.5T), the scanlines, the 2.34 % barrel
 // r/(1 + 0.0234 r²), the Airy disc [2J₁(ρ)/ρ]² with its dark rings at 3.8317, 7.0156 and 10.1735, the golden angle 137.508° and the
@@ -17,6 +18,7 @@ window.FOLD_FX = (function () {
   const MOEBIUS_A = 0.47;  // 120/257 = Z₀ scaled to the unit screen: Γ's zero at +a, its pole at −a
   // ── the phosphor's own clock: F(T) = cos(πT)·exp(−0.5T) from 1 at T = 0 down to 0 at T = ½, the sign kept out ──
   const persistence = T => T <= 0 ? 1 : T >= 0.5 ? 0 : Math.cos(Math.PI * T) * Math.exp(-0.5 * T);
+  let CALM = false;        // §6: the player's reduced motion, set by calm(); pulse(), warpRun() and the room's moves read it live
   // precision: mediump by default; a raster coordinate or a running clock takes highp where the fragment stage has it
   const PRECISION = `precision mediump float;
 #ifdef GL_FRAGMENT_PRECISION_HIGH
@@ -199,13 +201,15 @@ void main() {
     };
     return { vertexShader: QUAD_VS, fragmentShader, uniforms, blending: 'normal', depthTest: false, depthWrite: false, transparent: true, renderOrder: 1000 };
   }
-  // the pulse: set to `strength` and let the phosphor's own law bring it down over `ms`; one timer per uniforms object
+  // the pulse: set to `strength` and let the phosphor's own law bring it down over `ms`; one timer per uniforms object. Under CALM it
+  // stays 0, no flash and no retrace band sweeping, and one already running ends on its next frame
   function pulse(uniforms, tintRGB, strength, ms) {
     if (!uniforms || !uniforms.pulse) return;
+    if (CALM) { uniforms.pulse.value = 0; return; }
     if (tintRGB) uniforms.tint.value = [tintRGB[0], tintRGB[1], tintRGB[2]];
     const s = strength == null ? 1 : strength, dur = ms || 600, t0 = performance.now();
     if (uniforms._pulseRaf) cancelAnimationFrame(uniforms._pulseRaf);
-    const step = () => { const T = 0.5 * (performance.now() - t0) / dur; uniforms.pulse.value = s * persistence(T); if (T < 0.5) uniforms._pulseRaf = requestAnimationFrame(step); else { uniforms.pulse.value = 0; uniforms._pulseRaf = 0; } };
+    const step = () => { const T = CALM ? 0.5 : 0.5 * (performance.now() - t0) / dur; uniforms.pulse.value = s * persistence(T); if (T < 0.5) uniforms._pulseRaf = requestAnimationFrame(step); else { uniforms.pulse.value = 0; uniforms._pulseRaf = 0; } };
     step();
   }
   // the resolution the overlay needs: the drawing buffer, from the renderer when there is one
@@ -222,10 +226,13 @@ void main() {
   // negated: the mirror the other way); ×i turns it a quarter; Γ inverts it and keeps the hues (the reflection); ×g and ÷g turn the hue
   // by one tick of the cycle, 360/256° = 1.40625°, and the picture by the same, a scale hiding the edge. The base filter of the page,
   // saturate(.75) brightness(.8), is kept in every string. Returns {filter, transform, toString}; the string form is a cssText.
+  // opts.still (CALM, or a flash the gate refused): the picture holds still and Γ is a hue turn without the inversion; opts.invert
+  // false (STROBE off) drops the inversion only.
   const BASE_FILTER = 'saturate(.75) brightness(.8)';
   const TICK = (360 / 256).toFixed(5) + 'deg';
   function cssFilter(opId, opts) {
     opts = opts || {};
+    const still = !!opts.still || CALM, inv = !still && opts.invert !== false;
     const asp = opts.aspect || (window.innerWidth / Math.max(1, window.innerHeight));
     const cover = Math.max(asp, 1 / asp).toFixed(3);              // the scale that keeps a quarter-turned cover-fit video covering
     const r = {
@@ -234,8 +241,9 @@ void main() {
       fold: { filter: BASE_FILTER, transform: 'scaleX(-1)' },
       inv: { filter: BASE_FILTER, transform: 'scaleY(-1)' },
       i: { filter: BASE_FILTER, transform: 'rotate(90deg) scale(' + cover + ')' },
-      gam: { filter: BASE_FILTER + ' invert(1) hue-rotate(180deg)', transform: 'scale(1.06)' },
+      gam: { filter: BASE_FILTER + (inv ? ' invert(1)' : '') + ' hue-rotate(180deg)', transform: 'scale(1.06)' },
     }[opId] || { filter: BASE_FILTER, transform: 'none' };
+    if (still) r.transform = 'none';
     r.toString = function () { return 'filter:' + this.filter + ';transform:' + this.transform; };
     return r;
   }
@@ -317,12 +325,35 @@ void main() {
     }
     renderer.copyFramebufferToTexture(renderer._fxZero || (renderer._fxZero = new THREE.Vector2(0, 0)), tex); uniforms.useMap.value = 1; return true;
   }
-  // run the warp: t rises to `peak` over the first third of `ms` and comes down by the persistence law
+  // run the warp: t rises to `peak` over the first third of `ms` and comes down by the persistence law; under CALM it does not run,
+  // and one already running ends on its next frame
   function warpRun(uniforms, peak, ms) {
-    if (!uniforms || !uniforms.t) return; const p = peak == null ? 0.35 : peak, dur = ms || 900, t0 = performance.now();
+    if (!uniforms || !uniforms.t) return; if (CALM) { uniforms.t.value = 0; return; } const p = peak == null ? 0.35 : peak, dur = ms || 900, t0 = performance.now();
     if (uniforms._warpRaf) cancelAnimationFrame(uniforms._warpRaf);
-    const step = () => { const x = (performance.now() - t0) / dur; let v; if (x < 1 / 3) { const u = x * 3; v = p * u * u * (3 - 2 * u); } else v = p * persistence(0.5 * (x - 1 / 3) * 1.5); uniforms.t.value = Math.max(0, v); if (x < 1) uniforms._warpRaf = requestAnimationFrame(step); else { uniforms.t.value = 0; uniforms._warpRaf = 0; } };
+    const step = () => { const x = CALM ? 1 : (performance.now() - t0) / dur; let v; if (x < 1 / 3) { const u = x * 3; v = p * u * u * (3 - 2 * u); } else v = p * persistence(0.5 * (x - 1 / 3) * 1.5); uniforms.t.value = Math.max(0, v); if (x < 1) uniforms._warpRaf = requestAnimationFrame(step); else { uniforms.t.value = 0; uniforms._warpRaf = 0; } };
     step();
+  }
+
+  // ═══ 6. CALM and the flash gate: one path for every large change of luminance (WCAG 2.3.1) ═══
+  // calm(on) is the player's reduced motion, the system's prefers-reduced-motion or the MOTION pref as the page reads it: nothing flashes,
+  // pulse() and warpRun() stay still and the room's moves hold. strobe({dL, area, rgb, lo}, now) asks before a flash and answers true or
+  // false. A flash is an opposing change of relative luminance dL ≥ 0.1, its darker state lo below 0.8 (0 when not given), over at least
+  // 2.8 % of the screen (area, a fraction of it, 1 when not given: a quarter of WCAG's 10° field of 341 × 256 px at 1024 × 768, 21824 px²),
+  // or any saturated red over that area, R/(R + G + B) ≥ 0.8 on the linear R, G, B of the relative-luminance definition (rgb is sRGB
+  // 0..1). The gate admits at most 3 onsets in any 1000 ms, at least 334 ms (⌈1000/3⌉) apart, and none under CALM; a change below the
+  // threshold, a type-only appearance on black among them, always passes and is not counted. A refused flash runs its fallback: a fade by
+  // the persistence law over 600 ms. now is in ms, performance.now() when not given; parts/shaders/check.js drives it by a fake clock.
+  const FLASH = { dL: 0.1, lo: 0.8, area: 21824 / (1024 * 768), red: 0.8, n: 3, win: 1000, gap: Math.ceil(1000 / 3) };
+  const onsets = [];
+  const calm = on => { if (on != null) CALM = !!on; return CALM; };
+  const linear = c => c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  const redOf = rgb => { if (!rgb) return 0; const r = linear(rgb[0]), s = r + linear(rgb[1]) + linear(rgb[2]); return s > 0 ? r / s : 0; };
+  const large = q => (q.area == null ? 1 : q.area) >= FLASH.area && (((q.dL || 0) >= FLASH.dL && (q.lo || 0) < FLASH.lo) || redOf(q.rgb) >= FLASH.red);
+  function strobe(q, now) {
+    if (!q || !large(q)) return true; if (CALM) return false;
+    const t = now == null ? performance.now() : now; while (onsets.length && onsets[0] < t - FLASH.win) onsets.shift();
+    if (onsets.length >= FLASH.n || (onsets.length && t - onsets[onsets.length - 1] < FLASH.gap)) return false;
+    onsets.push(t); return true;
   }
 
   // ═══ helpers for whoever mounts these: a quad mesh from a spec (needs THREE) ═══
@@ -330,5 +361,5 @@ void main() {
     const m = new THREE.ShaderMaterial({ vertexShader: spec.vertexShader, fragmentShader: spec.fragmentShader, uniforms: spec.uniforms, transparent: !!spec.transparent, depthTest: !!spec.depthTest, depthWrite: !!spec.depthWrite, blending: THREE.NormalBlending });
     const mesh = new THREE.Mesh(new THREE.PlaneBufferGeometry(2, 2), m); mesh.frustumCulled = false; mesh.renderOrder = spec.renderOrder || 0; return mesh;
   }
-  return { sky, halo, airy: airyJS, crt, pulse, resize, cssFilter, cssReset, cssApply, gammaWarp, warp, grab, warpRun, quad, persistence, GREEN, GOLD, GROUND, BARREL, MOEBIUS_A, PHI_INV, GOLDEN_ANGLE };
+  return { sky, halo, airy: airyJS, crt, pulse, resize, cssFilter, cssReset, cssApply, gammaWarp, warp, grab, warpRun, calm, strobe, quad, persistence, GREEN, GOLD, GROUND, BARREL, MOEBIUS_A, PHI_INV, GOLDEN_ANGLE };
 })();
