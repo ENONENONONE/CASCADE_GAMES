@@ -7,7 +7,9 @@ emerald tablet's words, and six moves (×g, ÷g, FOLD, INV, ×i, Γ) permute the
 levels in eight chapters off the π tape, the rule of a level the digit under its head; the sky is that tape as rain, the eye (137,
 Γ's pole) is a black hole bending the stars and cells round it, a loss is THE BARDO with a second life from 80 REBIRTH, and the
 Twelve Rays draw the field flat as an inset, the TUBE and each chapter's ledger. GLOW: bloom, golden god rays, glitter and a
-cyberpunk grade over the same palette. Phones turn it with the gyro over the camera; desktops and Raspbian drag it.
+cyberpunk grade over the same palette. TRACE: the field's own ray tracer in GF(257), 256 rays from your cell bounced by Γ off the
+chapter's sheets onto a 16 × 16 tile, its light the third of GLOW's shafts. Phones turn it with the gyro over the camera; desktops
+and Raspbian drag it.
 
 | Path | What it is |
 | --- | --- |
@@ -46,6 +48,14 @@ Level 56, THE EYE: 137's shadow in its gold photon ring at full lens tier, the s
 
 GLOW on THE EYE: the ring's golden shafts over the field, every cell blooming in its ray's colour, the rain in phosphor green, the
 brightest points glittering — one post pass over the half-res scene (bloom, god rays, glitter, a grade), the palette unchanged.
+
+![The trace](docs/screenshots/trace.png)
+
+TRACE in play (level 1, the tile at the bottom left beside the rays inset, and at 4× below): the field's own ray tracer — 256
+directions from THE TURN, hits by the character, bounces by Γ and Snell, onto the 16 × 16 display through the Airy beam; its light
+feeds GLOW's shafts, here the third light's from the top of the frame, where the field says the light arrives at the cell.
+
+![The trace tile at 4×](docs/screenshots/trace_tile.png)
 
 ![The bardo card](docs/screenshots/bardo.png)
 
