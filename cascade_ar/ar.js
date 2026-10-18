@@ -151,10 +151,11 @@ window.AR = (function () {
     A.orbit = lineOf([new T.Vector3(), new T.Vector3()], 0xff7b7b, 0); A.scene.add(A.orbit);
     A.moveLines = new T.LineSegments(new T.BufferGeometry(), new T.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.85 })); A.scene.add(A.moveLines);
     A.roadLine = lineOf([new T.Vector3(), new T.Vector3()], 0xffffff, 0.7); A.scene.add(A.roadLine);
+    A.ghostLine = lineOf([new T.Vector3(), new T.Vector3()], 0xff6a2a, 0.35); A.ghostLine.visible = false; A.scene.add(A.ghostLine);   // V3: the life before, dim in descent orange
     // stars when there is no camera: 500 points
     const sp2 = []; for (let i = 0; i < 500; i++) { const u = Math.random() * 2 - 1, ph = Math.random() * Math.PI * 2, r = Math.sqrt(1 - u * u); sp2.push(new T.Vector3(r * Math.cos(ph) * 40, u * 40, r * Math.sin(ph) * 40)); }
     A.stars = new T.Points(new T.BufferGeometry().setFromPoints(sp2), new T.PointsMaterial({ color: 0x8fb996, size: 0.12, sizeAttenuation: true, transparent: true, opacity: 0.6 })); A.scene.add(A.stars);
-    A.yaw = 0; A.pitch = 0; A.deviceQ = null; A.touchYaw = 0; A.t0 = performance.now(); A.flowT0 = -10; A.flowDur = 0.8; A.slow = 1; A.zoom = false; A.fx = [];
+    A.yaw = 0; A.pitch = 0; A.deviceQ = null; A.touchYaw = 0; A.t0 = performance.now(); A.flowT0 = -10; A.flowDur = 0.8; A.slow = 1; A.zoom = false; A.fx = []; A.dim = null; A.fall = null; A.lift = null;
     resize(); window.addEventListener('resize', resize);
     return A;
   }
@@ -192,6 +193,8 @@ window.AR = (function () {
     A.moveLines.geometry.setAttribute('color', new T.Float32BufferAttribute(cols.length ? cols : [0, 0, 0, 0, 0, 0], 3));
     const road = state.road || []; const rp = []; for (let i = 0; i < road.length - 1; i++) rp.push(...arc(place(road[i]), place(road[i + 1]), 12));
     A.roadLine.geometry.dispose(); A.roadLine.geometry = new T.BufferGeometry().setFromPoints(rp.length ? rp : [new T.Vector3(), new T.Vector3()]);
+    const gh = state.ghost || [], gp = []; for (let i = 0; i < gh.length - 1; i++) gp.push(...arc(place(gh[i]), place(gh[i + 1]), 12));
+    A.ghostLine.geometry.dispose(); A.ghostLine.geometry = new T.BufferGeometry().setFromPoints(gp.length ? gp : [new T.Vector3(), new T.Vector3()]); A.ghostLine.visible = gp.length > 0;
     // the ladder of the player's cell: sixteen rungs of halving, ×129; and Γ's orbit of it, 128 points, drawn faint
     if (current != null && current !== 0 && current !== F.INF) {
       const lp = []; let c = current; for (let k = 0; k < 16; k++) { const nx = F.mul(c, 129); lp.push(...arc(place(c), place(nx), 10)); c = nx; }
@@ -216,10 +219,54 @@ window.AR = (function () {
     }
     flag(A.tapeB);
   }
+  // ── the tunnel (V3, V2): rings of cells flown through, one camera-attached LineSegments of every ring (64 segments each) and one
+  // instanced billboard of their atlas slots, both advanced by corridorT 0 → 1; ring k passes the eye at t = (k + 1)/(n + 1). Strokes thin,
+  // opacity ≤ 0.5 (a moving pattern, not a flash); each label inside its ring at its ray's hour (ray 0 at twelve) or at opts.angles[k];
+  // opts {gold: the ring that burns gold, labels, angles, gap, radius, alpha}; dispose() takes it down ──
+  const TUN_VS = `uniform float corridorT; uniform float n; uniform float gap; uniform float radius; uniform float alpha;
+    float depth(float k) { return gap * (k + 1.0) - corridorT * gap * (n + 1.0); }
+    float fade(float z) { return alpha * clamp((z - 0.12) / 0.5, 0.0, 1.0) * clamp((5.0 * gap - z) / (2.0 * gap), 0.0, 1.0); }`;
+  function tunnel(cells, opts) {
+    opts = opts || {}; const n = cells.length, gold = opts.gold == null ? -1 : opts.gold, SEG = 64;
+    const u = { corridorT: { value: 0 }, n: { value: n }, gap: { value: opts.gap || 1 }, radius: { value: opts.radius || 0.9 }, alpha: { value: Math.min(0.5, opts.alpha || 0.5) }, map: { value: A.tex } };
+    const colOf = (c, k) => k === gold ? [1, 0.84, 0.47] : rayColor(c);
+    const pos = new Float32Array(n * SEG * 3), col = new Float32Array(n * SEG * 3), idx = [];
+    cells.forEach((c, k) => { const rgb = colOf(c, k); for (let j = 0; j < SEG; j++) { const a = j / SEG * Math.PI * 2, q = (k * SEG + j) * 3; pos.set([Math.cos(a), Math.sin(a), k], q); col.set(rgb, q); idx.push(k * SEG + j, k * SEG + (j + 1) % SEG); } });
+    const rg = new T.BufferGeometry(); rg.setAttribute('position', new T.BufferAttribute(pos, 3)); rg.setAttribute('aCol', new T.BufferAttribute(col, 3)); rg.setIndex(idx);
+    const rm = new T.ShaderMaterial({ uniforms: u, transparent: true, depthTest: false, depthWrite: false,
+      vertexShader: TUN_VS + `attribute vec3 aCol; varying vec3 vCol; varying float vA;
+        void main(){ float z = depth(position.z); vCol = aCol; vA = fade(z); gl_Position = projectionMatrix * modelViewMatrix * vec4(position.xy * radius, -max(z, 0.06), 1.0); }`,
+      fragmentShader: `varying vec3 vCol; varying float vA; void main(){ if (vA < 0.004) discard; gl_FragColor = vec4(vCol, vA); }` });
+    const rings = new T.LineSegments(rg, rm); rings.frustumCulled = false; rings.renderOrder = 990;
+    const grp = new T.Group(); grp.add(rings);
+    if (opts.labels !== false) {
+      const base = new T.PlaneBufferGeometry(0.5, 0.5), lg = new T.InstancedBufferGeometry(); lg.setAttribute('position', base.getAttribute('position')); lg.setAttribute('uv', base.getAttribute('uv')); lg.setIndex(base.getIndex());
+      const luv = new Float32Array(n * 4), lk = new Float32Array(n * 2), lc = new Float32Array(n * 3); cells.forEach((c, k) => { luv.set(uvOf(c), k * 4); lk.set([k, opts.angles ? opts.angles[k] : Math.max(0, F.ray(c)) * Math.PI / 6], k * 2); lc.set(colOf(c, k), k * 3); });
+      lg.setAttribute('iUV', new T.InstancedBufferAttribute(luv, 4)); lg.setAttribute('iK', new T.InstancedBufferAttribute(lk, 2)); lg.setAttribute('iCol', new T.InstancedBufferAttribute(lc, 3)); lg.instanceCount = n;
+      const lm = new T.ShaderMaterial({ uniforms: u, transparent: true, depthTest: false, depthWrite: false,
+        vertexShader: TUN_VS + `attribute vec4 iUV; attribute vec2 iK; attribute vec3 iCol; varying vec2 vUv; varying vec3 vCol; varying float vA;
+          void main(){ float z = depth(iK.x); vUv = vec2(mix(iUV.x, iUV.z, uv.x), mix(iUV.y, iUV.w, uv.y)); vCol = iCol; vA = min(1.0, 2.0 * fade(z));
+            vec4 mv = modelViewMatrix * vec4(0.7 * radius * sin(iK.y), 0.7 * radius * cos(iK.y), -max(z, 0.06), 1.0); mv.xy += position.xy; gl_Position = projectionMatrix * mv; }`,
+        fragmentShader: `uniform sampler2D map; varying vec2 vUv; varying vec3 vCol; varying float vA;
+          void main(){ vec4 c = texture2D(map, vUv); float a = c.a * vA; if (a < 0.02) discard; gl_FragColor = vec4(c.rgb * (0.65 + 0.35 * vCol), a); }` });
+      const labels = new T.Mesh(lg, lm); labels.frustumCulled = false; labels.renderOrder = 991; grp.add(labels);
+    }
+    A.camera.add(grp);
+    return { obj: grp, u, run: t => { u.corridorT.value = Math.max(0, Math.min(1, t)); }, dispose: () => { A.camera.remove(grp); grp.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); }); } };
+  }
+  // ── the death (V3): the cells' halo eased to v (1 → 0.35, the ribbon's own), the road falling in descent orange, the view lifted out
+  // of the body (V1's lift: 2.4 m up, 3 m back, pitched atan(2.4/3) down, in drag mode only); life() puts the field back ──
+  const ease = x => { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); };
+  function dim(v, dur) { A.dim = { t0: now(), dur: dur || 0, a: A.cellB.mesh.material.uniforms.halo.value, b: v }; }
+  function fall(dur, still) { A.fall = { t0: now(), dur: dur || 0, still: !!still }; A.roadLine.material.color.setHex(0xff6a2a); }   // still: recoloured where it lies
+  function lift(up) { const t = now(); if (up) { if (!A.lift) A.lift = { t0: t, t1: 0 }; } else if (A.lift && !A.lift.t1) A.lift.t1 = t; }
+  function life() { dim(1, 0.6); A.fall = null; A.roadLine.material.color.setHex(0xffffff); A.roadLine.material.opacity = 0.7; A.roadLine.position.y = 0; lift(false); }
+  const LIFT = { up: 2.4, back: 3, pitch: Math.atan2(2.4, 3), dur: 0.8 };
+  const liftOf = t => { const L = A.lift; if (!L) return 0; if (!L.t1) return ease((t - L.t0) / LIFT.dur); const e = ease((t - L.t1) / LIFT.dur); if (e >= 1) A.lift = null; return Math.min(ease((L.t1 - L.t0) / LIFT.dur), 1 - e); };
   // ── looking ──
   const zee = new T.Vector3(0, 0, 1), euler = new T.Euler(), q0 = new T.Quaternion(), q1 = new T.Quaternion(-Math.sqrt(0.5), 0, 0, Math.sqrt(0.5));
   function deviceQuaternion(alpha, beta, gamma, orient) { euler.set(beta, alpha, -gamma, 'YXZ'); const q = new T.Quaternion().setFromEuler(euler); q.multiply(q1); q.multiply(q0.setFromAxisAngle(zee, -orient)); return q; }
-  function look() { if (A.deviceQ) { A.camera.quaternion.copy(A.deviceQ); A.rig.rotation.set(0, A.touchYaw, 0); } else { A.rig.rotation.set(0, 0, 0); A.camera.rotation.set(A.pitch, A.yaw, 0, 'YXZ'); } }
+  function look(h) { if (A.deviceQ) { A.camera.quaternion.copy(A.deviceQ); A.rig.rotation.set(0, A.touchYaw, 0); A.rig.position.set(0, 0, 0); } else { h = h || 0; A.rig.rotation.set(0, 0, 0); A.camera.rotation.set(A.pitch - LIFT.pitch * h, A.yaw, 0, 'YXZ'); A.rig.position.set(Math.sin(A.yaw) * LIFT.back * h, LIFT.up * h, Math.cos(A.yaw) * LIFT.back * h); } }   // h: the lift, 0 in the body
   function onOrientation(e) { if (e.alpha == null) return; const o = (screen.orientation && screen.orientation.angle) || window.orientation || 0; A.deviceQ = deviceQuaternion(e.alpha * Math.PI / 180, e.beta * Math.PI / 180, e.gamma * Math.PI / 180, o * Math.PI / 180); }
   // where a cell falls on the screen: the world point projected through the camera as it hangs in the rig (the camera's world matrix
   // already carries the rig's turn, so it is applied once); scratch vectors, no allocation a call
@@ -239,8 +286,10 @@ window.AR = (function () {
     // bullet time (M4): a slowed flow eases twice, and on a screen the view narrows 70° → 58° and back over it; never in the room
     const slow = A.slow > 1 && f < 1; A.cellB.mesh.material.uniforms.ease.value = slow ? 1 : 0;
     const fov = slow && A.zoom && !A.renderer.xr.isPresenting ? 70 - 12 * Math.sin(Math.PI * f) : 70; if (A.camera.fov !== fov) { A.camera.fov = fov; A.camera.updateProjectionMatrix(); }
+    if (A.dim) { const d = A.dim, x = d.dur ? (t - d.t0) / d.dur : 1; A.cellB.mesh.material.uniforms.halo.value = d.a + (d.b - d.a) * ease(x); if (x >= 1) A.dim = null; }
+    if (A.fall) { const e = A.fall.dur && !A.calm ? ease((t - A.fall.t0) / A.fall.dur) : 1; A.roadLine.position.y = A.calm || A.fall.still ? 0 : -1.2 * e; A.roadLine.material.opacity = 0.7 - 0.35 * e; }
     fade(A.threads, A.flowOp === 'fold' ? 0.45 * live : 0); fade(A.ladder, A.showLadder ? 0.35 : 0); fade(A.orbit, A.showOrbit ? 0.35 : (A.flowOp === 'gam' ? 0.5 * live : 0));
-    if (!A.renderer.xr.isPresenting) look(); A.renderer.render(A.scene, A.camera);
+    if (!A.renderer.xr.isPresenting) look(liftOf(t)); A.renderer.render(A.scene, A.camera);
   }
-  return { init, paint, flow, bloom, tape, place, onOrientation, onScreen, pick, frame, A, resize, RAY_RGB, rayColor, GOLD, MIRRORS, EYE };
+  return { init, paint, flow, bloom, tape, place, uvOf, tunnel, dim, fall, lift, life, onOrientation, onScreen, pick, frame, A, resize, RAY_RGB, rayColor, GOLD, MIRRORS, EYE };
 })();

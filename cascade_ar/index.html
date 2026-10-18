@@ -151,11 +151,12 @@ html.calm *{transition:none!important;animation:none!important}
 <script src="parts/shaders/fx.js"></script>
 <script src="parts/relief/relief.js"></script>
 <script src="parts/corpus/material.js"></script>
+<script src="parts/void/void.js"></script>
 <script>
 (function () {
   'use strict';
   const F = window.FIELD, G = window.GAME, A = window.AR, D = window.CASCADE_DATA, $ = id => document.getElementById(id);
-  const STORY = window.FOLD_STORY || null, SND = window.FOLD_SOUND || null, LV = window.FOLD_LEVELS || null, FX = window.FOLD_FX || null, RL = window.FOLD_RELIEF || null;
+  const STORY = window.FOLD_STORY || null, SND = window.FOLD_SOUND || null, LV = window.FOLD_LEVELS || null, FX = window.FOLD_FX || null, RL = window.FOLD_RELIEF || null, VOID = window.FOLD_VOID || null;
   const toast = (t, ms) => { const e = $('toast'); e.textContent = t; e.classList.add('on'); clearTimeout(e._t); e._t = setTimeout(() => e.classList.remove('on'), ms || 1800); };
   // ── sound: the designed set when it is loaded, else a sine a cell ──
   const LS = { get: k => { try { return localStorage.getItem(k); } catch (e) { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} } };
@@ -225,12 +226,13 @@ html.calm *{transition:none!important;animation:none!important}
   // is the zone plate, whose ten terraces are the clock (R5); rebuilt only when it changes
   const sheetOf = S => { const k = S && S.spec && S.spec.sheet; return k && RL.FORMS[k] && SHEET_TELL[k] ? k : 'norm'; };
   function monFloor() {
-    if (!RL) return; const S = G.S, k = sheetOf(S), want = MON.mode < 1 ? null : S && S.clock && S.target != null && RL.plate ? 'plate' : k;
+    if (!RL) return; const S = G.S, k = sheetOf(S), want = MON.mode < 1 ? null : S && (S.clock || (S.reborn && S.spec && S.spec.clock)) && S.target != null && RL.plate ? 'plate' : k;
     if (MON.floor && MON.floorKind !== want) { RL.dispose(MON.floor); MON.floor = null; MON.sheet = null; MON.floorKind = null; }
     if (want && !MON.floor) { try { MON.floor = want === 'plate' ? RL.plate({ size: 0.03, opacity: 0.8 }) : RL.floor(k, { size: 0.03, opacity: 0.8 }); MON.sheet = want === 'plate' ? 'circle' : k; MON.floorKind = want; A.A.scene.add(MON.floor); } catch (e) { console.warn('floor', e); MON.floor = null; } }
   }
-  // the plate's clock in proper time (S3): a terrace each tenth of it; a close flares the surviving edges, a loss dims the floor
-  function zoneStep(S, left) { const z = MON.floor; if (!z || !z.clock) return; if (S.lost) z.dim(0.35); else if (S.done) z.flare((performance.now() - (S.doneAt || 0)) / 1000); else z.clock(left == null ? S.clock : left, S.clock); }
+  // the plate's clock in proper time (S3): a terrace each tenth of it; a close flares the surviving edges, a loss dims the floor, and a
+  // second life (V3) has no clock, so its plate stays dark
+  function zoneStep(S, left) { const z = MON.floor; if (!z || !z.clock) return; if (S.lost || (S.reborn && !S.done)) z.dim(0.35); else if (S.done) z.flare((performance.now() - (S.doneAt || 0)) / 1000); else z.clock(left == null ? S.clock : left, S.clock); }
   function monApply(S) {
     if (!RL) return; if (MON.obj) { RL.dispose(MON.obj); MON.obj = null; MON.kind = null; }
     if (MON.mode < 1) return;
@@ -255,7 +257,7 @@ html.calm *{transition:none!important;animation:none!important}
   function paint() {
     const S = G.S; if (S.ended) return endDay(); const c = G.cellInfo(S.current);
     $('date').textContent = G.today(); $('daypill').textContent = S.mode === 'daily' ? 'day ' + S.day + ' · π[' + S.offset + '] = ' + S.digit : S.mode === 'doors' ? 'the doors' : 'free walk';
-    $('rulepill').textContent = S.target == null ? 'no target' : S.rule.name + ' · ' + S.rule.tell + (S.flip ? ' · the 6↔9 flip is open' : '') + (S.goldDay && S.mode === 'daily' ? ' · gold day, ×i free' : ''); $('rulepill').hidden = S.target == null;
+    $('rulepill').textContent = S.target == null ? 'no target' : S.reborn ? 'REBORN · ' + S.rule.name + ' · no loss · ★' : S.rule.name + ' · ' + S.rule.tell + (S.flip ? ' · the 6↔9 flip is open' : '') + (S.goldDay && S.mode === 'daily' ? ' · gold day, ×i free' : ''); $('rulepill').hidden = S.target == null;
     const ch = STORY && STORY.chapters && STORY.chapters[chapterOf(S.level)]; $('chpill').textContent = ch ? ch.title : ''; $('chpill').hidden = !ch || S.mode !== 'daily';
     $('lvl').textContent = (S.mode === 'free' ? '' : 'level ' + S.level + (S.kind && S.kind !== 'tape' && S.kind !== 'free' ? ' · ' + S.kind.toUpperCase() : '') + ' · ') + S.closed + ' closed';
     $('cur-g').textContent = c.glyphs; $('cur-n').textContent = c.n === F.INF ? '∞' : c.n; $('cur-w').textContent = c.word;
@@ -266,7 +268,7 @@ html.calm *{transition:none!important;animation:none!important}
     opsEl.style.gridTemplateColumns = S.flip ? 'repeat(7,1fr)' : 'repeat(6,1fr)';
     effort(S);
     const q = S.quest; $('quest').hidden = !q; if (q) { const done = G.answered(q); $('quest').className = done ? 'done' : ''; $('quest').textContent = (done ? '✓ ' : '? ') + q.ask; }
-    A.paint({ current: S.current, target: S.target, home: S.home, visited: S.visited, reach: G.reach(), road: S.road, ops: S.opsList }); A.tape(D.pi, S.offset);
+    A.paint({ current: S.current, target: S.target, home: S.home, visited: S.visited, reach: G.reach(), road: S.road, ghost: S.ghost, ops: S.opsList }); A.tape(D.pi, S.offset);
   }
   // ── the effort bar (H2): par + slack segments and one dim 2★; a counted move fills one by what it did to the solver's distance:
   // closer blue and full, kept grey and half height, further orange and notched below the line; whitened by the move's heat, the
@@ -303,7 +305,7 @@ html.calm *{transition:none!important;animation:none!important}
     const lv = S.level, epoch = S.epoch = (S.epoch || 0) + 1, mine = () => G.S.level === lv && G.S.epoch === epoch;   // a timer of this move only
     setTimeout(() => { busy = false; if (mine()) snd.cell(v); }, A.A.flowDur * 1000 * 0.9);
     paint(); voiceOf(v);
-    if (S.done || S.lost) { S._lostShown = true; slow = k > 1 ? mine : null; setTimeout(() => { if (!mine()) return; slow = null; if (S.done && !S.lost) snd.win(S.target, S.stars[S.level - 1]); else snd.lose(); won(); }, A.A.flowDur * 1000 + 150); }
+    if (S.done || S.lost) { S._lostShown = true; slow = k > 1 ? mine : null; setTimeout(() => { if (!mine()) return; slow = null; if (S.done && !S.lost) { snd.win(S.target, S.stars[S.level - 1]); won(); } else { snd.lose(); bardo(); } }, A.A.flowDur * 1000 + 150); }
   }
   // a tap during bullet time: the pending card's timer dropped (the epoch moves on), the flow landed, the chord and the card at once
   function skip() { const m = slow; slow = null; if (!m || !m()) return false; const S = G.S; S.epoch++; busy = false; A.A.flowT0 = -10; snd.win(S.target, S.stars[S.level - 1]); won(); return true; }
@@ -329,10 +331,23 @@ html.calm *{transition:none!important;animation:none!important}
     else if (!calm) { const e = $('crt'); e.style.opacity = '.85'; setTimeout(() => e.style.opacity = '.55', 180); }
     if (id === 'gam' && warpU && FX.warpRun && STROBE) FX.warpRun(warpU, 0.35, 1100);   // Γ: the screen bends through the Möbius map
   }
+  // ── THE BARDO (V3): a loss flies the ten discs on the lose sound's clock and comes to the card with AGAIN and REBIRTH; the view lifts
+  // only in drag mode with the camera off ('fold.void' off holds it), never under CALM or in the room; a tap, Enter or Esc skips ──
+  let bard = null;
+  function bardo() {
+    const S = G.S; if (!VOID) return won(); say(STORY && STORY.void && STORY.void.death ? STORY.void.death.text : null);
+    const lift = !calm && !A.A.deviceQ && $('video').style.display !== 'block' && LS.get('fold.void') !== 'off';
+    bard = VOID.bardo(S, { A, FX, calm, xr: A.A.renderer.xr.isPresenting, lift, done: () => { bard = null; won(); } });
+  }
+  // REBIRTH taken: the same target and rule from 80, par from 80, no loss, closes at ★; the previous life a dim orange ghost
+  function reborn() {
+    const S = G.S; A.life(); paint(); snd.rule(S.rule.name); monFloor(); monApply(S); if (MON.floor && MON.floor.reset) MON.floor.reset(); slow = null;
+    toast('REBORN · from 80 ' + D.cells[80].w + ' · par ' + S.par + ' · no loss · closes at ★', 2600); say(STORY && STORY.cells && STORY.cells[80]); const h = G.hint(); if (h && h.length) flash(h[0]); G.arm();
+  }
   function voiceOf(n) { if (STORY && STORY.cells && STORY.cells[n]) { const lv = G.S.level; setTimeout(() => { if (G.S.level === lv) say(STORY.cells[n]); }, A.A.flowDur * 1000); } }
   function won() {
     const S = G.S, L = G.lineInfo(), t = G.cellInfo(S.target), st = S.stars[S.level - 1] || 0;
-    const h = S.lost ? '<h2 class="lost">' + (S.clock ? 'HALT' : 'SYNC') + ' · the level is lost</h2>' : '<h2>' + (S.moves <= S.par + S.slack ? 'CLOSED' : 'REACHED') + ' · ' + t.glyphs + ' ' + (t.n === F.INF ? '∞' : t.n) + ' ' + t.word + '</h2><div class="stars">' + '★'.repeat(st) + '<span style="color:var(--line)">' + '★'.repeat(3 - st) + '</span>' + (S.seen ? ' <span style="font-size:12px;color:var(--blue)">sighted</span>' : '') + '</div>';
+    const h = S.lost ? '<h2 class="lost">' + (S.clock ? 'HALT' : 'SYNC') + ' · the level is lost</h2>' + (VOID ? VOID.card(S, { par: G.canRebirth() ? G.parFrom(G.REBIRTH) : 0, still: calm || A.A.renderer.xr.isPresenting }) : '') : '<h2>' + (S.reborn ? 'REBORN' : S.moves <= S.par + S.slack ? 'CLOSED' : 'REACHED') + ' · ' + t.glyphs + ' ' + (t.n === F.INF ? '∞' : t.n) + ' ' + t.word + '</h2><div class="stars">' + '★'.repeat(st) + '<span style="color:var(--line)">' + '★'.repeat(3 - st) + '</span>' + (S.seen ? ' <span style="font-size:12px;color:var(--blue)">sighted</span>' : '') + '</div>';
     const road = S.ops.map(id => F.OP[id].label).join(' ') || '—';
     // HALT: the proper seconds against the real ones (S3), and the zone plate's terraces left at the close (R5)
     const rings = Math.max(0, Math.ceil((S.clock - S.tau) / (S.clock / 10) - 1e-9));
@@ -345,15 +360,16 @@ html.calm *{transition:none!important;animation:none!important}
       + '<p>from ' + G.cellInfo(S.start).glyphs + ' ' + S.start + ' · ' + G.cellInfo(S.start).word + '</p>'
       + (S.lost ? '' : '<p>your line: <b>' + (L.txt || '—') + '</b></p><p>its letters add to ' + L.sum + ' ≡ <b>' + L.cell + ' ' + L.word + '</b>, the mirror ' + L.mirror + ' ' + D.cells[L.mirror].w + '</p>')
       + '<p>' + (S.current === S.home ? 'you stand on your own cell, ' + S.home + ' ' + D.cells[S.home].w : 'your cell ' + S.home + ' ' + D.cells[S.home].w + ' is ' + F.cost(F.solve(S.current, S.home, S.free, S.opsList), S.free) + ' moves away') + '</p>'
-      + '<div class="btns"><button class="big" id="next">' + (S.lost ? 'AGAIN' : 'NEXT') + '</button><button id="share">SHARE</button>' + (S.mode === 'daily' ? '<button id="endday">END THE DAY</button>' : '') + '</div>';
+      + '<div class="btns"><button class="big" id="next">' + (S.lost ? 'AGAIN' : 'NEXT') + '</button>' + (S.lost && VOID && G.canRebirth() ? '<button class="big" id="rebirth" title="from 80 REBIRTH, par ' + G.parFrom(G.REBIRTH) + ': the second life cannot be lost and closes at ★">REBIRTH</button>' : '') + '<button id="share">SHARE</button>' + (S.mode === 'daily' ? '<button id="endday">END THE DAY</button>' : '') + '</div>';
     $('won').hidden = false;
     $('next').onclick = () => { $('won').hidden = true; if (S.lost) G.reset(); else G.next(); openLevel(); };
+    if ($('rebirth')) $('rebirth').onclick = () => { $('won').hidden = true; if (G.rebirth()) reborn(); else { G.reset(); openLevel(); } };
     $('share').onclick = () => { const txt = 'THE FOLD · ' + G.today() + ' · level ' + S.level + ' ' + '★'.repeat(st) + ' · ' + road + ' · ' + t.glyphs + ' ' + S.target + ' ' + t.word; if (navigator.share) navigator.share({ text: txt }).catch(() => {}); else { navigator.clipboard && navigator.clipboard.writeText(txt); toast('copied'); } };
     if ($('endday')) $('endday').onclick = () => { $('won').hidden = true; G.S.ended = true; endDay(); };
   }
   function openLevel() {
     const S = G.S; if (S.ended) return endDay();
-    paint(); snd.rule(S.rule.name); monFloor(); monApply(S); if (MON.floor && MON.floor.reset) MON.floor.reset(); slow = null;
+    A.life(); paint(); snd.rule(S.rule.name); monFloor(); monApply(S); if (MON.floor && MON.floor.reset) MON.floor.reset(); slow = null;
     const ch = chapterOf(S.level); if (S.mode === 'daily' && (S.level - 1) % 8 === 0 && STORY && STORY.chapters && STORY.chapters[ch]) return chapter(ch);
     const dayLine = STORY && STORY.days && STORY.days[S.digit] ? STORY.days[S.digit].line : S.rule.tell;
     toast((S.mode === 'free' ? 'free walk' : 'level ' + S.level + ' · ' + titleOf(S)) + ' · ' + S.rule.name, 2600);
@@ -372,7 +388,7 @@ html.calm *{transition:none!important;animation:none!important}
     const stars = S.stars.reduce((a, b) => a + (b || 0), 0);
     const fill = (t, k, v) => t.split('{' + k + '}').join(String(v));   // every occurrence, and old Safari has no replaceAll
     const txt = fill(fill(fill(fill(tpl, 'word', L.word), 'cell', L.cell), 'mirror', D.cells[L.mirror].w + ' ' + L.mirror), 'stars', stars);
-    $('wonbody').innerHTML = '<h2 class="ch">THE SEAL · ' + G.today() + '</h2><p class="epi">' + txt + '</p><p>' + S.closed + ' levels closed · ' + stars + ' stars · the line: <b>' + (L.txt || '—') + '</b> ≡ ' + L.cell + ' ' + L.word + '</p>' + (seal ? '<p>product of the targets ≡ <b>' + seal.cell + ' ' + seal.word + '</b></p>' : '') + (Math.abs(S.borrowed || 0) >= 0.05 ? '<p>' + S.borrowed.toFixed(1) + ' s borrowed from the eye today</p>' : '') + '<div class="btns"><button class="big" id="again">WALK ON</button><button id="share2">SHARE</button></div>';
+    $('wonbody').innerHTML = '<h2 class="ch">THE SEAL · ' + G.today() + '</h2><p class="epi">' + txt + '</p><p>' + S.closed + ' levels closed' + (S.rebirths && S.rebirths.length ? ' · reborn ' + S.rebirths.length : '') + ' · ' + stars + ' stars · the line: <b>' + (L.txt || '—') + '</b> ≡ ' + L.cell + ' ' + L.word + '</p>' + (seal ? '<p>product of the targets ≡ <b>' + seal.cell + ' ' + seal.word + '</b></p>' : '') + (Math.abs(S.borrowed || 0) >= 0.05 ? '<p>' + S.borrowed.toFixed(1) + ' s borrowed from the eye today</p>' : '') + '<div class="btns"><button class="big" id="again">WALK ON</button><button id="share2">SHARE</button></div>';
     $('won').hidden = false; $('again').onclick = () => { $('won').hidden = true; const nm = $('name').value; G.start(nm, 'free', [LV && LV.free ? LV.free(nm) : { n: 1, kind: 'free', start: F.letterSum(nm) % 257, target: null, rule: 0, free: [] }]); openLevel(); };
     $('share2').onclick = () => { const t = 'THE FOLD · ' + G.today() + ' · ' + S.closed + ' closed · ' + stars + ' stars · ' + txt; if (navigator.share) navigator.share({ text: t }).catch(() => {}); else { navigator.clipboard && navigator.clipboard.writeText(t); toast('copied'); } };
   }
@@ -406,8 +422,8 @@ html.calm *{transition:none!important;animation:none!important}
   canvas.addEventListener('pointercancel', () => { drag = null; });
   canvas.addEventListener('pointerdown', e => { if (!e.isPrimary) return; drag = { x: e.clientX, y: e.clientY, yaw: A.A.yaw, pitch: A.A.pitch, ty: A.A.touchYaw }; moved = false; canvas.setPointerCapture(e.pointerId); });
   canvas.addEventListener('pointermove', e => { if (!drag) return; const dx = e.clientX - drag.x, dy = e.clientY - drag.y; if (Math.abs(dx) + Math.abs(dy) > 4) moved = true; const k = 0.0035; if (A.A.deviceQ) A.A.touchYaw = drag.ty + dx * k; else { A.A.yaw = drag.yaw + dx * k; A.A.pitch = Math.max(-1.4, Math.min(1.4, drag.pitch + dy * k)); } });
-  canvas.addEventListener('pointerup', e => { const d = drag; drag = null; if (!d || moved || $('start').hidden === false) return; if (slow && skip()) return; const r = canvas.getBoundingClientRect(); const nx = (e.clientX - r.left) / r.width * 2 - 1, ny = -((e.clientY - r.top) / r.height * 2 - 1); const n = A.pick(nx, ny); if (n != null) showCell(n); });
-  window.addEventListener('keydown', e => { if (slow && (e.key === ' ' || e.key === 'Escape') && skip()) return; const k = 0.08; if (e.key === 'ArrowLeft') A.A.yaw += k; if (e.key === 'ArrowRight') A.A.yaw -= k; if (e.key === 'ArrowUp') A.A.pitch = Math.min(1.4, A.A.pitch + k); if (e.key === 'ArrowDown') A.A.pitch = Math.max(-1.4, A.A.pitch - k); const m = { g: 'g', G: 'ig', f: 'fold', i: 'inv', q: 'i', r: 'gam' }[e.key]; if (m && !$('hud').hidden && $('chap').hidden && $('won').hidden && document.activeElement !== $('name')) move(m); if (e.key === 'u' && !busy && !$('hud').hidden && $('chap').hidden) { const id = G.undo(); if (id) { paint(); monStep(G.S); } } });
+  canvas.addEventListener('pointerup', e => { const d = drag; drag = null; if (!d || moved || $('start').hidden === false) return; if (slow && skip()) return; if (bard && bard.skip()) return; const r = canvas.getBoundingClientRect(); const nx = (e.clientX - r.left) / r.width * 2 - 1, ny = -((e.clientY - r.top) / r.height * 2 - 1); const n = A.pick(nx, ny); if (n != null) showCell(n); });
+  window.addEventListener('keydown', e => { if (slow && (e.key === ' ' || e.key === 'Escape') && skip()) return; if (bard && (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') && bard.skip()) { e.preventDefault(); return; } const k = 0.08; if (e.key === 'ArrowLeft') A.A.yaw += k; if (e.key === 'ArrowRight') A.A.yaw -= k; if (e.key === 'ArrowUp') A.A.pitch = Math.min(1.4, A.A.pitch + k); if (e.key === 'ArrowDown') A.A.pitch = Math.max(-1.4, A.A.pitch - k); const m = { g: 'g', G: 'ig', f: 'fold', i: 'inv', q: 'i', r: 'gam' }[e.key]; if (m && !$('hud').hidden && $('chap').hidden && $('won').hidden && document.activeElement !== $('name')) move(m); if (e.key === 'u' && !busy && !$('hud').hidden && $('chap').hidden) { const id = G.undo(); if (id) { paint(); monStep(G.S); } } });
   async function sensors() { try { if (window.DeviceOrientationEvent && typeof DeviceOrientationEvent.requestPermission === 'function') { const r = await DeviceOrientationEvent.requestPermission(); if (r !== 'granted') return false; } } catch (e) { return false; } window.addEventListener('deviceorientation', A.onOrientation, true); return true; }
   async function cameraOn() { if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return false; try { const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 } }, audio: false }); const v = $('video'); v.srcObject = s; v.style.display = 'block'; await v.play().catch(() => {}); A.A.stars.visible = false; if (A.A.sky) A.A.sky.visible = false; return true; } catch (e) { return false; } }
   // ── the compass arrows and the clock ──
@@ -425,7 +441,7 @@ html.calm *{transition:none!important;animation:none!important}
     $('clock').textContent = left == null ? '' : left.toFixed(0) + ' s' + (slowClock ? ' · ×' + rate.toFixed(2) + ' · τ ' + S.tau.toFixed(1) + ' of ' + S.real.toFixed(1) + ' s real' : ''); if (left != null) snd.clock(left, rate); snd.dilate(rate);
     const dr = $('drain'); if (dr) { dr.hidden = left == null; if (left != null) dr.style.width = (100 * left / S.clock).toFixed(1) + '%'; }   // H2: on HALT the bar drains
     zoneStep(S, left);
-    if (S.lost && $('won').hidden && !S._lostShown) { S._lostShown = true; effort(S); snd.lose(); won(); }
+    if (S.lost && $('won').hidden && !S._lostShown) { S._lostShown = true; effort(S); snd.lose(); bardo(); }
   }
   // ── enter ──
   $('enter').onclick = async () => {
@@ -450,7 +466,7 @@ html.calm *{transition:none!important;animation:none!important}
   }
   // ── the loop ──
   A.A.renderer.setAnimationLoop(() => { const t = (performance.now() - A.A.t0) / 1000; if (A.A.sky && A.A.sky.material.uniforms.time) A.A.sky.material.uniforms.time.value = t; if (crtU) crtU.time.value = t; if (warpU) { warpU.time.value = t; warpQ.visible = warpU.t.value > 0 && !A.A.renderer.xr.isPresenting; } A.frame(); arrows(); });
-  window.FOLD_DEBUG = { paint, openLevel, move, monFloor, monApply, monStep, MON, showCell, endDay, G, A };  // for a console or a test, not for play
+  window.FOLD_DEBUG = { paint, openLevel, move, monFloor, monApply, monStep, MON, showCell, endDay, bardo, reborn, G, A };  // for a console or a test, not for play
   document.addEventListener('visibilitychange', () => { if (!document.hidden && ac && ac.state === 'suspended') ac.resume(); });
   if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
 })();
