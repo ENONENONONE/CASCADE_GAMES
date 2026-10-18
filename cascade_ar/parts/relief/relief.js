@@ -12,7 +12,8 @@
 // MeshBasicMaterial with vertexColors, no texture, no shader). All arithmetic is in GF(257). three.js r128, the game's vendored copy;
 // nothing else is needed, not field.js, not data.js.
 //
-//   FOLD_RELIEF.norm(opts)              the norm sheet as a relief floor under the player, 129 × 129 samples, the five stars marked
+//   FOLD_RELIEF.floor(kind, opts)       any form of FORMS as a relief floor under the player, 129 × 129 samples, the norm's five stars marked
+//   FOLD_RELIEF.norm(opts)              floor('norm', opts), the norm sheet with its stars
 //   FOLD_RELIEF.conic(kind, r, opts)    one conic's solution set lifted onto a ring of radius 4.5 round the player
 //   FOLD_RELIEF.turn(opts)              THE TURN's orbit as a closed ring of radius 5, a marker moved by obj.step(k), obj.at(k)
 //   FOLD_RELIEF.sheet(kind, mult, opts) a 65 × 65 relief of the product or the norm (or any of the forms) as a ceiling at y ≈ 5 or a wall
@@ -103,21 +104,22 @@ window.FOLD_RELIEF = (function () {
     group.setT = t => { group.userData.t = t; fill(t); geo.attributes.position.needsUpdate = true; geo.attributes.color.needsUpdate = true; if (group.refreshMarks) group.refreshMarks(); };
     return group;
   }
-  // ── norm(opts): the norm sheet a² + ab − b² as the floor under the player ──
-  // 129 × 129 samples (every second point of the 257 × 257 grid), a to the right (+x), b ahead (−z), inside the 210-gon's radius 3:
-  // the square's half-side is 2 (opts.half), its diagonal 2.83. The height is centred on the floor, −amp … +amp with amp 0.6 (opts.amp),
+  // ── floor(kind, opts): a form of FORMS as the floor under the player; norm(opts) is floor('norm', opts) ──
+  // kind 'product', 'hyperbola', 'circle', 'ellipse', 'parabola' (y² − 4x), 'norm' (a² + ab − b²) or 'trace', unlit, in one frame for
+  // every kind, so a chapter's floor swaps for the next in place. 129 × 129 samples (every second point of the 257 × 257 grid), a to
+  // the right (+x), b ahead (−z), inside the 210-gon's radius 3: the square's half-side is 2 (opts.half), its diagonal 2.83. The height is centred on the floor, −amp … +amp with amp 0.6 (opts.amp),
   // the value's height val/256 as the relief has it ('value', or 'dlog', or 'flat' through opts.height), times opts.mult (one of the
   // relief multipliers, 1 by default: ×2 reaches ±1.2, the horizon is 2.4 up). opts.colour 'dlog' (the default, the relief's hue by
   // dlog, zero black), 'value' or 'vertex'. opts.mode 'points' (default), 'wire' (indexed rows and columns) or 'mesh'. opts.t the
-  // time step, v → v·g^t. The five stars stand at their exact (a, b) with their own heights, white, as the sheet's second child;
-  // opts.stars false leaves them out. Vertices: 16641 + 5.
-  function norm(opts) {
-    opts = opts || {}; const TH = T();
+  // time step, v → v·g^t. On the norm the five stars stand at their exact (a, b) with their own heights, white, as the sheet's second
+  // child; opts.stars false leaves them out; the other kinds have none. Vertices: 16641 (+ 5 on the norm).
+  function floor(kind, opts) {
+    opts = opts || {}; const TH = T(), f = FORMS[kind]; if (!f) throw new Error('FOLD_RELIEF.floor: no form ' + kind);
     const y = opts.y != null ? opts.y : -2.4;
-    const g = makeSheet({ name: 'norm-floor', formName: 'norm', form: FORMS.norm, n: 129, step: 2, half: opts.half != null ? opts.half : 2, amp: opts.amp != null ? opts.amp : 0.6, mult: mult(opts.mult == null ? 1 : opts.mult),
+    const g = makeSheet({ name: kind + '-floor', formName: kind, form: f, n: 129, step: 2, half: opts.half != null ? opts.half : 2, amp: opts.amp != null ? opts.amp : 0.6, mult: mult(opts.mult == null ? 1 : opts.mult),
       centred: true, height: opts.height || 'value', colour: opts.colour || 'dlog', mode: opts.mode || 'points', size: opts.size || 0.035, opacity: opts.opacity != null ? opts.opacity : 0.9, t: opts.t || 0,
       frame: { o: [0, y, 0], u: [1, 0, 0], v: [0, 0, -1], nrm: [0, 1, 0] } });
-    if (opts.stars !== false) {
+    if (kind === 'norm' && opts.stars !== false) {
       const sp = new Float32Array(STARS.length * 3), sc = new Float32Array(STARS.length * 3);
       const place = () => { STARS.forEach((s, i) => { const p = g.pointAt(s[0], s[1], 0.02); sp[i * 3] = p[0]; sp[i * 3 + 1] = p[1]; sp[i * 3 + 2] = p[2]; const c = i === 0 ? [1, 0.84, 0.47] : [1, 1, 1]; sc[i * 3] = c[0]; sc[i * 3 + 1] = c[1]; sc[i * 3 + 2] = c[2]; }); };
       place();
@@ -128,6 +130,7 @@ window.FOLD_RELIEF = (function () {
     }
     return g;
   }
+  const norm = opts => floor('norm', opts);
   // ── solve(kind, r): the solution set of a conic ≡ r, in point order (x ascending, then y) ──
   // The circle, ellipse and hyperbola have 256 points for r ≠ 0 (p − 1, since −1 is a square and 4 is a square) and 513 for r = 0,
   // the two null lines through the origin; the parabola y ≡ x² + r has 257, one an x; the product x·y ≡ r has 256 for r ≠ 0 and
@@ -180,7 +183,9 @@ window.FOLD_RELIEF = (function () {
   // orbit order, u = c + 16s ≡ 216 of dlog 147, so step k is the point x + 16y = 216^k. Angle by the orbit index, θ = 2π·k/256
   // (opts.angle 'index'), or by the dlog of x + 16y, 147k mod 256 (opts.angle 'dlog'), which puts step k at the azimuth where ar.js
   // stands the cell 216^k on the sphere; radius 5 (opts.radius); height by y, (y/257 − ½)·2·amp with amp 1.5 about the horizon.
-  // A LineLoop through the points with the hue the step (k/256, the relief's own colouring of the orbit), a Points of the same 256
+  // A LineLoop through the points with the hue the step (k/256, the relief's own colouring of the orbit), joined in the order the ring
+  // is placed: orbit order by index, dlog order by dlog, where neighbours are one ×g apart (in orbit order a segment jumps 147 dlog,
+  // 206.72°, and the ring draws as a star polygon); a Points of the same 256
   // (opts.points false leaves it out), the start white and the first step gold as the relief marks them, and the marker: one bright
   // point that obj.step(k) moves to step k (obj.k the step it stands on). obj.at(k) → {k, x, y, cell: x, u: x + 16y, dlog, position}.
   // Vertices: 256 + 256 + 2 + 1.
@@ -192,6 +197,7 @@ window.FOLD_RELIEF = (function () {
     for (let k = 0; k < n; k++) { const p = where(k), c = hue(k / n); pos[k * 3] = p[0]; pos[k * 3 + 1] = p[1]; pos[k * 3 + 2] = p[2]; col[k * 3] = c[0]; col[k * 3 + 1] = c[1]; col[k * 3 + 2] = c[2]; }
     const group = new TH.Group(); let verts = n;
     const lg = new TH.BufferGeometry(); lg.setAttribute('position', new TH.BufferAttribute(pos, 3)); lg.setAttribute('color', new TH.BufferAttribute(col, 3));
+    if (byDlog) { const ord = pts.map((q, k) => k).sort((i, j) => DLOG[mod(pts[i][0] + 16 * pts[i][1])] - DLOG[mod(pts[j][0] + 16 * pts[j][1])]); lg.setIndex(new TH.BufferAttribute(new Uint16Array(ord), 1)); }
     const ring = ob.closed ? new TH.LineLoop(lg, new TH.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: opts.opacity != null ? opts.opacity : 0.85 })) : new TH.Line(lg, new TH.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.85 }));
     ring.frustumCulled = false; group.add(group.ring = ring);
     if (opts.points !== false) {
@@ -248,5 +254,5 @@ window.FOLD_RELIEF = (function () {
   }
   // ── count(obj): the vertices under obj, by the position attributes ──
   function count(obj) { let n = 0; if (obj) obj.traverse(o => { if (o.geometry && o.geometry.attributes && o.geometry.attributes.position) n += o.geometry.attributes.position.count; }); return n; }
-  return { P, DLOG, POW, hue, VTX, COL, FORMS, CONIC_FORMS, MULTS, STARS, valueAt, solve, orbit, norm, conic, turn, sheet, dispose, count };
+  return { P, DLOG, POW, hue, VTX, COL, FORMS, CONIC_FORMS, MULTS, STARS, valueAt, solve, orbit, floor, norm, conic, turn, sheet, dispose, count };
 })();

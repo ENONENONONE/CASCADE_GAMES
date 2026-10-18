@@ -229,11 +229,13 @@ window.AR = (function () {
     out = out || {}; out.x = _p.x; out.y = _p.y; out.front = _w.z < 0; return out;
   }
   function pick(nx, ny) { A.rig.updateMatrixWorld(true); let best = null, bd = 0.06; const s = {}; for (let n = 0; n < 258; n++) { onScreen(n, s); if (!s.front) continue; const d = (s.x - nx) ** 2 + ((s.y - ny) * (window.innerHeight / window.innerWidth)) ** 2; if (d < bd) { bd = d; best = n; } } return best; }
+  // a line faded out is hidden too: three r128 still issues the draw call of a line at opacity 0
+  const fade = (o, a) => { o.material.opacity = a; o.visible = a > 0; };
   function frame() {
     const t = now(); A.cellB.mesh.material.uniforms.time.value = t; A.tapeB.mesh.material.uniforms.time.value = t;
     const f = Math.min(1, (t - A.flowT0) / A.flowDur); A.cellB.mesh.material.uniforms.flow.value = A.calm ? 1 : f;   // CALM pins the flow: no cell travels, the threads only fade
     const live = f < 1 ? 1 - f : 0;
-    A.threads.material.opacity = A.flowOp === 'fold' ? 0.45 * live : 0; A.ladder.material.opacity = A.showLadder ? 0.35 : 0; A.orbit.material.opacity = A.showOrbit ? 0.35 : (A.flowOp === 'gam' ? 0.5 * live : 0);
+    fade(A.threads, A.flowOp === 'fold' ? 0.45 * live : 0); fade(A.ladder, A.showLadder ? 0.35 : 0); fade(A.orbit, A.showOrbit ? 0.35 : (A.flowOp === 'gam' ? 0.5 * live : 0));
     if (!A.renderer.xr.isPresenting) look(); A.renderer.render(A.scene, A.camera);
   }
   return { init, paint, flow, bloom, tape, place, onOrientation, onScreen, pick, frame, A, resize, RAY_RGB, rayColor, GOLD, MIRRORS, EYE };
