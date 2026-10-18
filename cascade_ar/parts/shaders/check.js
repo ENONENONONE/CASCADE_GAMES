@@ -1,6 +1,7 @@
 // THE FOLD — parts/shaders/check.js: drives fx.js's flash gate, strobe(), by a fake clock under node, 20 requests a second for 5 s, and
 // asserts at most 3 admitted onsets in every sliding second, each at least 334 ms after the one before, none under CALM, and every
-// sub-threshold request admitted (U3, WCAG 2.3.1). Each run loads fx.js afresh, so no onset carries over. Run: node parts/shaders/check.js
+// sub-threshold request admitted (U3, WCAG 2.3.1). Each run loads fx.js afresh, so no onset carries over. Then the rain's code (M1, with
+// three.js, data.js, field.js, ar.js and levels.js in a page of its own): each column's words, the day's 260 kept true. Run: node parts/shaders/check.js
 'use strict';
 const fs = require('fs'), path = require('path'), vm = require('vm');
 const src = fs.readFileSync(path.join(__dirname, 'fx.js'), 'utf8');
@@ -49,5 +50,31 @@ for (const [name, q] of Object.entries(LARGE)) { const { yes } = run(load(), [q]
   const s = FX.cssFilter('gam', { aspect: 1 }); ok(!/invert/.test(s.filter) && /hue-rotate\(180deg\)/.test(s.filter) && s.transform === 'none', 'under CALM Γ\'s room is a hue turn without the inversion: ' + s); }
 { const FX = load(); const s = FX.cssFilter('gam', { aspect: 1 }), r = FX.cssFilter('gam', { aspect: 1, still: true }), n = FX.cssFilter('gam', { aspect: 1, invert: false }), f = FX.cssFilter('fold', { aspect: 1, still: true });
   ok(/invert\(1\)/.test(s.filter) && s.transform !== 'none', 'Γ inverts the room when the gate admits it'); ok(!/invert/.test(r.filter) && r.transform === 'none' && f.transform === 'none', 'a refused flash holds the room still'); ok(!/invert/.test(n.filter) && n.transform !== 'none', 'STROBE off drops only the inversion'); }
-console.log(fails ? 'FAILED ' + fails + ' of ' + checks : 'OK · ' + checks + ' checks, none failed · strobe() admits at most 3 onsets a second, 334 ms apart, none under CALM');
+// 6. the rain's code (M1): column c writes its own name twice, 39 rows apart, n = 3^c's glyph pair and c in 8 bits, in the field's atlas
+// slots + 128; the day's 260 (every window the day's plan reads, M2) stays the tape's true digits; decodes write over it; same for all
+let code = '';
+{ const root = path.join(__dirname, '..', '..'), cv = () => ({ width: 0, height: 0, getContext: () => new Proxy({}, { get: (t, k) => k in t ? t[k] : () => {} }) });
+  const ctx = { console, performance: { now: () => 0 }, localStorage: { getItem: () => null, setItem: () => {} }, requestAnimationFrame: () => 0, cancelAnimationFrame: () => {}, document: { createElement: cv } }; ctx.window = ctx; ctx.self = ctx; vm.createContext(ctx);
+  for (const f of ['vendor/three.min.js', 'data.js', 'field.js', 'parts/shaders/fx.js', 'ar.js', 'parts/levels/levels.js']) vm.runInContext(fs.readFileSync(path.join(root, f), 'utf8'), ctx, { filename: f });
+  const F = ctx.FIELD, AR = ctx.AR, FX = ctx.FOLD_FX, pi = ctx.CASCADE_DATA.pi; AR.A.scene = new ctx.THREE.Scene();
+  const B = AR.rainInit(pi, 'full'), at = k => B.bytes[(k % 78) * 256 + Math.floor(k / 78)], G = Array.from(F.G16), slot = ch => ch === '∞' ? 26 : G.indexOf(ch) + 10;
+  ok(FX.RAIN_SLOTS === 40 && /step\(127\.5, slot\)/.test(B.mesh.material.fragmentShader), 'the atlas holds the two bits (32, 33) and the shader reads a code byte');
+  let words = 0, bad = 0;
+  for (let c = 0; c < 256; c++) { const w = AR.rainCode(c), name = Array.from(F.glyphs(F.POW[c])).map(slot).concat([7, 6, 5, 4, 3, 2, 1, 0].map(k => 32 + ((c >> k) & 1))).map(x => x + 128);
+    if (w.length !== 2 || w[1][0] - w[0][0] !== 39 || w[0][0] < 0 || w[1][0] + w[1][1].length > 78) bad++;
+    for (const [r, s] of w) { words++; if (s.join() !== name.join()) bad++; s.forEach((x, j) => { if (at(78 * c + r + j) !== x) bad++; }); } }
+  ok(bad === 0 && words === 512, 'each column writes its glyph pair and its dlog in 8 bits, twice, 39 rows apart: ' + bad + ' wrong');
+  { let n = 0; for (let k = 0; k < 19968; k++) if (at(k) < 128 && at(k) !== +pi[k]) n++; ok(n === 0, 'every other row the tape\'s own digit at build: ' + n + ' not'); }
+  const dayOf = day => { const head = day + 13, plan = ctx.FOLD_LEVELS.plan(day, 'SCRIBE'); AR.rainDay(head); let strip = 0, wins = 0, codeN = 0, cut = 0;
+    for (let k = 0; k < 19968; k++) { const b = at(k); if (b >= 128) codeN++; if (k >= head && k < head + 260 && b !== +pi[k]) strip++; }
+    for (const sp of plan) if (sp && sp.offset != null) for (let j = 0; j < 8 + (sp.slid || 0); j++) if (at(sp.offset + j) !== +pi[sp.offset + j]) wins++;
+    for (let c = 0; c < 256; c++) for (const [r, s] of AR.rainCode(c)) { const k = 78 * c + r, on = s.filter((x, j) => at(k + j) === x).length; if (on && on !== s.length) cut++; }
+    return { strip, wins, codeN, cut, head, plan }; };
+  for (const day of [9422, 9472, 9384, 12000]) { const d = dayOf(day); ok(d.strip === 0 && d.wins === 0, 'day ' + day + ': the day\'s 260 and its windows the true digits: ' + d.strip + ' ' + d.wins);
+    ok(d.cut === 0 && d.codeN > 4900 && d.codeN / 19968 < 0.26, 'day ' + day + ': whole words only, ' + d.codeN + ' code rows of 19968, π the rest (' + (100 - d.codeN / 199.68).toFixed(1) + ' %)'); }
+  { const d = dayOf(9422), before = Buffer.from(B.bytes).toString('hex'), sp = d.plan.find(x => x.kind === 'tape'); AR.decode(sp); const gl = Array.from(F.glyphs(parseInt(sp.digits[0], 10) % 257));
+    ok(gl.every((g, j) => at(sp.offset + j) === slot(g)), 'a decode writes the start cell\'s glyphs over the window, plain slots'); AR.rainDay(d.head); ok(at(sp.offset) === slot(gl[0]), 'the same day again keeps the decode');
+    AR.rainDay(d.head + 1); ok(at(sp.offset) === +pi[sp.offset], 'a new day writes the tape afresh'); AR.rainDay(d.head); B.day = null; AR.rainDay(d.head); ok(Buffer.from(B.bytes).toString('hex') === before, 'the code is a function of the column and the row, the same for every player'); }
+  { let n = 0; for (let k = 0; k < 19968; k++) if (at(k) >= 128) n++; code = ' · the code ' + n + ' of 19968 rows'; } }
+console.log(fails ? 'FAILED ' + fails + ' of ' + checks : 'OK · ' + checks + ' checks, none failed · strobe() admits at most 3 onsets a second, 334 ms apart, none under CALM' + code);
 process.exit(fails ? 1 : 0);

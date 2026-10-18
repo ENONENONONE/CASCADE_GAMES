@@ -389,32 +389,38 @@ void main() {
   }
 
   // ═══ 7. the tape sky (M1, M2): the π tape as the rain, 256 columns of 78 digits on the sphere of radius 9 ═══
-  // One instanced strip a column, PlaneBufferGeometry(1, 1, 1, 13), bent onto the sphere in the vertex shader: column c stands at the
-  // azimuth of cell 3^c (c/256 of a turn, x = sin, z = −cos, as ar.js places the cells), from −40° to +58°, row 0 at the top. The digits
-  // stand still; a drop runs down each column, a white head and a green trail. Per instance iCol = (r, g, b, c) and iState = (speed in
+  // One instanced strip a column, PlaneBufferGeometry(1, 1, 1, k), its rows spaced as the caller likes (ar.js packs them round the eye, the
+  // demo takes 13 even ones), bent onto the sphere in the vertex shader: column c stands at the azimuth of cell 3^c (c/256 of a turn,
+  // x = sin, z = −cos, as ar.js places the cells), from −40° to +58°, row 0 at the top. The digits stand still; a drop runs down each column, a white head and a green trail. Per instance iCol = (r, g, b, c) and iState = (speed in
   // rows/s, signed: below 0 the rain rises; trail in rows, 0 no drop; phase; lit, the glyphs' own light). The head is placed in the
   // vertex stage, where highp is the rule, so the clock never meets mediump; the row varying takes HP. A fragment reads its digit from
   // `tape` (256 × 78 LUMINANCE, a slot index a byte) and its glyph from rainAtlas(). `win` = (head column, head row, lit, SEED) and
   // `span` = (start from, to, target from, to), `strike` = (from, to) are counted in digits from the level's head (M2); `strip` = (column,
-  // row, length, gain) is the day's 260. Light first, then the two fetches, so an unlit fragment costs no texture read.
+  // row, length, gain) is the day's 260. Light first, then the two fetches, so an unlit fragment costs no texture read. A byte of 128 or
+  // more is the code's own (the column's glyph pair and its dlog in binary, ar.js rainCode): the slot below 128, glyphs pale, bits gold.
+  // opts.lens (S1): the GLSL of the eye's lens, `lensed(p)` with its uniforms lensDir and lensE (ar.js LENS_GL, the cells' own law), so
+  // each vertex stands at its primary image; vE carries the image's offset from the eye's axis and cos θ·tan θE, linear on the flat
+  // triangle, so a fragment inside θE (where only the far side shows) is culled by a dot and a compare, no uniform shared with the vertex
   function rain(opts) {
     opts = opts || {};
     const vertexShader = `attribute vec4 iCol; attribute vec4 iState;
 uniform float clock;        // seconds, the rain's own: it stops for HALT and for bullet time
-varying float vRow; varying float vX; varying vec2 vH; varying vec4 vC; varying vec4 vS;
+varying float vRow; varying float vX; varying vec2 vH; varying vec4 vC; varying vec4 vS; varying vec4 vE;
+` + (opts.lens || '') + `
 void main() {
   float az = (iCol.w + position.x) / 256.0 * 6.2831853, el = mix(-40.0, 58.0, position.y + 0.5) * 0.017453293;
   vRow = (0.5 - position.y) * 78.0; vX = position.x + 0.5; vC = iCol; vS = iState;
   float P = 78.0 + 2.0 * iState.y + 8.0, h = fract(iState.z + clock * abs(iState.x) / P) * P - iState.y - 4.0;   // the head, rows from the top
   vH = iState.x < 0.0 ? vec2(77.0 - h, -1.0) : vec2(h, 1.0);
-  vec3 p = 9.0 * vec3(sin(az) * cos(el), sin(el), -cos(az) * cos(el));
-  gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
+  vec3 p = 9.0 * vec3(sin(az) * cos(el), sin(el), -cos(az) * cos(el)); vE = vec4(0.0);
+` + (opts.lens ? `  if (lensE > 0.0) { p = lensed(p); float c = dot(p, lensDir); vE = vec4(p - c * lensDir, c * tan(lensE)) / 9.0; }   // the image; θ < θE culled below
+` : '') + `  gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
 }`;
     const fragmentShader = PRECISION + `
 uniform sampler2D tape; uniform sampler2D atlas; uniform float alpha;
 uniform vec4 win; uniform vec4 span; uniform vec2 strike; uniform vec4 strip;
 uniform vec3 green; uniform vec3 gold;
-varying HP float vRow; varying float vX; varying vec2 vH; varying vec4 vC; varying vec4 vS;
+varying HP float vRow; varying float vX; varying vec2 vH; varying vec4 vC; varying vec4 vS; varying vec4 vE;
 float inside(float x, float a, float b) { return step(a, x) * step(x, b - 0.5); }   // a ≤ x < b, x and the ends whole numbers
 void main() {
   float r = clamp(floor(vRow), 0.0, 77.0), fy = clamp(vRow - r, 0.0, 1.0), c = floor(vC.w + 0.5);   // the column whole: a varying may land a hair off
@@ -423,31 +429,36 @@ void main() {
   float rel = (c - win.x) * 78.0 + r - win.y;                    // digits from the level's head: exact near it, far off elsewhere
   float st = inside(rel, span.x, span.y), tg = inside(rel, span.z, span.w), sk = inside(rel, strike.x, strike.y);
   float rs = (c - strip.x) * 78.0 + r - strip.y;
-  float light = vS.w * (1.0 + strip.w * inside(rs, 0.0, strip.z)) + 0.5 * trail + 0.85 * head + win.z * (st + tg + 0.45 * sk);
+  float lk = vE.w > 0.0 ? smoothstep(1.0, 1.06, length(vE.xyz) / vE.w) : 1.0;   // the lens: nothing of the rain inside θE, so none in the shadow
+  float light = (vS.w * (1.0 + strip.w * inside(rs, 0.0, strip.z)) + 0.5 * trail + 0.85 * head + win.z * (st + tg + 0.45 * sk)) * lk;
   if (light < 0.004) discard;
-  float slot = floor(texture2D(tape, vec2((c + 0.5) / 256.0, (r + 0.5) / 78.0)).r * 255.0 + 0.5);
+  float slot = floor(texture2D(tape, vec2((c + 0.5) / 256.0, (r + 0.5) / 78.0)).r * 255.0 + 0.5), code = step(127.5, slot); slot -= 128.0 * code;
   if (win.w > 0.5 && st > 0.5) slot = rel - span.x < 1.5 ? 10.0 : 27.0;   // SEED: the start digits step aside for SEED's glyph, ΦΦ
-  float sy = floor(slot / 8.0), sx = slot - 8.0 * sy;
-  float g = texture2D(atlas, vec2((sx + vX) / 8.0, 1.0 - (sy + (12.0 + fy * 40.0) / 64.0) * 0.25)).a;
+  float sy = floor(slot / 8.0), sx = slot - 8.0 * sy, bit = code * step(31.5, slot);
+  float g = texture2D(atlas, vec2((sx + vX) / 8.0, 1.0 - (sy + (12.0 + fy * 40.0) / 64.0) * ${(1 / RAIN_ROWS).toFixed(4)})).a;
   g = max(g * (1.0 - 0.5 * sk), sk * step(abs(fy - 0.5), 0.06) * step(0.12, vX) * step(vX, 0.88));   // a skipped digit struck through
   g = max(g, 0.22 * (st + tg) * step(0.08, fy) * step(fy, 0.92));                // a read digit stands on a lit cell
-  vec3 col = mix(vC.rgb, vec3(0.93, 1.0, 0.95), head * 0.8);
+  vec3 col = mix(mix(mix(vC.rgb, vec3(0.86, 0.97, 0.9), 0.55 * (code - bit)), vec3(1.0, 0.85, 0.45), 0.75 * bit), vec3(0.93, 1.0, 0.95), head * 0.8);   // the code: glyphs pale, bits gold
   float rd = step(0.01, win.z); col = mix(col, mix(green, vec3(1.0), 0.45), st * rd); col = mix(col, mix(gold, vec3(1.0, 0.9, 0.5), 0.5), tg * rd);   // start green, target gold
-  gl_FragColor = vec4(col, clamp(g * light, 0.0, 1.0) * alpha);
+  gl_FragColor = vec4(col, clamp(g * light * (1.0 + 0.3 * code), 0.0, 1.0) * alpha);   // the code a shade brighter than the digits
 }`;
     const uniforms = { tape: { value: null }, atlas: { value: null }, clock: { value: 0 }, alpha: { value: opts.alpha == null ? 1 : opts.alpha },
       win: { value: [0, 0, 0, 0] }, span: { value: [0, 0, 0, 0] }, strike: { value: [0, 0] }, strip: { value: [0, 0, 0, 0] }, green: { value: GREEN.slice() }, gold: { value: GOLD.slice() } };
+    if (opts.lens) Object.assign(uniforms, { lensDir: { value: [0, 0, -1] }, lensE: { value: 0 } });   // ar.js hands the cells' own uniform objects in
     return { vertexShader, fragmentShader, uniforms, blending: 'normal', depthTest: true, depthWrite: false, transparent: true, renderOrder: -5 };
   }
-  // the rain's glyphs: 32 slots of 40 × 64 on a 320 × 256 canvas (327,680 B), the glyph about 32 px in the slot's middle 40 × 40: the
-  // digits 0–9, the sixteen G16 glyphs (slots 10–25, passed in by code point), ∞ (26), a blank (27) and four marks ▮ · × ◆ (28–31). No
-  // letters, so a column decodes into glyphs, never words. NPOT: sampled linear, unmipmapped, as the main atlas is. Needs a document
-  const RAIN_SLOTS = 32;
+  // the rain's glyphs: 40 slots of 40 × 64 on a 320 × 320 canvas (409,600 B), the glyph about 32 px in the slot's middle 40 × 40: the
+  // digits 0–9, the sixteen G16 glyphs (slots 10–25, passed in by code point), ∞ (26), a blank (27), four marks ▮ · × ◆ (28–31) and the
+  // code's two bits (32, 33): 0 and 1 narrower and bolder on a baseline bar, so a bit never reads as a π digit; 34–39 blank. No letters,
+  // so a column decodes into glyphs, never words. NPOT: sampled linear, unmipmapped, as the main atlas is. Needs a document
+  const RAIN_SLOTS = 40, RAIN_ROWS = RAIN_SLOTS / 8;
   function rainAtlas(g16) {
-    const cv = document.createElement('canvas'); cv.width = 320; cv.height = 256; const g = cv.getContext('2d');
+    const cv = document.createElement('canvas'); cv.width = 320; cv.height = 64 * RAIN_ROWS; const g = cv.getContext('2d');
     const marks = ['▮', '·', '×', '◆'], all = '0123456789'.split('').concat(g16 || [], ['∞', ''], marks);
-    g.clearRect(0, 0, 320, 256); g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#fff'; g.font = '500 32px "SF Mono", Menlo, "DejaVu Sans Mono", monospace';
+    g.clearRect(0, 0, 320, cv.height); g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#fff'; g.font = '500 32px "SF Mono", Menlo, "DejaVu Sans Mono", monospace';
     all.slice(0, RAIN_SLOTS).forEach((s, i) => { if (s) g.fillText(s, (i % 8) * 40 + 20, Math.floor(i / 8) * 64 + 32, 38); });
+    g.font = '700 27px "SF Mono", Menlo, "DejaVu Sans Mono", monospace';
+    ['0', '1'].forEach((s, j) => { const x = (32 + j) % 8 * 40 + 20, y = Math.floor((32 + j) / 8) * 64 + 32; g.fillText(s, x, y - 1, 24); g.fillRect(x - 10, y + 15, 20, 3); });
     return cv;
   }
 
@@ -456,5 +467,5 @@ void main() {
     const m = new THREE.ShaderMaterial({ vertexShader: spec.vertexShader, fragmentShader: spec.fragmentShader, uniforms: spec.uniforms, transparent: !!spec.transparent, depthTest: !!spec.depthTest, depthWrite: !!spec.depthWrite, blending: THREE.NormalBlending });
     const mesh = new THREE.Mesh(new THREE.PlaneBufferGeometry(2, 2), m); mesh.frustumCulled = false; mesh.renderOrder = spec.renderOrder || 0; return mesh;
   }
-  return { sky, halo, airy: airyJS, crt, pulse, resize, cssFilter, cssReset, cssApply, gammaWarp, warp, grab, warpRun, calm, strobe, rain, rainAtlas, quad, persistence, GREEN, GOLD, GROUND, BARREL, MOEBIUS_A, LENS_GAIN, PHI_INV, GOLDEN_ANGLE };
+  return { sky, halo, airy: airyJS, crt, pulse, resize, cssFilter, cssReset, cssApply, gammaWarp, warp, grab, warpRun, calm, strobe, rain, rainAtlas, RAIN_SLOTS, quad, persistence, GREEN, GOLD, GROUND, BARREL, MOEBIUS_A, LENS_GAIN, PHI_INV, GOLDEN_ANGLE };
 })();

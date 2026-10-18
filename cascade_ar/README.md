@@ -18,7 +18,7 @@ the Atbash mirror and the Heisenberg joining of words. One page, no build step, 
   (56) runs 137 → ∞ → 1: the first Γ turns the sky to its negative and lifts the view toward ∞, the second slams I AM and the field
   is reborn from 1. Par is the fewest moves; par closes with three stars. A gold day (day ≡ 0 mod 128) frees ×i.
 - The eye, 137, is a black hole: in chapter 7, on JUMP levels and within two moves of it, its pupil is a shadow in a gold ring and it
-  lenses the sky and the cells round it, the ring's radius (92/11)°/√(d + 1) reading the d moves from your cell to the eye.
+  lenses the sky, the rain and the cells round it, the ring's radius (92/11)°/√(d + 1) reading the d moves from your cell to the eye.
 - HINT shows the road from where you stand as chips: the first HINT of a level is free, each one after caps the level at ★★. A tapped
   cell's panel gives the road to it, but to the target only after a HINT.
 - A loss (SYNC one over par, HALT at zero) is THE BARDO: the field dims, the lost road falls in orange, the view lifts out of the body
@@ -37,9 +37,10 @@ the Atbash mirror and the Heisenberg joining of words. One page, no build step, 
   TURN's orbit in the eye's chapter, the product sheet overhead); LADDER shows your cell's sixteen halvings.
 - The sky is the π tape as rain: 256 columns of 78 digits, one above each dlog tick, drops of light running down them in the rule's
   pattern (FOLD's c and c + 128 together, SEED rising, SYNC one band, HALT frozen); your column runs fast, the target's is gold, the
-  six moves' columns take their hues, and each chapter wakes 32 more columns. A tape level reads out of the rain as it opens, its
-  start and target digits flying to their cells, and a close turns its start digits into the cell's glyphs; the seal counts the
-  windows decoded. Tap the ribbon to read the level's line; VIEW (or v) hides the rain.
+  six moves' columns take their hues, and each chapter wakes 32 more columns. The code is written in the field's alphabet: twice down
+  each column, its cell's glyph pair and its dlog in eight gold bits, among the digits; the day's 260 stay π. A tape level reads out
+  of the rain as it opens, its start and target digits flying to their cells, and a close turns its start digits into the cell's
+  glyphs; the seal counts the windows decoded. Tap the ribbon to read the level's line; VIEW (or v) hides the rain.
 
 ## Where it runs
 

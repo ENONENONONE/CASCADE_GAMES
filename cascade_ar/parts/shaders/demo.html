@@ -76,6 +76,7 @@ void main(){ float r = length(vQ) * scale; float h = airyGlow(r, lift); float co
   const rainSpec = FX.rain(), rgeo = new T.InstancedBufferGeometry(), rbase = new T.PlaneBufferGeometry(1, 1, 1, 13); rgeo.setAttribute('position', rbase.getAttribute('position')); rgeo.setIndex(rbase.getIndex());
   const rcol = new Float32Array(1024), rst = new Float32Array(1024); rgeo.setAttribute('iCol', new T.InstancedBufferAttribute(rcol, 4)); rgeo.setAttribute('iState', new T.InstancedBufferAttribute(rst, 4));
   const rbytes = new Uint8Array(256 * 78); for (let k = 0; k < rbytes.length; k++) rbytes[k] = (k * 7919 + (k >> 5) * 31) % 10;
+  for (let c = 0; c < 256; c++) for (let j = 0; j < 10; j++) rbytes[(20 + j) * 256 + c] = 128 + (j < 2 ? 10 + ((c >> (4 - 4 * j)) & 15) : 32 + ((c >> (9 - j)) & 1));   // the code (ar.js rainCode): two glyphs, then c in 8 bits
   const rtex = new T.DataTexture(rbytes, 256, 78, T.LuminanceFormat, T.UnsignedByteType); rtex.minFilter = rtex.magFilter = T.NearestFilter; rtex.generateMipmaps = false; rtex.needsUpdate = true;
   const ratl = new T.CanvasTexture(FX.rainAtlas(Array.from('Φ∂φ∞⊟⊗♯⅗εδΩΓQΣψ𝟙'))); ratl.minFilter = ratl.magFilter = T.LinearFilter; ratl.generateMipmaps = false;
   Object.assign(rainSpec.uniforms, { tape: { value: rtex }, atlas: { value: ratl } }); rainSpec.uniforms.win.value = [120, 75, 1, 0]; rainSpec.uniforms.span.value = [0, 4, 4, 8]; rainSpec.uniforms.strip.value = [120, 75, 260, 0.9];

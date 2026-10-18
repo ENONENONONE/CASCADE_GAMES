@@ -250,27 +250,50 @@ vec3 lensed(vec3 p) { float b; vec3 w; float t = lensImage(p, b, w); return t - 
   const ROLE_RGB = [[0.55, 0.65, 0.6], [0.55, 1, 0.6], [1, 0.83, 0.35], [0.3, 0.36, 0.33]];   // plain, start, target, skipped
   // ── the tape sky (M1): the π tape as the rain, 256 columns at radius 9, column c above cell 3^c holding π[78c … 78c + 77] read
   // downward, 19968 of the 20001 digits; one draw call, the shader in fx.js. The page picks the mode by its GPU tier: 'full' 256
-  // columns, 'sparse' the state columns alone with heads only (at most 42, the `tiny` tier), 'off' ──
+  // columns, 'sparse' the state columns alone with heads only (at most 42, the `tiny` tier), 'off'. The eye's lens bends it as it
+  // bends the cells (S1: LENS_GL in its vertex shader, on A.lensU), and the code is written in the field's own alphabet (rainCode) ──
   const RAIN = { cols: 256, rows: 78, base: 0 }, GREEN3 = [0.37, 0.83, 0.48], HALT_RGB = [0.92, 0.72, 0.66];
   let HALTS = [], SIDE = null;
   const hash = x => { const s = Math.sin(x * 12.9898 + 78.233) * 43758.5453; return s - Math.floor(s); };
   const bitrev = c => { let r = 0; for (let k = 0; k < 8; k++) r |= ((c >> k) & 1) << (7 - k); return r; };   // the woken columns spread round the sky
   const slotOf = ch => ch === '∞' ? 26 : F.G16.indexOf(ch) + 10;   // a glyph's slot in the rain atlas
   const tapeAt = (B, k, s) => { B.bytes[(k % RAIN.rows) * RAIN.cols + Math.floor(k / RAIN.rows)] = s; };
+  // the code (M1): column c stands above cell n = 3^c, and twice down it, 39 rows apart from row ⌊29·fract(c/φ)⌋ (the golden stagger),
+  // it writes its own name: n's glyph pair, then c, n's dlog, in 8 bits from the top bit. A code byte is its atlas slot + 128 (the
+  // shader tints it: glyphs pale, bits gold); every other row is the tape's own digit. Returns the column's words, [row, slots]
+  const PHI_INV = 0.6180339887;
+  const rainCode = c => { const r0 = Math.floor(29 * ((c * PHI_INV) % 1)), w = Array.from(F.glyphs(F.POW[c])).map(slotOf).concat(Array.from({ length: 8 }, (_, j) => 32 + ((c >> (7 - j)) & 1))).map(s => s + 128); return [[r0, w], [r0 + 39, w]]; };
+  // the day's tape (once a day, and at build with no day): π everywhere, the code in every word that does not touch the day's 260
+  // (head … head + 259, which holds the strip and every window the day's plan reads, M2), so the read and the strip stay the true
+  // digits; decodes made after it are written over it. One 19,968 B upload
+  function rainDay(head) {
+    const B = A.rainB; if (!B || B.day === head) return; const pi = B.pi, h = head == null ? -1e9 : head - RAIN.base;
+    for (let k = 0; k < RAIN.cols * RAIN.rows; k++) { const d = pi.charCodeAt(RAIN.base + k) - 48; tapeAt(B, k, d >= 0 && d <= 9 ? d : 27); }
+    for (let c = 0; c < RAIN.cols; c++) for (const [r, w] of rainCode(c)) { const k = c * RAIN.rows + r; if (k + w.length > h && k < h + 260) continue; w.forEach((s, j) => tapeAt(B, k + j, s)); }
+    B.day = head; B.tex.needsUpdate = true;
+  }
+  // the strip's rows, dense where the lens bends: 0.35° at the eye's elevation (−34°), 0.12° wider a degree off it, at most 7.5° (39 rows
+  // of vertices, 78 a column, 19,968 in all, 7168 before), so a column's image runs round the ring in short chords
+  function rainRows() {
+    const e = Math.asin(place(EYE).y / R) * 180 / Math.PI, el = [58];
+    while (el[el.length - 1] > -40) { const a = el[el.length - 1], d = Math.min(7.5, 0.35 + 0.12 * Math.abs(a - e)); el.push(a - d - (-40) < 0.5 * d ? -40 : a - d); }
+    return el.map(a => (a + 40) / 98 - 0.5);
+  }
   function rainInit(pi, mode) {
     const FX = window.FOLD_FX; if (!FX || !FX.rain || !mode || mode === 'off') return null;
-    const spec = FX.rain(), n = RAIN.cols, geo = new T.InstancedBufferGeometry(), base = new T.PlaneBufferGeometry(1, 1, 1, 13);   // 2 × 14 vertices a column
+    const spec = FX.rain({ lens: LENS_GL }), n = RAIN.cols, geo = new T.InstancedBufferGeometry(), ys = rainRows(), base = new T.PlaneBufferGeometry(1, 1, 1, ys.length - 1);
+    { const P = base.getAttribute('position'); for (let i = 0; i < P.count; i++) P.setY(i, ys[i >> 1]); }
+    spec.uniforms.lensDir = A.lensU.lensDir; spec.uniforms.lensE = A.lensU.lensE;   // the cells' own: well.js sets them, on the cells' tiers
     geo.setAttribute('position', base.getAttribute('position')); geo.setIndex(base.getIndex());
     const col = new Float32Array(n * 4), st = new Float32Array(n * 4); for (let c = 0; c < n; c++) col[c * 4 + 3] = c;
     geo.setAttribute('iCol', new T.InstancedBufferAttribute(col, 4)); geo.setAttribute('iState', new T.InstancedBufferAttribute(st, 4)); geo.instanceCount = mode === 'sparse' ? 0 : n;
-    const bytes = new Uint8Array(n * RAIN.rows), B = { bytes };
-    for (let k = 0; k < n * RAIN.rows; k++) { const d = pi.charCodeAt(RAIN.base + k) - 48; tapeAt(B, k, d >= 0 && d <= 9 ? d : 27); }
+    const bytes = new Uint8Array(n * RAIN.rows), B = { bytes, pi, rows: ys.length };
     const tex = new T.DataTexture(bytes, n, RAIN.rows, T.LuminanceFormat, T.UnsignedByteType); tex.minFilter = T.NearestFilter; tex.magFilter = T.NearestFilter; tex.generateMipmaps = false; tex.needsUpdate = true;
     const atl = new T.CanvasTexture(FX.rainAtlas(F.G16)); atl.minFilter = T.LinearFilter; atl.magFilter = T.LinearFilter; atl.generateMipmaps = false;
     spec.uniforms.tape.value = tex; spec.uniforms.atlas.value = atl;
     const mat = new T.ShaderMaterial({ vertexShader: spec.vertexShader, fragmentShader: spec.fragmentShader, uniforms: spec.uniforms, transparent: true, depthWrite: false });
     const mesh = new T.Mesh(geo, mat); mesh.frustumCulled = false; mesh.renderOrder = spec.renderOrder; A.scene.add(mesh);
-    Object.assign(B, { mesh, geo, col, st, tex, u: spec.uniforms }); A.rainB = B; A.rainMode = mode; A.rainT = 0; A.rainAlpha = 1;
+    Object.assign(B, { mesh, geo, col, st, tex, u: spec.uniforms }); A.rainB = B; A.rainMode = mode; A.rainT = 0; A.rainAlpha = 1; rainDay(null);
     HALTS = []; for (let c = 1; c < 257; c++) if (pi[c] === '9') HALTS.push(c);   // the 27 HALT cells, π[n] = 9
     SIDE = new Array(258).fill(0); { let z = 1; for (let k = 0; k < 128; k++) { SIDE[z] = 1; z = F.gamma(z); } }   // Γ's orbit of 1, the side of 1
     return B;
@@ -296,7 +319,7 @@ vec3 lensed(vec3 p) { float b; vec3 w; float t = lensImage(p, b, w); return t - 
   // stops at its head. Cells 0 and ∞ have no column (DLOG −1): their billboards stand at the floor's centre and the zenith. Comfort: in XR
   // two static columns, under gyro drops only in the state columns, under CALM none, the glyphs lit by state
   function rainPaint(state) {
-    const B = A.rainB; if (!B) return; A.rainLast = state;
+    const B = A.rainB; if (!B) return; A.rainLast = state; if (state.strip != null) rainDay(state.strip);   // the page calls rainDay before its decodes; this only catches a day it did not
     const xr = A.renderer.xr.isPresenting, gyro = !!A.deviceQ, calm = !!A.calm, sparse = A.rainMode === 'sparse', W = A.readW = windowOf(state.spec);
     const R = rainRule(state.rule || 0, state.moves || 0), wake = 32 * Math.max(1, Math.min(8, state.chapter || 8)), cur = state.current;
     const look = new Map(), mark = (n, rgb, s) => { const c = F.dlog(n); if (c >= 0) look.set(c, [rgb, s]); };
@@ -333,7 +356,7 @@ vec3 lensed(vec3 p) { float b; vec3 w; float t = lensImage(p, b, w); return t - 
   // the read (M2): the window's glyphs lift out of the sky and fly on the billboard flow, the head as its opcode to the rule pill, the
   // start digits to the start cell and the target's to the target; it owns tapeB until they land, then the ribbon blooms back. A column
   // off the screen sends its glyphs from the view's centre. Under CALM, in XR or with the rain hidden nothing flies. Returns its seconds
-  const skyAt = k => { const c = Math.floor(k / RAIN.rows), r = k % RAIN.rows, az = c / 256 * Math.PI * 2, el = (58 - (r + 0.5) * 98 / 78) * Math.PI / 180; return new T.Vector3(Math.sin(az) * Math.cos(el) * 9, Math.sin(el) * 9, -Math.cos(az) * Math.cos(el) * 9); };
+  const skyAt = k => { const c = Math.floor(k / RAIN.rows), r = k % RAIN.rows, az = c / 256 * Math.PI * 2, el = (58 - (r + 0.5) * 98 / 78) * Math.PI / 180; return lensed(new T.Vector3(Math.sin(az) * Math.cos(el) * 9, Math.sin(el) * 9, -Math.cos(az) * Math.cos(el) * 9)); };   // where it is drawn, the lens too
   const seen = p => { _w.copy(p).applyMatrix4(A.camera.matrixWorldInverse); _p.copy(p).project(A.camera); return _w.z < 0 && Math.abs(_p.x) < 1 && Math.abs(_p.y) < 1; };
   function read(spec, opts) {
     opts = opts || {}; readEnd(); const W = windowOf(spec), B = A.tapeB;
@@ -412,6 +435,9 @@ vec3 lensed(vec3 p) { float b; vec3 w; float t = lensImage(p, b, w); return t - 
     _u.divideScalar(s); return out.copy(L).multiplyScalar(Math.cos(t)).addScaledVector(_u, Math.sin(t)).multiplyScalar(r);
   }
   const lensPlace = n => lensed(place(n));
+  // the rain's lens in JS, its fragment stage (fx.js rain({lens}); the vertex stage is lensed()): how much of the rain drawn at p shows, 0
+  // inside θE, where only the far side shows (the sky's), so none in the shadow; 1 from 1.06 θE out
+  function rainSeen(p) { const e = A.lensU.lensE.value, L = A.lensU.lensDir.value, c = p.dot(L), w = c * Math.tan(e), s = _u.copy(p).addScaledVector(L, -c).length(); return e > 0 && w > 0 ? ease((s / w - 1) / 0.06) : 1; }
   function onScreen(n, out) {
     let q = _place[n]; if (!q) q = _place[n] = place(n); q = lensed(q, _q);
     _w.copy(q).applyMatrix4(A.camera.matrixWorldInverse); _p.copy(q).project(A.camera);
@@ -447,5 +473,5 @@ vec3 lensed(vec3 p) { float b; vec3 w; float t = lensImage(p, b, w); return t - 
     if (A.reading) { const r = (t - A.reading.t0) / A.reading.dur; if (r >= 1) readEnd(); else A.tapeB.mesh.material.uniforms.flow.value = r; }
     if (!A.renderer.xr.isPresenting) look(liftOf(t)); A.renderer.render(A.scene, A.camera);
   }
-  return { init, paint, flow, bloom, tape, place, lensed, lensPlace, uvOf, tunnel, dim, fall, lift, life, onOrientation, onScreen, pick, pickTape, frame, A, resize, rainInit, rainRule, decode, read, readEnd, RAY_RGB, rayColor, GOLD, MIRRORS, EYE };
+  return { init, paint, flow, bloom, tape, place, lensed, lensPlace, uvOf, tunnel, dim, fall, lift, life, onOrientation, onScreen, pick, pickTape, frame, A, resize, rainInit, rainRule, rainCode, rainDay, rainRows, rainSeen, LENS_GL, decode, read, readEnd, RAY_RGB, rayColor, GOLD, MIRRORS, EYE };
 })();
