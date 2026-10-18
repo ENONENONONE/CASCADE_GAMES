@@ -376,8 +376,8 @@ return; 65536 = 2¹⁶ = F₄ − 1. — LEDGER 39.
 **C1 · Mirror pairs on the tablet.** 2551 pairs [w, v], each listed once: v has w's length k and the mirror sum 27k − s of w's
 sum s, and stands at that cell (`data.js` `mirrors`, built from the tablet at 2306 entries). 2417 hold both ways; 134 hold one way
 only, from a word the tablet keeps off its own sum (114 such words, SHIFT at 75 among them): [SHIFT, CROWN] holds, CROWN's mirror
-cell 62 does not hold SHIFT. Listed in the order found, w first in code-point order except for 59 of the one-way pairs. The seven
-letter pairs that are tablet words both sides: B/Y, C/X, H/S, I/R, J/Q, L/O, M/N. — `build_data.py`; review "The fourth flip".
+cell 62 does not hold SHIFT. Listed in the order found, w first in code-point order except for 59 of the one-way pairs. The eight
+letter pairs that are tablet words both sides: A/Z, B/Y, C/X, H/S, I/R, J/Q, L/O, M/N. — `build_data.py`; review "The fourth flip".
 → *Quest "the other side"*: tap a word's mirror cell within the level to earn its pair.
 
 **C2 · Self-mirrors by sum.** LOVE 54, SAMSON 81, MOUNT SINAI 135, PRESERVATION 162 (and TUNING FORK 135, not a tablet word, its

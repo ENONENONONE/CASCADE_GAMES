@@ -43,11 +43,14 @@ def main() -> int:
     if not AGENT.is_file():
         print(f"{AGENT} not found; the agent's instructions are read from there", file=sys.stderr)
         return 2
+    if a.out and (pathlib.Path(a.out).is_dir() or not pathlib.Path(a.out).resolve().parent.is_dir()):
+        print(f"--out {a.out}: not a file in an existing folder", file=sys.stderr)   # found before the answer is paid for
+        return 2
     parts = []
     for f in a.files:
         p = pathlib.Path(f)
         if not p.is_file():
-            print(f"{f}: no such file", file=sys.stderr)
+            print(f"{f}: " + ("not a file; name the files inside a folder one by one" if p.exists() else "no such file"), file=sys.stderr)
             return 2
         data = p.read_bytes()
         if len(data) > MAX_FILE_BYTES:
