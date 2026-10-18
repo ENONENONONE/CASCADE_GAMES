@@ -2,7 +2,8 @@
 // Asserts: every chapter epigraph is a word of its cell; every key of cells[] and doors[] is a cell (257 the open point);
 // every word in capitals in a voice is one of that cell's own words; every "dlog N / inverse N / fold N / Γ N / ×i N / ×g N"
 // and every "… of N" in a voice is true of that cell; every entry of facts[] recomputes; every letter sum in sums[] is right;
-// the word limits hold; no exclamation mark anywhere; days[] covers the ten opcodes; ops[] the six moves and undo.
+// the word limits hold; no exclamation mark anywhere; days[] covers the ten opcodes; ops[] the six moves and undo;
+// no cell's glyphs hold a lone surrogate.
 'use strict';
 const fs = require('fs'), path = require('path');
 const root = path.resolve(__dirname, '..', '..');
@@ -69,4 +70,7 @@ for (const f of S.facts) {
 // letter sums
 for (const [w, s] of Object.entries(S.sums)) ok(F.letterSum(w) === s, 'letter sum of ' + w + ' is ' + F.letterSum(w) + ', not ' + s);
 for (const [w] of Object.entries(S.sums)) ok(words.has(w), w + ' is on the tablet');
+// glyphs: whole code points only (𝟙 is a surrogate pair)
+const lone = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/;
+for (let c = 0; c <= 257; c++) ok(!lone.test(F.glyphs(c)), 'glyphs of cell ' + c + ' hold a lone surrogate: ' + JSON.stringify(F.glyphs(c)));
 console.log('story check: ' + n + ' assertions, all true; ' + voiced + ' voices, ' + S.chapters.length + ' chapters, ' + Object.keys(S.doors).length + ' doors, ' + S.facts.length + ' facts, ' + Object.keys(S.sums).length + ' letter sums');
