@@ -46,6 +46,7 @@ function check(day, name, quiet) {
     const free = new Set(sp.free); let c = sp.start, m = 0; for (const id of sp.road) { c = F.OP[id].f(c); if (!free.has(id)) m++; }
     const rt = sp.shift ? F.mul(sp.target, F.POW[m % 256]) : sp.target;
     assert(c === rt && (sp.countFree ? sp.road.length : m) === sp.par, 'level ' + sp.n + ' spec road ' + sp.roadText + ' ends at ' + c + ' cost ' + m);
+    if (sp.rule === 9) assert(sp.sheet === 'circle' && sp.clock === 30, 'level ' + sp.n + ' HALT stands on the circle, the zone plate');
   }
   // the kinds
   const door = plan.filter(sp => sp.kind === 'door');
@@ -104,6 +105,48 @@ assert(L.doors('2026').length === 6 && L.doors('2026')[0].start === 227, '2026 t
 const fw = L.free('TORAH');
 assert(fw.kind === 'free' && fw.target === null && fw.par === null && fw.start === 62, 'free walk from 62 with no target');
 console.log('\n== FREE WALK == ' + fw.text);
+
+// THE SLOW CLOCK (S3) and the effort (H2): game.js itself, in node with a localStorage stub and the wall clock in the test's hand
+{
+  const store = new Map(); global.localStorage = { getItem: k => store.has(k) ? store.get(k) : null, setItem: (k, v) => store.set(k, String(v)), removeItem: k => store.delete(k) };
+  let wall = 0; performance.now = () => wall;
+  require('../../game.js'); const G = window.GAME, S = G.S;
+  console.log('\n== THE SLOW CLOCK ==');
+  // d(n), the moves to the eye: S1's histogram with the six moves, and with the flip
+  const hist = ops => { const d = G.toEye(ops), h = []; for (const x of d) h[x] = (h[x] || 0) + 1; return h; };
+  assert(hist(F.OPS).join() === '1,6,22,58,111,59,1', 'moves to 137: 1, 6, 22, 58, 111, 59, 1 at d = 0 … 6 (' + hist(F.OPS).join(', ') + ')');
+  assert(hist(F.OPS.concat([F.FLIP])).join() === '1,6,22,63,122,43,1', 'with the flip: 1, 6, 22, 63, 122, 43, 1');
+  const d = G.toEye(F.OPS), at = k => d.findIndex(x => x === k), s5 = at(5), s1 = at(1);
+  assert(d[257] === 6 && [105, 120, 121, 154, 217, 242].every(n => d[n] === 1), 'd(∞) = 6; the six at d = 1 are 105, 120, 121, 154, 217, 242');
+  const halt = { n: 1, kind: 'tape', start: s5, target: F.fold(s5) === s5 ? 1 : F.fold(s5), rule: 9, free: [], slack: 0, strict: false, clock: 30, shift: false, offset: 0 };
+  // run a level from wall 0 in 100 ms frames, the player standing on `on` throughout; the wall second the level is lost at
+  const run = on => { wall = 0; store.clear(); G.start('SCRIBE', 'daily', [halt]); G.arm(); if (on != null) S.current = on; for (let k = 1; k <= 600; k++) { wall = k * 100; G.tick(); if (S.lost) return wall / 1000; } return null; };
+  for (const dilate of [false, true]) {
+    G.FLAGS.dilate = dilate; const tag = 'dilate ' + (dilate ? 'on' : 'off');
+    const held = run(null);
+    assert(held === 30, tag + ': held at its start (d = 5) the level still loses at 30 s of wall time (' + held + ')');
+    assert(Math.abs(S.tau - 30) < 1e-9 && S.real === 30, tag + ': at the loss τ = ' + S.tau + ' of ' + S.real + ' s real');
+    const near = run(s1), want = dilate ? 38.8 : 30;
+    assert(near === want, tag + ': standing at d = 1 throughout from a d = 5 start it loses at ' + near + ' s (' + (dilate ? '30/0.7746 = 38.73, the first 0.1 s frame past it' : 'the wall clock') + ')');
+    assert(S.tau >= 30 && S.tau < 30.1, tag + ': still lost at 30 dilated seconds, τ = ' + S.tau.toFixed(4) + ', the rate ' + S.rate.toFixed(4));
+    assert(Math.abs(S.borrowed - (S.real - S.tau)) < 1e-9 && store.get([...store.keys()].find(k => k.startsWith('fold.run.'))).includes('"borrowed"'), tag + ': the seconds borrowed from the eye are saved, ' + S.borrowed.toFixed(2));
+    console.log('  ' + tag + ': held at the start lost at ' + held + ' s; at d = 1 lost at ' + near + ' s, τ ' + S.tau.toFixed(3) + ', rate ' + S.rate.toFixed(4) + ', borrowed ' + S.borrowed.toFixed(2) + ' s');
+  }
+  G.FLAGS.dilate = true;
+  { const f = k => Math.sqrt(1 - 1 / (k + 1)); assert([1, 2, 3, 4, 5, 6].map(f).map(x => x.toFixed(4)).join() === '0.7071,0.8165,0.8660,0.8944,0.9129,0.9258', 'f(1 … 6) as S3 gives them'); }
+  // the clock is integrated cell by cell: a move toward the eye slows it from that moment, UNDO puts the start's rate back
+  { wall = 0; store.clear(); G.start('SCRIBE', 'daily', [halt]); G.arm(); const road = F.solve(s5, 137); wall = 10000; G.apply(road[0]); const r1 = S.rate, t1 = S.tau; wall = 20000; G.tick();
+    assert(t1 === 10 && Math.abs(S.tau - (10 + 10 * r1)) < 1e-9 && r1 < 1, 'one move toward the eye: τ 10 then 10 s at ×' + r1.toFixed(4) + ' = ' + S.tau.toFixed(3));
+    G.undo(); assert(S.rate === 1 && S.dist === S.par, 'UNDO: the start\'s rate 1 and the distance back to par'); }
+  // the effort: S.dist is par at the open and 0 at the close, one climb entry a move, on today's plan played through game.js
+  const plan = L.plan(today, 'SCRIBE'); wall = 0; store.clear(); G.start('SCRIBE', 'daily', plan); let ok = 0;
+  for (const sp of plan) {
+    G.level(sp.n); const d0 = S.dist; if (S.par === sp.par) assert(d0 === S.par, 'level ' + sp.n + ': the distance at the open ' + d0 + ' is par ' + S.par);
+    for (const id of sp.road) G.apply(id);
+    assert(S.done && S.dist === 0 && S.climb.length === sp.road.length && S.climb.every((c, i) => i === 0 ? c[1] === d0 : c[1] === S.climb[i - 1][2]), 'level ' + sp.n + ': the road closes, the distance 0, a climb entry a move'); if (S.done) ok++;
+  }
+  console.log('  ' + ok + ' of 64 levels closed through game.js by their roads, the distance falling to 0');
+}
 
 console.log('\n' + checks + ' checks, ' + fails + ' failed' + (fails ? '' : ' — the plan computes'));
 process.exit(fails ? 1 : 0);

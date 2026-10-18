@@ -176,7 +176,7 @@ window.FOLD_LEVELS = (function () {
       if (specials.length) { const sp = out[specials[0] - 1]; out[first - 1].special = { kind: sp.kind, n: sp.n, start: sp.start, target: sp.target, rung: sp.rung, number: sp.number, word: sp.word }; }
       OPSET = null;
     }
-    for (const sp of out) sp.quest = quest(sp.n, sp);
+    for (const sp of out) { sp.quest = quest(sp.n, sp); if (sp.rule === 9) sp.sheet = 'circle'; }   // HALT stands on the zone plate (R5)
     return out;
   }
 
