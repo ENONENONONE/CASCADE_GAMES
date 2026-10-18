@@ -8,6 +8,7 @@ THE FOLD, an augmented-reality game over the field GF(257), with the tools that 
 | `build_data.py` | Rebuilds `cascade_ar/data.js` from the emerald tablet and the machine's π tape. |
 | `gen_material.py` | Recomputes and checks the arithmetic behind `material.md`, then writes `cascade_ar/parts/corpus/material.js`. |
 | `material.md` | The catalogue of motifs, mechanics, words and dates mined from the corpus for the game. |
+| `scope.md` | The enhancement scope: the four looks (conic relief, Enter the Void, Matrix, singularity), Twelve Rays and Sisyphean Heat in the game, challenges, HUD, the fixes found on the way, data, phases and budgets. |
 | `games_designer_api.py` | Sends a design or review task, with the files you name, to the games-designer agent through the Claude API. |
 
 ## Rebuilding the game's data
