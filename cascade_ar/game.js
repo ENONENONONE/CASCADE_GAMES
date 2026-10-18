@@ -27,7 +27,7 @@ window.GAME = (function () {
   const today = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
   const key = () => 'fold.run.' + F.dayNumber(new Date()) + '.' + (S.mode || 'daily');
   function load() { try { return JSON.parse(localStorage.getItem(key()) || 'null'); } catch (e) { return null; } }
-  function save() { try { localStorage.setItem(key(), JSON.stringify({ name: S.name, level: (S.done && !S.lost) ? S.level + 1 : S.level, stars: S.stars, line: S.line, closed: S.closed, targets: S.targets, quests: S.quests, borrowed: S.borrowed })); localStorage.setItem('fold.name', S.name); } catch (e) {} }
+  function save() { try { localStorage.setItem(key(), JSON.stringify({ name: S.name, level: (S.done && !S.lost) ? S.level + 1 : S.level, stars: S.stars, line: S.line, closed: S.closed, targets: S.targets, quests: S.quests, borrowed: S.borrowed, decoded: S.decoded })); localStorage.setItem('fold.name', S.name); } catch (e) {} }
   const at = o => ((o % (D.pi.length - 4)) + D.pi.length - 4) % (D.pi.length - 4);   // past the tape's end the head wraps, as the plan reads it
   const window4 = o => parseInt(D.pi.slice(at(o), at(o) + 4), 10) % 257;
   // SHIFT: the target is t·3^k after k moves; the shortest road is the least k with a road of k moves from s to t·3^k
@@ -66,7 +66,7 @@ window.GAME = (function () {
     S.day = F.dayNumber(new Date()); S.head = S.day + 13; S.plan = plan || null;
     S.goldDay = S.day % 128 === 0; S.tabletDay = S.day % 258 === 0; S.dayCell = S.day % 257;   // the day table: cell = day mod 66048, gold every 128th, a tablet cell every 258th
     const kept = S.mode === 'daily' ? load() : null; const mine = kept && kept.name === S.name;
-    S.level = mine ? kept.level : 1; S.stars = mine ? kept.stars : []; S.line = mine ? kept.line : []; S.closed = mine ? kept.closed : 0; S.targets = mine ? (kept.targets || []) : []; S.quests = mine ? (kept.quests || []) : []; S.borrowed = mine ? (kept.borrowed || 0) : 0;
+    S.level = mine ? kept.level : 1; S.stars = mine ? kept.stars : []; S.line = mine ? kept.line : []; S.closed = mine ? kept.closed : 0; S.targets = mine ? (kept.targets || []) : []; S.quests = mine ? (kept.quests || []) : []; S.borrowed = mine ? (kept.borrowed || 0) : 0; S.decoded = mine ? (kept.decoded || []) : [];
     // a save from before chapter marks holds quest cells only. Chapters are answered in order, so match them one cell each, as a multiset, and
     // credit a cell left over (a quest the data moved since it was answered) to the earliest chapter reached whose quest is still open
     if (S.plan && S.mode === 'daily' && S.quests.length && !S.quests.some(x => typeof x === 'string')) {
@@ -104,11 +104,15 @@ window.GAME = (function () {
     if (v === S.target) {
       if (S.clock) S.borrowed += S.real - S.tau;
       S.done = true; S.stars[S.level - 1] = Math.min(S.hints > 1 ? 2 : 3, S.moves <= S.par + S.slack ? 3 : S.moves <= S.par + 1 + S.slack ? 2 : 1);   // STORE's slack: par + 1 still closes; a second HINT caps at ★★
-      if (S.strict && S.moves > S.par) { S.stars[S.level - 1] = 0; S.lost = true; } else { S.closed++; S.line.push(D.cells[S.target].w); S.targets.push(S.target); }
+      if (S.strict && S.moves > S.par) { S.stars[S.level - 1] = 0; S.lost = true; } else { S.closed++; S.line.push(D.cells[S.target].w); S.targets.push(S.target); decoded(); }
       save();
     } else if (S.strict && S.moves > S.par) { S.lost = true; S.stars[S.level - 1] = 0; save(); }
     return v;
   }
+  // the tape decoded (M2): a closed level that reads digits keeps its window number (a tape level's own window, before the par sort; a
+  // mirror's slot), and the seal counts the tape windows among them and the longest run of consecutive window numbers
+  function decoded() { const sp = S.spec, w = sp && sp.digits ? sp.window || sp.n : null; if (w != null && S.mode === 'daily' && !S.decoded.includes(w)) S.decoded.push(w); }
+  function tapeRead() { if (!S.plan) return null; const all = S.plan.filter(sp => sp && sp.kind === 'tape').map(sp => sp.window), got = all.filter(w => S.decoded.includes(w)).sort((a, b) => a - b); let run = 0, r = 0; got.forEach((w, i) => { r = i && w === got[i - 1] + 1 ? r + 1 : 1; run = Math.max(run, r); }); return { k: got.length, of: all.length, run }; }
   function undo() { if (!S.ops || S.done || S.lost || !S.ops.length) return null; advance(); const id = S.ops.pop(); S.road.pop(); S.current = S.road[S.road.length - 1]; if (!S.free.has(id) || S.countFree) S.moves--; if (S.shift) S.target = F.mul(S.target0, F.POW[S.moves % 256]); S.climb.pop(); S.dist = dist(); S.rate = rateAt(S.current); return id; }
   function reset() { level(S.level); }
   function next() { level(S.level + 1); save(); }
@@ -129,5 +133,5 @@ window.GAME = (function () {
   function hintLeft() { const h = S.hinted; if (!h || S.road[h.at] !== h.from) return null; const did = S.ops.slice(h.at); return did.every((id, j) => id === h.road[j]) ? h.road.slice(did.length) : null; }
   // the quest of the chapter: a cell to find by its words; done by a tap on it
   function questDone(n) { const q = S.quest; if (!q || answered(q)) return false; if (n === q.cell) { S.quests.push(q.cell, 'c' + q.chapter); save(); return true; } return false; }
-  return { S, RULES, FLAGS, toEye, start, level, arm, apply, undo, reset, next, tick, reach, lineInfo, cellInfo, hint, askHint, hintLeft, roadTo, today, solveShift, tapeSpec, questDone, answered };
+  return { S, RULES, FLAGS, toEye, start, level, arm, apply, undo, reset, next, tick, reach, lineInfo, cellInfo, hint, askHint, hintLeft, roadTo, today, solveShift, tapeSpec, questDone, answered, tapeRead };
 })();

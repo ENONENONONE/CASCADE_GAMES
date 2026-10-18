@@ -129,6 +129,65 @@ full screen), and Γ's CRT tint, which rides an admitted room flash as the same 
 every sliding second, 334 ms apart, none under CALM, every sub-threshold request admitted, and the gate not shut (3 in the first
 second). It is a node check, kept out of sw.js SHELL.
 
+## rain() / rainAtlas() — the tape sky (M1) and the read (M2)
+
+`rain()` returns `{vertexShader, fragmentShader, uniforms, …}` for one InstancedBufferGeometry that `ar.js` builds (`rainInit(pi,
+mode)`): PlaneBufferGeometry(1, 1, 1, 13), 2 × 14 vertices a column, 256 instances, 7168 vertices, one draw call at renderOrder −5,
+depthWrite off. The vertex shader bends each strip onto the sphere of radius 9: column c at the azimuth of cell 3^c (c/256 of a turn,
+x = sin, z = −cos, so it stands right behind its cell), from −40° to +58°, row 0 at the top; column c holds π[78c … 78c + 77], 19968 of
+the tape's 20001 digits. Per instance `iCol` = (r, g, b, c) and `iState` = (speed in rows/s, below 0 rising; trail in rows, 0 no drop;
+phase; lit, the glyphs' own light). The drop's head is placed in the vertex stage (highp there by the spec), so the clock never meets
+mediump; the row varying takes `HP`. The fragment works out its light first (the drop, the read's eight digits, the day's strip) and
+discards an unlit one before either fetch; then one fetch of `tape` (a 256 × 78 LUMINANCE DataTexture, NEAREST, a slot index a byte,
+19,968 B) and one of the atlas. ~40 ops and 2 fetches a fragment.
+
+`rainAtlas(G16)` draws 32 slots of 40 × 64 on a 320 × 256 canvas (327,680 B): the digits 0–9, the sixteen G16 glyphs (10–25), ∞ (26),
+a blank (27) and ▮ · × ◆ (28–31), each about 32 px in the slot's middle 40 × 40 (a row is ~17 px at 1080p, so at most twice the row).
+No letters: a column decodes into glyphs, never words. NPOT, linear, unmipmapped, as the main atlas is.
+
+The state (`AR.paint` writes `iState` through `rainPaint`): your column runs ×2.2 and white-green, the target's gold, home blue, the
+six (seven with THE MIRROR's flip) reach columns in the hue of the move that reaches them, visited columns ×0.4 and dim, on a HALT
+level the 27 HALT cells' columns (π[n] = 9) pale. Chapter k wakes 32k columns, in bit-reversed order so they spread round the sky;
+an asleep column keeps its code at 0.05 and no drop. The day's 260 digits (head 9435 to 9694 on day 9422, columns 120–124) are a
+brighter strip. Cells 0 and ∞ have no column (DLOG −1); their billboards at the floor's centre and the zenith carry their state.
+
+The rule (`AR.rainRule(digit, moves)`) is a phase pattern: columns with one key share a phase and a speed. NOP free · IDENT c with
+256 − c · EXIST c mod 64 · SEED the rain rises · SHIFT the key (c − moves) mod 256, so the pattern steps a column a move · STORE
+trails of 20 rows, not 10 · FOLD c mod 128 · JUMP Γ's orbit of 1 against the rest, half a period apart, 46 and 92 free (built from
+F.gamma here; M3's side table can replace it) · SYNC one phase and speed for all, a band that travels down · HALT the rain's clock
+stops (R5's freeze). The clock is the rain's own (`A.rainT`): it stops on a HALT level and through a slowed close (M4).
+
+The read (M2): a level that reads the tape (tape levels; a mirror its four start digits; doors, ladders and the eye none) stops its
+window's column with the head at π[offset]; the four start digits light green and the four target digits gold at offset + 4 + slid,
+a slid window's skipped digits struck through, each on a lit cell; on SEED the start digits give way to SEED's ΦΦ. `AR.read(spec,
+{pill, done})` flies the window on tapeB's own flow uniform for one flow, 0.8 s: the head as its opcode to the rule pill, the start
+digits to the start cell, the target's to the target, from the view's centre when the column is off the screen; it owns tapeB until
+they land (tape() only keeps its arguments meanwhile), then the ribbon blooms back and `done` arms the level. index.html calls it from
+openLevel and from the chapter card's GO instead of G.arm(), so HALT's thirty seconds never run during it; a tap, Space, Escape or a
+move ends it (`AR.readEnd()`). The open line types in with a block cursor, 120 characters a second by the clock, aria-busy while it
+types. A close calls `AR.decode(spec)`: the four start digits become the glyphs of the cell they read (7846 ≡ 136 → εε, then blanks),
+written into the tape texture in place, one 19,968 B upload, so the rain stays at two fetches. game.js keeps `decoded` (window
+numbers: a tape level's own window before the par sort, a mirror's slot) in the day's save, ENTER writes them back, and the seal
+reads 'the tape decoded k of 56 windows · longest run r' (`G.tapeRead()`, runs over consecutive tape window numbers, so the
+specials break them). A tap on the ribbon or on the head in the sky (`AR.pickTape`, tested before the cells) types the level's line.
+
+Tiers (index.html, fold.prefs {rain: 'full' | 'sparse' | 'off'} overrides): phones, RK3588 and desktops `full`; the `tiny` tier
+(VideoCore, V3D, SwiftShader) `sparse`: only the state columns are instances (current, target, home, the reach, HALT's 27 on a HALT
+level, the day's 5 strip columns; at most 42), drop heads only, no trail, no standing code, the read's digits still lit; llvmpipe
+`off` by its own test, since `tiny` lumps it with VideoCore. In XR two static columns, yours and the target's, at alpha 0.35; under
+gyro the drops run only in the state columns (no full-field moving texture); over the camera alpha 0.35; under CALM no drop at all,
+the state columns lit 0.45 and the read not flown (the digits light in place, the line appears whole, the level arms at once). VIEW
+(the third row of #ops, beside LADDER) or v hides the rain, kept as fold.view; CODE (M3) joins that button. No flash: the rain's
+largest change is a drop head on one column; a drop passes a point once in 6–12 s (your column's in 2.7 s), SYNC's band once in
+8.8 s, far under the gate's 3 a second, so nothing asks FX.strobe().
+
+Measured (headless Chromium, SwiftShader, 1280 × 800, `A.frame()` timed with a 1-pixel readPixels, 90 frames, median of 4 runs
+interleaved on a shared 4-core machine): before 42.0 / 40.9 ms (level 1 / level 25), sparse 41.6 / 38.8 ms (13–14 instances), full
+forced 67.7 / 66.8 ms, off 39.6 / 40.2 ms; draw calls 10 → 11. The full tier costs SwiftShader ~25 ms, which is why `tiny` runs
+sparse; check a Pi 4 before full runs there. `demo.html` shows it on a made-up tape (RAIN, RAIN FULL / SPARSE) and compiles it on
+WebGL2 and on `?gl1`; under that SwiftShader the fragment mediump is a real 10-bit float, so the digit-counting from the head, the
+whole column and the clamped trail were run at 16 bits, not only reasoned.
+
 ## mediump, and what was checked
 
 Every fragment is written for a 16-bit float: no fract of a product past 2048, no coefficient below 6 × 10⁻⁵, no sin or cos of an
