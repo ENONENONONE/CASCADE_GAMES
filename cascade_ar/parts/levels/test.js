@@ -46,6 +46,8 @@ function check(day, name, quiet) {
     const free = new Set(sp.free); let c = sp.start, m = 0; for (const id of sp.road) { c = F.OP[id].f(c); if (!free.has(id)) m++; }
     const rt = sp.shift ? F.mul(sp.target, F.POW[m % 256]) : sp.target;
     assert(c === rt && (sp.countFree ? sp.road.length : m) === sp.par, 'level ' + sp.n + ' spec road ' + sp.roadText + ' ends at ' + c + ' cost ' + m);
+    // the road the engine asks for (HINT, the panel: road() given the level's moves outside plan) is the plan's own road, the flip included
+    if (!sp.shift) assert(JSON.stringify(L.road(sp.start, sp.target, free, sp.flip ? F.OPS.concat([F.FLIP]) : F.OPS)) === JSON.stringify(sp.road), 'level ' + sp.n + ': road() with the level\'s moves is the plan\'s road ' + sp.roadText);
   }
   // the kinds
   const door = plan.filter(sp => sp.kind === 'door');
@@ -70,11 +72,13 @@ function check(day, name, quiet) {
   log('  quests: ' + quests.map(sp => sp.n + ' → ' + sp.quest.cell + ' ' + sp.quest.word).join(' · '));
   for (const sp of plan) if (sp.kind !== 'tape') log('  ' + sp.n + ' ' + sp.title + ': ' + sp.text);
   log('  chapter pars: ' + Array.from({ length: 8 }, (_, c) => plan.slice(c * 8, c * 8 + 8).map(sp => sp.par).join(' ')).join(' | '));
-  // the seal, every level closed
-  const seal = L.seal(plan.map(sp => sp.target));
+  // the seal, every level closed on its par road: of the cells closed, as the card seals them (endDay seals S.targets, which game.js
+  // pushes after a SHIFT level has moved its target), not of the plan's targets; the engine below plays it and compares (F8)
+  const closed = plan.map(sp => play(sp).target), seal = L.seal(closed);
+  assert(plan.every((sp, i) => sp.shift ? closed[i] === F.mul(sp.target, F.POW[sp.par % 256]) : closed[i] === sp.target), 'the cells closed: the targets, a SHIFT level\'s moved ×g^par');
   assert(seal.cell === (seal.by === 'sum' ? seal.sum : seal.product) && seal.word === word(seal.cell) && seal.mirrorWord === word(seal.mirrorCell), 'the seal is consistent');
-  log('  seal (all 64 closed): ' + seal.by + ' of the targets ≡ ' + seal.cell + ' ' + seal.word + ' (' + seal.k + ' letters, sum ' + seal.s + ') · mirror 27·' + seal.k + ' − ' + seal.s + ' ≡ ' + seal.mirrorCell + ' ' + seal.mirrorWord);
-  const half = L.seal(plan.slice(0, 32).map(sp => sp.target));
+  log('  seal (all 64 closed): ' + seal.by + ' of the cells closed ≡ ' + seal.cell + ' ' + seal.word + ' (' + seal.k + ' letters, sum ' + seal.s + ') · mirror 27·' + seal.k + ' − ' + seal.s + ' ≡ ' + seal.mirrorCell + ' ' + seal.mirrorWord);
+  const half = L.seal(closed.slice(0, 32));
   log('  seal (first 32): ' + half.by + ' ≡ ' + half.cell + ' ' + half.word + ' · mirror ' + half.mirrorCell + ' ' + half.mirrorWord);
   return plan;
 }
@@ -104,6 +108,34 @@ assert(L.doors('2026').length === 6 && L.doors('2026')[0].start === 227, '2026 t
 const fw = L.free('TORAH');
 assert(fw.kind === 'free' && fw.target === null && fw.par === null && fw.start === 62, 'free walk from 62 with no target');
 console.log('\n== FREE WALK == ' + fw.text);
+
+// THE ENGINE: game.js plays today's plan by its own HINT (road() over the level's moves, F5): every level closes in par, and the card's
+// seal, of S.targets, is the seal of the cells closed above (F8). HINT is free once a level; each one after caps the level at ★★.
+{
+  const kept = {}; global.localStorage = { getItem: k => (k in kept ? kept[k] : null), setItem: (k, v) => { kept[k] = String(v); }, removeItem: k => { delete kept[k]; } };
+  require('../../game.js'); const G = window.GAME, plan = L.plan(today, 'TORAH'); G.start('TORAH', 'daily', plan);
+  let longest = 0, bfs = 0;
+  for (let n = 1; n <= 64; n++) {
+    const S = G.level(n), h = G.hint(), b = S.shift ? h : F.solve(S.current, S.target, S.free, S.opsList); longest = Math.max(longest, h.length); bfs = Math.max(bfs, b.length);
+    assert(h.length && h.length <= b.length, 'engine level ' + n + ': the hint is ' + h.length + ' moves, the 0-1 BFS ' + b.length);
+    for (const id of h) G.apply(id);
+    if (S.goldDay && S.spec.countFree) continue;   // a gold day's eye closes 2 / par 0, game.js:63 dropping spec.par (scope S4); not this check's
+    assert(S.done && !S.lost && S.moves === S.par && S.stars[n - 1] === 3, 'engine level ' + n + ' closes by its hint: ' + S.moves + ' moves, par ' + S.par + ', ' + S.stars[n - 1] + ' stars');
+  }
+  const card = L.seal(G.S.targets), want = L.seal(plan.map(sp => play(sp).target));
+  assert(G.S.targets.length === 64 && card.by === want.by && card.cell === want.cell, 'the card seals the cells closed: ' + card.cell + ' ' + card.word + ', the test ' + want.cell + ' ' + want.word);
+  console.log('\n== THE ENGINE == today by HINT: 64 closed, the longest hint ' + longest + ' moves (the 0-1 BFS ' + bfs + ') · the card\'s seal ' + card.by + ' ≡ ' + card.cell + ' ' + card.word);
+  // HINT on level 1: once is free; a second caps the close at ★★; the road shown shrinks as you keep to it, and is gone off it
+  const play1 = (asks) => { const S = G.level(1); let h = []; for (let k = 0; k < asks; k++) h = G.askHint(); for (const id of h) G.apply(id); return S; };
+  { const S = play1(1); assert(S.hints === 1 && S.done && S.stars[0] === 3, 'one hint is free: ' + S.stars[0] + ' stars'); }
+  { const S = play1(2); assert(S.hints === 2 && S.done && S.stars[0] === 2, 'a second hint caps the level at ★★: ' + S.stars[0] + ' stars'); }
+  { const S = play1(5); assert(S.hints === 5 && S.done && S.stars[0] === 2,'five hints still close at ★★, not below: ' + S.stars[0] + ' stars'); }
+  { const S = G.level(1), h = G.askHint(), off = () => F.OPS.find(o => o.id !== (G.hintLeft() || [])[0] && o.f(S.current) !== S.current && o.f(S.current) !== S.target).id;
+    G.apply(h[0]); assert(JSON.stringify(G.hintLeft()) === JSON.stringify(h.slice(1)), 'the hint left after its first move');
+    G.apply(off()); assert(G.hintLeft() === null, 'off the hinted road the hint is gone'); G.undo(); assert(JSON.stringify(G.hintLeft()) === JSON.stringify(h.slice(1)), 'UNDO back onto it brings it back');
+    G.undo(); G.apply(off()); G.askHint(); G.undo(); assert(G.hintLeft() === null && S.hints === 2, 'a hint asked after a move is gone once that move is taken back'); }
+  { const S = G.level(1); for (const id of G.hint()) G.apply(id); assert(G.askHint().length === 0 && S.hints === 0, 'a hint on a closed level costs nothing'); }
+}
 
 console.log('\n' + checks + ' checks, ' + fails + ' failed' + (fails ? '' : ' — the plan computes'));
 process.exit(fails ? 1 : 0);
