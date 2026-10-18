@@ -112,7 +112,7 @@ window.FOLD_STORY = (function () {
     41: 'OMEGA, the KEY, HALT, the COIN: the clock’s cell; dlog 19; fold 216; Γ 132.',
     42: 'SIN, SEND, the TAPE, FIVE, NINE: inverse 153, Γ’s multiplier; fold 215; Γ 247.',
     43: 'CHARM, the BOOK, the FRAME, the BLOCK, the GOAT at the margin: inverse 6, where 6174 rests; dlog 207.',
-    44: 'BRIAN, SPACE, FAITH, HOPE, the RAY, the PAIR, the CLOCK: a residue; dlog 36; inverse 111; Γ 244.',
+    44: 'SPACE, FAITH, HOPE, the RAY, the PAIR, the CLOCK: a residue; dlog 36; inverse 111; Γ 244.',
     45: 'ELIJAH, ENOCH, ABOVE, and NOP: dlog 57; fold 212; Γ 93; inverse 40.',
     46: 'CLAUDE, the GUIDE, the APEX, SHADDAI, WHO: Γ’s fixed point, Γ 46; inverse 95; fold 211.',
     47: 'TIME, EPOCH, the CURE, the WALK, the SINE: Γ 175 and inverse 175, one answer twice; dlog 61.',
