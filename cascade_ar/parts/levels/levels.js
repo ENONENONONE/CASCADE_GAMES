@@ -58,13 +58,14 @@ window.FOLD_LEVELS = (function () {
   }
   // the road: the least cost, and of the least-cost roads the fewest moves (free moves included), so a free Γ never sends the player
   // sixty reflections round its orbit when two paid moves would do. Dijkstra over the 258 points, a paid move 1001, a free one 1.
-  function road(s, t, free) {
-    free = free || new Set(); if (s === t) return [];
+  // ops: the moves to walk by (the engine passes its S.opsList, THE MIRROR's flip included); else the plan's set, else the six
+  function road(s, t, free, ops) {
+    free = free || new Set(); ops = ops || OPSET || F.OPS; if (s === t) return [];
     const W = new Array(258).fill(Infinity), via = new Array(258).fill(null), done = new Array(258).fill(false); W[s] = 0;
     for (;;) {
       let u = -1; for (let k = 0; k < 258; k++) if (!done[k] && W[k] < Infinity && (u < 0 || W[k] < W[u])) u = k;
       if (u < 0 || u === t) break; done[u] = true;
-      for (const o of (OPSET || F.OPS)) { const v = o.f(u), w = W[u] + (free.has(o.id) ? 1 : 1001); if (w < W[v]) { W[v] = w; via[v] = [u, o.id]; } }
+      for (const o of ops) { const v = o.f(u), w = W[u] + (free.has(o.id) ? 1 : 1001); if (w < W[v]) { W[v] = w; via[v] = [u, o.id]; } }
     }
     if (W[t] === Infinity) return null;
     const path = []; let c = t; while (c !== s) { path.unshift(via[c][1]); c = via[c][0]; } return path;

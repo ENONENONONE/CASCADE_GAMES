@@ -40,8 +40,11 @@ Day 9384 (RITO): `1 2 3 3 4 4 4 | 5` · `1 2 4 4 4 4 5 | 3` · `1 1 3 3 4 4 5 | 
 
 Each spec carries a `road` as well as `par`: the least-cost road with the fewest moves, free moves included (a small Dijkstra, a paid
 move 1001, a free one 1), so a free Γ does not send the hint sixty reflections round its orbit when two paid moves would do. The
-longest road in 100 days is 25 moves (24 free Γ and one ×i, par 1); `FIELD.solve`'s 0-1 BFS, which the engine uses for hints, finds
-the same cost.
+longest road in 100 days is 25 moves (24 free Γ and one ×i, par 1); `FIELD.solve`'s 0-1 BFS finds the same cost but not the fewest
+moves (day 9422's level 1: Γ×37 ×i, where the road is Γ×10 ×i Γ×11). The engine's HINT and the cell panel walk this road too:
+`road(s, t, free, ops)` takes the level's moves, the engine's `S.opsList` (THE MIRROR's flip included; outside `plan` the module's own
+set is null), and `test.js` plays the day through `game.js` by its HINT. The first HINT of a level is free; each one after caps the
+level at ★★. The panel shows the target's road only after a HINT, and then only what is left of the hint's road.
 
 ## The quests
 
@@ -62,8 +65,11 @@ and character, which narrows the sphere to a band of about eleven cells.
 ## The seal, THE DOORS, FREE WALK
 
 `seal(targets)`: the product of the closed targets' cells mod 257, or their sum if any target was 0 (`by` says which), its first
-word, and the Atbash mirror of that word, 27k − s, with its word. Day 9384 with every level closed seals on 220 CENTRAL LIMIT THEOREM,
-mirror 36 IMAM; today, day 9421, on 54 LOVE, its own mirror.
+word, and the Atbash mirror of that word, 27k − s, with its word. The cells are those actually closed, as the card seals `S.targets`:
+a SHIFT level adds its moved target, t·3^moves, so the seal depends on the moves spent there. `test.js` seals the cells closed on par
+roads, and plays the day through `game.js` to check the card's seal is the same. Day 9384 for a name at 62 (TORAH, as `test.js`
+plays), every level closed, seals on 170 IMAGINARY NUMBER, mirror 235 BINOMIAL DISTRIBUTION; day 9422 on 36 IMAM, and for SCRIBE on
+227 LAMB OF GOD (the plan's unshifted targets would give 101 AMPLITUDE and 130 PYTHAGORAS).
 
 `doors(digits)`: the Kaprekar chain of a four-figure number to 6174 as levels, each step's residue the start and the next's the
 target, rule NOP. Consecutive steps on one residue are merged into one level (the text lists the steps). Repdigits fall to 0 and

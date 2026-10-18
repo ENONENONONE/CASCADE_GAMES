@@ -62,6 +62,7 @@ window.GAME = (function () {
     S.start = spec.start; S.target0 = spec.target; S.target = spec.target; S.current = S.start; S.road = [S.start]; S.moves = 0; S.ops = []; S.visited = new Set([S.start]);
     S.par = spec.target == null ? null : S.shift ? solveShift(S.start, S.target).length : (spec.par != null && !S.flip && !(S.goldDay && S.mode === 'daily' && !S.shift)) ? spec.par : F.cost(F.solve(S.start, S.target, S.free, S.opsList), S.free);
     S.t0 = performance.now(); S.armed = false; S.done = false; S.lost = false; S.seen = false; S._lostShown = false; S.ended = false;
+    S.hints = 0; S.hinted = null;   // HINT: the presses on this level, and the last road it gave ({at: the moves made then, from, road})
     return S;
   }
   // the level is in play: the page calls this when the cards are down; HALT's thirty seconds run from here
@@ -73,7 +74,7 @@ window.GAME = (function () {
     if (S.shift) S.target = F.mul(S.target0, F.POW[S.moves % 256]);
     if (S.target == null) return v;
     if (v === S.target) {
-      S.done = true; S.stars[S.level - 1] = S.moves <= S.par + S.slack ? 3 : S.moves <= S.par + 1 + S.slack ? 2 : 1;   // STORE's slack: par + 1 still closes
+      S.done = true; S.stars[S.level - 1] = Math.min(S.hints > 1 ? 2 : 3, S.moves <= S.par + S.slack ? 3 : S.moves <= S.par + 1 + S.slack ? 2 : 1);   // STORE's slack: par + 1 still closes; a second HINT caps at ★★
       if (S.strict && S.moves > S.par) { S.stars[S.level - 1] = 0; S.lost = true; } else { S.closed++; S.line.push(D.cells[S.target].w); S.targets.push(S.target); }
       save();
     } else if (S.strict && S.moves > S.par) { S.lost = true; S.stars[S.level - 1] = 0; save(); }
@@ -88,8 +89,15 @@ window.GAME = (function () {
     if (n === F.INF) return { n, glyphs: '∞', word: 'the open circuit', words: ['Γ(∞) = 1: the base reads its missing point as I AM'], dlog: '—', inv: 0, fold: '∞', gam: 1, ray: '—', ch: 'the point at infinity', k: 1 };
     const c = D.cells[n]; return { n, glyphs: F.glyphs(n), word: c.w, words: c.ws, dlog: F.dlog(n), inv: F.inv(n), fold: F.fold(n), gam: F.gamma(n), ray: F.ray(n), ch: F.character(n), k: c.k };
   }
-  const hint = () => S.target == null ? [] : S.shift ? solveShift(S.current, S.target) : F.solve(S.current, S.target, S.free, S.opsList);
+  // the road from where you stand to n: the level designer's road (least cost, then fewest moves) over the level's own moves, else the
+  // field's 0-1 BFS, which finds the cost but not the fewest moves (day 9422's level 1: Γ×37 ×i, where this road is Γ×10 ×i Γ×11)
+  const roadTo = n => { const LV = window.FOLD_LEVELS; return LV && LV.road ? LV.road(S.current, n, S.free, S.opsList) : F.solve(S.current, n, S.free, S.opsList); };
+  const hint = () => S.target == null ? [] : S.shift ? solveShift(S.current, S.target) : roadTo(S.target);
+  // HINT pressed: the first of a level is free, every one after caps the level at ★★ (none is counted where it gives no road)
+  function askHint() { if (S.done || S.lost) return []; const h = hint(); if (h && h.length) { S.hints++; S.hinted = { at: S.ops.length, from: S.current, road: h }; } return h; }
+  // what is left of the last hint's road while the moves since keep to it, else null (off it, or taken back past where it was asked)
+  function hintLeft() { const h = S.hinted; if (!h || S.road[h.at] !== h.from) return null; const did = S.ops.slice(h.at); return did.every((id, j) => id === h.road[j]) ? h.road.slice(did.length) : null; }
   // the quest of the chapter: a cell to find by its words; done by a tap on it
   function questDone(n) { const q = S.quest; if (!q || S.quests.includes(q.cell)) return false; if (n === q.cell) { S.quests.push(q.cell); save(); return true; } return false; }
-  return { S, RULES, start, level, arm, apply, undo, reset, next, tick, reach, lineInfo, cellInfo, hint, today, solveShift, tapeSpec, questDone };
+  return { S, RULES, start, level, arm, apply, undo, reset, next, tick, reach, lineInfo, cellInfo, hint, askHint, hintLeft, roadTo, today, solveShift, tapeSpec, questDone };
 })();
