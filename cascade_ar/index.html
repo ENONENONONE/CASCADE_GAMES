@@ -176,11 +176,12 @@ html.calm *{transition:none!important;animation:none!important}
 <script src="parts/trace/trace.js"></script>
 <script src="parts/glow/glow.js"></script>
 <script src="parts/heat/heat.js"></script>
+<script src="parts/vr/vr.js"></script>
 <script>
 (function () {
   'use strict';
   const F = window.FIELD, G = window.GAME, A = window.AR, D = window.CASCADE_DATA, $ = id => document.getElementById(id);
-  const STORY = window.FOLD_STORY || null, SND = window.FOLD_SOUND || null, LV = window.FOLD_LEVELS || null, FX = window.FOLD_FX || null, RL = window.FOLD_RELIEF || null, WELL = window.FOLD_WELL || null, VOID = window.FOLD_VOID || null, GLW = window.FOLD_GLOW || null;
+  const STORY = window.FOLD_STORY || null, SND = window.FOLD_SOUND || null, LV = window.FOLD_LEVELS || null, FX = window.FOLD_FX || null, RL = window.FOLD_RELIEF || null, WELL = window.FOLD_WELL || null, VOID = window.FOLD_VOID || null, GLW = window.FOLD_GLOW || null, VRM = window.FOLD_VR || null;
   const toast = (t, ms) => { const e = $('toast'); e.textContent = t; e.classList.add('on'); clearTimeout(e._t); e._t = setTimeout(() => e.classList.remove('on'), ms || 1800); };
   // ── sound: the designed set when it is loaded, else a sine a cell ──
   const LS = { get: k => { try { return localStorage.getItem(k); } catch (e) { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} } };
@@ -243,10 +244,10 @@ html.calm *{transition:none!important;animation:none!important}
   const opsEl = $('ops');
   for (const o of F.OPS.concat([F.FLIP])) { const b = document.createElement('button'); b.dataset.op = o.id; if (o.id === 'flip') b.hidden = true; b.style.setProperty('--c', 'hsl(' + o.hue + ' 70% 65%)'); b.innerHTML = o.label + '<small>' + o.name + '</small>'; b.title = o.tell; b.onclick = () => move(o.id); opsEl.appendChild(b); }
   const aux = (t, f, title) => { const b = document.createElement('button'); b.className = 'aux'; b.textContent = t; b.title = title || ''; b.onclick = f; opsEl.appendChild(b); return b; };
-  aux('UNDO', () => { if (busy) return; const was = G.S.current, id = G.undo(); if (id) { say(STORY && STORY.ops && STORY.ops.undo || 'the move is taken back'); paint(); monStep(G.S); if (G.S.kind === 'eye') cross('undo', G.S.current, was, 600); } }, 'take the last move back');
+  const bUndo = aux('UNDO', () => { if (busy) return; const was = G.S.current, id = G.undo(); if (id) { say(STORY && STORY.ops && STORY.ops.undo || 'the move is taken back'); paint(); monStep(G.S); if (G.S.kind === 'eye') cross('undo', G.S.current, was, 600); } }, 'take the last move back');
   // HINT: the road from where you stand as chips under the target, its first move flashed; the first of a level is free, each one after
   // caps the level at ★★ (game.js askHint)
-  aux('HINT', () => { const S = G.S, h = G.askHint(); if (!h || !h.length) return toast(S.target == null ? 'no target in a free walk: read the cells' : S.current === S.target ? 'you are there' : 'the level is over'); flash(h[0]); paint(); toast(S.hints > 1 ? 'hint ' + S.hints + ' · this level closes at ★★ at most' : 'free hint · another caps the level at ★★', 2600); }, 'the road from where you stand: the first hint of a level is free, each one after caps the level at ★★');
+  const bHint = aux('HINT', () => { const S = G.S, h = G.askHint(); if (!h || !h.length) return toast(S.target == null ? 'no target in a free walk: read the cells' : S.current === S.target ? 'you are there' : 'the level is over'); flash(h[0]); paint(); toast(S.hints > 1 ? 'hint ' + S.hints + ' · this level closes at ★★ at most' : 'free hint · another caps the level at ★★', 2600); }, 'the road from where you stand: the first hint of a level is free, each one after caps the level at ★★');
   $('hintrow').onclick = e => { const b = e.target.closest('[data-chip]'); if (b) flash(b.dataset.chip); };
   const bRel = aux('RELIEF', () => { MON.mode = (MON.mode + 1) % 3; bRel.setAttribute('aria-pressed', MON.mode > 0); monFloor(); monApply(G.S); toast(['relief off', 'the chapter\'s sheet as the floor, mod 257: ' + SHEET_TELL[MON.sheet || 'norm'] + (HT && HEAT.on ? ' · the crowd climbs it (h)' : ''), 'and the product a·b as the ceiling'][MON.mode], 2400); }, 'the conics relief in the world: the chapter\'s floor, the sheets, the rings');
   bRel.setAttribute('aria-pressed', 'true');
@@ -504,16 +505,21 @@ html.calm *{transition:none!important;animation:none!important}
   const EFF = { level: -1, n: 0 };
   const heatOf = (a, b) => { const x = F.dlog(a), y = F.dlog(b); if (x < 0 || y < 0) return 1; const d = Math.abs(x - y) % 256; return Math.min(d, 256 - d) / 128; };
   const whiten = (hex, h) => { const c = parseInt(hex.slice(1), 16), m = k => Math.round(((c >> k) & 255) + (255 - ((c >> k) & 255)) * 0.6 * h); return 'rgb(' + m(16) + ',' + m(8) + ',' + m(0) + ')'; };
+  // the segments as data, for the HUD's bar and the VR console: {k: 'up' | 'keep' | 'down' | 'free' | 'empty' | 'two', fill, burn, summit}
+  function effortSegs(S) {
+    const cap = S.par + S.slack, slots = cap + (S.strict ? 0 : 1), climb = S.climb || [], tally = { up: 0, keep: 0, down: 0, free: 0 }, segs = []; let j = 0;
+    climb.forEach((c, i) => {
+      if (S.free.has(c[0]) && !S.countFree) { tally.free++; segs.push({ k: 'free' }); return; }
+      const k = c[2] < c[1] ? 'up' : c[2] === c[1] ? 'keep' : 'down'; tally[k]++;
+      segs.push({ k, fill: whiten({ up: '#2f6fb8', keep: '#8fa796', down: '#ff6a2a' }[k], heatOf(S.road[i], S.road[i + 1])), burn: j >= cap, summit: S.done && !S.lost && j === S.moves - 1 && S.moves <= S.par }); j++;
+    });
+    for (; j < slots; j++) segs.push({ k: j === cap && !S.strict ? 'two' : 'empty' });
+    return { segs, tally };
+  }
   function effort(S) {
     const el = $('effort'); if (!el) return; el.hidden = S.target == null || S.par == null; if (el.hidden) return;
-    const cap = S.par + S.slack, slots = cap + (S.strict ? 0 : 1), climb = S.climb || [], tally = { up: 0, keep: 0, down: 0, free: 0 };
-    let html = '', j = 0;
-    climb.forEach((c, i) => {
-      if (S.free.has(c[0]) && !S.countFree) { tally.free++; html += '<i class="t"></i>'; return; }
-      const k = c[2] < c[1] ? 'up' : c[2] === c[1] ? 'keep' : 'down'; tally[k]++;
-      html += '<i class="s ' + k + (j >= cap ? ' burn' : '') + (S.done && !S.lost && j === S.moves - 1 && S.moves <= S.par ? ' summit' : '') + '" style="background:' + whiten({ up: '#2f6fb8', keep: '#8fa796', down: '#ff6a2a' }[k], heatOf(S.road[i], S.road[i + 1])) + '"></i>'; j++;
-    });
-    for (; j < slots; j++) html += '<i class="s' + (j === cap && !S.strict ? ' two' : '') + '"></i>';
+    const climb = S.climb || [], { segs, tally } = effortSegs(S);
+    const html = segs.map(q => q.k === 'free' ? '<i class="t"></i>' : q.k === 'empty' || q.k === 'two' ? '<i class="s' + (q.k === 'two' ? ' two' : '') + '"></i>' : '<i class="s ' + q.k + (q.burn ? ' burn' : '') + (q.summit ? ' summit' : '') + '" style="background:' + q.fill + '"></i>').join('');
     const drain = $('drain'), fell = EFF.level === S.level && climb.length < EFF.n;
     el.innerHTML = html; el.appendChild(drain); el.classList.toggle('fall', !!S.lost);
     if (fell) { const at = el.children[climb.length], st = document.createElement('i'); st.className = 'streak'; st.style.left = (at ? at.offsetLeft : el.scrollWidth - 9) + 'px'; el.appendChild(st); setTimeout(() => st.remove(), 650); }
@@ -726,11 +732,32 @@ html.calm *{transition:none!important;animation:none!important}
     snd.init(); G.start(name, mode, plan); snd.home(G.S.home); if (A.rainDay) A.rainDay(G.S.head); if (A.decode && G.S.plan && G.S.decoded.length) A.decode(G.S.plan.filter(sp => sp && G.S.decoded.includes(sp.window || sp.n)));
     $('start').hidden = true; $('hud').hidden = false; $('ops').hidden = false; $('cross').hidden = false; raysShow(); traceShow();
     paint(); A.bloom(3.2); snd.bloom(3.2);
-    const t0 = performance.now(); const gyro = await sensors(); const cam = await cameraOn();
+    // the camera is the room behind the field on a handheld (a coarse pointer, touch or a gyro that answered); a desk with a webcam asks
+    // nothing unless fold.prefs {camera: 'on'} says so, and {camera: 'off'} never asks
+    const t0 = performance.now(); const gyro = await sensors(); const handheld = gyro || (window.matchMedia && matchMedia('(pointer: coarse)').matches) || 'ontouchstart' in window;
+    const cam = PREFS.camera !== 'off' && (handheld || PREFS.camera === 'on') ? await cameraOn() : false;
     toast((gyro ? 'turn to look' : 'drag to look') + (cam ? ' · the room is behind the field' : '') + ' · tap a cell to read it', 3000);
     setTimeout(openLevel, Math.max(0, 3900 - (performance.now() - t0)));
     if (xrSupported) { const b = aux('AR · the room', enterXR, 'open the field in the room itself'); b.style.gridColumn = 'span 2'; }
+    if (vrSupported && vr) { const b = aux('VR · the headset', enterVR, 'open the field in a headset: the console at your belt, the stick for the six moves, the trigger to point'); b.style.gridColumn = 'span 2'; }
   };
+  // ── VR (parts/vr): the field in a headset. The DOM is read for the console's strings and clicked by the console's buttons, so the
+  // rules stay in one place; the sky shader gives way to the stars (as in the room), the CRT and GLOW are already off in XR; the rig
+  // stands 2.4 m down so the relief lies on the real floor; on exit everything comes back ──
+  let vrSupported = false; if (VRM) VRM.supported().then(ok => { vrSupported = !!ok; }).catch(() => {});
+  const vrHost = {
+    read: () => { const S = G.S; return { day: $('date').textContent, chapter: $('chpill').hidden ? '' : $('chpill').textContent, level: $('lvl').textContent, cur: $('cur-g').textContent + ' ' + $('cur-n').textContent, curWord: $('cur-w').textContent, tgt: $('tgtrow').style.visibility === 'hidden' ? '' : $('tg-g').textContent + ' ' + $('tg-n').textContent, tgtWord: $('tg-w').textContent, moves: $('moves').textContent, rule: $('rulepill').hidden ? '' : $('rulepill').textContent, clock: $('clock').textContent, voice: $('voice').textContent, quest: $('quest').hidden ? '' : $('quest').textContent, questDone: $('quest').className === 'done', segments: S && S.target != null && S.par != null ? effortSegs(S).segs : [] }; },
+    buttons: () => { const S = G.S, ops = S.opsList || F.OPS; return ops.map(o => ({ id: o.id, label: o.label, sub: o.name, hue: o.hue, free: S.free && S.free.has(o.id) })).concat([{ id: 'undo', label: 'UNDO' }, { id: 'hint', label: 'HINT' }, { id: 'relief', label: 'RELIEF', on: MON.mode > 0 }, { id: 'view', label: 'VIEW', on: !!(A.A.rainB && A.A.rainB.mesh.visible) }, { id: 'heat', label: 'HEAT', on: HEAT.on }, { id: 'exit', label: 'EXIT VR' }]); },
+    press: id => { if (id !== 'exit' && vrHost.card()) return; if (F.OP[id]) return move(id); ({ undo: () => bUndo.click(), hint: () => bHint.click(), relief: () => bRel.click(), view: () => bView.click(), heat: () => heatToggle(), exit: () => vr && vr.exit() }[id] || (() => {}))(); },
+    card: () => { const open = ['chap', 'won', 'panel'].find(id => !$(id).hidden); if (!open) return null; const body = $(open === 'panel' ? 'panel-body' : open + 'body'); const text = [...body.querySelectorAll('h2, h3, p, .stars')].map(e => e.innerText).filter(Boolean).join('\n'); const buttons = [...body.querySelectorAll('button')].filter(b => b.id && b.id !== 'share' && b.id !== 'share2').map(b => ({ id: b.id, label: b.textContent.trim(), big: b.classList.contains('big') })); if (open === 'panel') buttons.push({ id: 'panel-x', label: '× CLOSE' }); return { text, buttons }; },
+    pressCard: id => { const b = $(id); if (b) b.click(); },
+    tapCell: n => showCell(n), undo: () => bUndo.click(), place: n => A.place(n),
+    insets: { rays: () => RY && !$('rays').hidden ? $('rays') : null, trace: () => TRACE.tile && !$('trace').hidden ? $('tracec') : null },
+    onEnter: () => { vrHad = { video: $('video').style.display, stars: A.A.stars.visible, sky: A.A.sky ? A.A.sky.visible : false, crt: crtQ ? crtQ.visible : false }; const vid = $('video'), st = vid.srcObject; if (st) { st.getTracks().forEach(t => t.stop()); vid.srcObject = null; } vid.style.display = 'none'; A.A.stars.visible = true; if (A.A.sky) A.A.sky.visible = false; if (crtQ) crtQ.visible = false; if (RAYS.tube) raysTube(false); toast('the field in the headset'); },
+    onExit: () => { const h = vrHad; if (!h) return; $('video').style.display = h.video; if (h.video !== 'none') cameraOn(); A.A.stars.visible = h.stars; if (A.A.sky) A.A.sky.visible = h.sky; if (crtQ) { crtQ.visible = h.crt; FX.resize(crtU, A.A.renderer); } A.resize(); },
+  };
+  let vr = null, vrHad = null; if (VRM && VRM.mount) { try { vr = VRM.mount(THREE, A.A, vrHost, { F }); } catch (e) { console.warn('vr', e); vr = null; } }
+  async function enterVR() { if (!vr) return; try { await vr.enter(); } catch (e) { toast('VR did not open: ' + (e.message || e)); } }
   async function enterXR() {
     if (RAYS.tube) raysTube(false); const vid = $('video'), stream = vid.srcObject; if (stream) { stream.getTracks().forEach(t => t.stop()); vid.srcObject = null; }   // one client owns the camera: ARCore takes it
     try { const s = await navigator.xr.requestSession('immersive-ar', { requiredFeatures: ['local'], optionalFeatures: ['dom-overlay'], domOverlay: { root: $('ui') } });
@@ -760,8 +787,8 @@ html.calm *{transition:none!important;animation:none!important}
     if (!xr && crtQ && crtQ.visible) { const r = A.A.renderer; r.autoClear = false; r.render(over, A.A.camera); r.autoClear = true; }
   }
   // ── the loop ──
-  A.A.renderer.setAnimationLoop(() => { const t = (performance.now() - A.A.t0) / 1000; if (A.A.sky && A.A.sky.material.uniforms.time) A.A.sky.material.uniforms.time.value = t; if (crtU) crtU.time.value = t; if (warpU) { warpU.time.value = t; warpQ.visible = warpU.t.value > 0 && !A.A.renderer.xr.isPresenting; } if (WELL) WELL.step(G.S, { cam: $('video').style.display === 'block' }); crossStep(performance.now()); const xr = A.A.renderer.xr.isPresenting; if (HT) heatFrame(performance.now(), xr); if (!RAYS.tube || xr) frame3d(xr); arrows(); clockStep(); raysFrame(xr); traceFrame(); });   // the TUBE skips the 3D frame, never in the room; the heat's pass runs before the frame, its own target
-  window.FOLD_DEBUG = { paint, openLevel, move, monFloor, monApply, monStep, MON, showCell, endDay, bardo, reborn, G, A, RAYS, raysTube, frame3d, glowToggle, glowState, get glow() { return glow; }, TRACE, traceCycle, HEAT, heatToggle };  // for a console or a test, not for play
+  A.A.renderer.setAnimationLoop(() => { const t = (performance.now() - A.A.t0) / 1000; if (A.A.sky && A.A.sky.material.uniforms.time) A.A.sky.material.uniforms.time.value = t; if (crtU) crtU.time.value = t; if (warpU) { warpU.time.value = t; warpQ.visible = warpU.t.value > 0 && !A.A.renderer.xr.isPresenting; } if (WELL) WELL.step(G.S, { cam: $('video').style.display === 'block' }); crossStep(performance.now()); const xr = A.A.renderer.xr.isPresenting; if (HT) heatFrame(performance.now(), xr); if (vr) vr.frame(performance.now()); if (!RAYS.tube || xr) frame3d(xr); arrows(); clockStep(); raysFrame(xr); traceFrame(); });   // the TUBE skips the 3D frame, never in the room; the heat's pass runs before the frame, its own target
+  window.FOLD_DEBUG = { paint, openLevel, move, monFloor, monApply, monStep, MON, showCell, endDay, bardo, reborn, G, A, RAYS, raysTube, frame3d, glowToggle, glowState, get glow() { return glow; }, TRACE, traceCycle, HEAT, heatToggle, get vr() { return vr; }, vrHost, enterVR };  // for a console or a test, not for play
   document.addEventListener('visibilitychange', () => { if (!document.hidden && ac && ac.state === 'suspended') ac.resume(); });
   if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
 })();
