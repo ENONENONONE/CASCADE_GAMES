@@ -19,11 +19,12 @@ and Raspbian drag it.
 | `material.md` | The catalogue of motifs, mechanics, words and dates mined from the corpus for the game. |
 | `scope.md` | The enhancement scope: the four looks (conic relief, Enter the Void, Matrix, singularity), Twelve Rays and Sisyphean Heat in the game, challenges, HUD, the fixes found on the way, data, phases and budgets. |
 | `games_designer_api.py` | Sends a design or review task, with the files you name, to the games-designer agent through the Claude API. |
+| `deploy/` | The site at https://start.cascade.training: Caddyfile (or nginx), one-time install, the deploy script, and the GitHub Action that deploys on push to main (see `deploy/README.md`). |
 
 ## Play
 
-Serve the folder over http and open `cascade_ar/index.html` (no build step): `cd cascade_ar && python3 -m http.server 8000`, then
-http://localhost:8000/. See `cascade_ar/README.md` for the rules and keys.
+Live at https://start.cascade.training/. Locally, serve the folder over http and open `cascade_ar/index.html` (no build step):
+`cd cascade_ar && python3 -m http.server 8000`, then http://localhost:8000/. See `cascade_ar/README.md` for the rules and keys.
 
 ## Screenshots
 
