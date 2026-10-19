@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>parts/heat · Sisyphean Heat on the norm</title>
+<style>
+  body { margin: 0; background: #0a0d10; color: #8fa796; font: 13px ui-monospace, Menlo, Consolas, monospace; }
+  #c { display: block; width: 100vw; height: 70vh; }
+  #bar { padding: 8px 12px; display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+  button { background: #0f1418; color: #8fa796; border: 1px solid #2a3a30; border-radius: 6px; padding: 5px 10px; font: inherit; cursor: pointer; }
+  canvas.pic { width: 257px; height: 257px; image-rendering: pixelated; border: 1px solid #2a3a30; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="bar">
+  <span>m = <b id="m">1</b></span>
+  <button data-op="g">×g (m·3)</button><button data-op="ig">÷g</button><button data-op="fold">FOLD (−m)</button><button data-op="inv">INV (1/m)</button><button data-op="i">×i (m·16)</button>
+  <button id="seed">SEED (m = 0)</button><button id="inf">∞ (freeze)</button><button id="form">form: norm</button>
+  <span id="stats"></span>
+  <canvas class="pic" id="pic" width="257" height="257" title="the heat target"></canvas>
+</div>
+<script src="../../vendor/three.min.js"></script>
+<script src="../relief/relief.js"></script>
+<script src="heat.js"></script>
+<script>
+  // the crowd on the norm floor, seen from above the player; the buttons move m as the game's moves would, the floor refilled with it
+  const RL = window.FOLD_RELIEF, H = window.FOLD_HEAT, P = 257;
+  const cv = document.getElementById('c'), renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: false });
+  renderer.setPixelRatio(Math.min(2, devicePixelRatio || 1));
+  const scene = new THREE.Scene(), cam = new THREE.PerspectiveCamera(70, 1, 0.05, 80); cam.position.set(0, 0, 0); cam.lookAt(0, -2.4, -1.2);
+  const forms = ['norm', 'circle', 'hyperbola', 'product', 'ellipse', 'parabola']; let fi = 0, m = 1;
+  let floor = RL.floor(forms[fi], { size: 0.03, opacity: 0.8 }); scene.add(floor);
+  const crowd = H.crowd(THREE, renderer, { tier: 'full', form: forms[fi], m, seed: 9423 });
+  let layer = H.layer(THREE, floor, crowd.texture);
+  const climber = H.climber(THREE, scene); climber.set(H.placeOf(1, 3, 3)); climber.move(H.placeOf(3, 2, 3), 'up', 1 / 128); climber.move(H.placeOf(9, 2, 3), 'keep', 1 / 128); climber.move(H.placeOf(240, 1, 3), 'down', 1);
+  const mod = n => ((n % P) + P) % P, inv = n => H.POW[(256 - H.DLOG[n]) % 256];
+  const setM = v => { m = v; document.getElementById('m').textContent = v == null ? '∞' : v; crowd.setMul(v); if (v != null && v !== 0 && floor.setT) floor.setT(H.DLOG[v]); };
+  for (const b of document.querySelectorAll('[data-op]')) b.onclick = () => { const cur = m == null || m === 0 ? 1 : m; setM({ g: mod(cur * 3), ig: mod(cur * 86), fold: mod(-cur), inv: inv(cur), i: mod(cur * 16) }[b.dataset.op]); };
+  document.getElementById('seed').onclick = () => setM(0); document.getElementById('inf').onclick = () => setM(null);
+  document.getElementById('form').onclick = () => { fi = (fi + 1) % forms.length; layer.dispose(); RL.dispose(floor); floor = RL.floor(forms[fi], { size: 0.03, opacity: 0.8 }); scene.add(floor); crowd.setForm(forms[fi]); layer = H.layer(THREE, floor, crowd.texture); if (m) floor.setT(H.DLOG[m]); document.getElementById('form').textContent = 'form: ' + forms[fi]; };
+  // the target shown as a 2-D picture: the demo's own reader (the game reads it at the seal), b upward
+  const pic = document.getElementById('pic'), pg = pic.getContext('2d');
+  const resize = () => { const w = cv.clientWidth, h = cv.clientHeight; renderer.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix(); }; resize(); addEventListener('resize', resize);
+  let last = performance.now(), frames = 0;
+  renderer.setAnimationLoop(() => { const now = performance.now(), dt = (now - last) / 1000; last = now; crowd.frame(dt); climber.frame(now); renderer.render(scene, cam);
+    if (++frames % 30 === 0) { const s = crowd.stats; document.getElementById('stats').textContent = s.crests + ' crests · ' + s.exhausted + ' exhausted · ' + s.landings + ' landings · life ' + crowd.sim.meanLife().toFixed(1) + (crowd.slow ? ' · slow' : '');
+      try { crowd.snapshot(pg, 1); } catch (e) {} } });
+</script>
+</body>
+</html>

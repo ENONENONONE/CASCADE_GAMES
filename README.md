@@ -8,8 +8,10 @@ levels in eight chapters off the π tape, the rule of a level the digit under it
 Γ's pole) is a black hole bending the stars and cells round it, a loss is THE BARDO with a second life from 80 REBIRTH, and the
 Twelve Rays draw the field flat as an inset, the TUBE and each chapter's ledger. GLOW: bloom, golden god rays, glitter and a
 cyberpunk grade over the same palette. TRACE: the field's own ray tracer in GF(257), 256 rays from your cell bounced by Γ off the
-chapter's sheets onto a 16 × 16 tile, its light the third of GLOW's shafts. Phones turn it with the gyro over the camera; desktops
-and Raspbian drag it.
+chapter's sheets onto a 16 × 16 tile, its light the third of GLOW's shafts. HEAT: Sisyphean Heat on the chapter's floor, a crowd of
+climbers running up the sheet multiplied by your cell over the target and falling where 256 wraps to 0, only their heat drawn; your
+own climb as the white climber, a stroke a move; and the day's heat as the picture on the seal. Phones turn it with the gyro over the
+camera; desktops and Raspbian drag it.
 
 | Path | What it is |
 | --- | --- |
@@ -58,6 +60,17 @@ directions from THE TURN, hits by the character, bounces by Γ and Snell, onto t
 feeds GLOW's shafts, here the third light's from the top of the frame, where the field says the light arrives at the cell.
 
 ![The trace tile at 4×](docs/screenshots/trace_tile.png)
+
+![The heat on the floor](docs/screenshots/heat.png)
+
+HEAT, the view tipped onto the floor: 3584 climbers on the chapter's sheet multiplied by your cell over the target, blue climbs
+whitening with heat, orange-white flares where they go over the wrap, the floor itself re-formed by every move; the white climber at
+your cell's azimuth, its strokes the moves.
+
+![The day's heat on the seal](docs/screenshots/heat_seal.png)
+
+THE SEAL with the day's heat: the crowd's ground from each close, the day's climbs from the centre toward the rim in the moves'
+colours, an orange streak to the centre for a loss, the crown of closed cells on the rim, and the sketch's counters as the day's.
 
 ![The bardo card](docs/screenshots/bardo.png)
 

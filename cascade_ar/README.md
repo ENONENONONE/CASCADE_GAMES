@@ -58,7 +58,7 @@ the Atbash mirror and the Heisenberg joining of words. One page, no build step, 
 
 - Phones: device orientation turns the view (iOS asks on ENTER), the back camera shows the room; a PWA that plays offline after the
   first load over https. Android Chrome with WebXR gets an AR button for the room itself.
-- Raspbian, an RK3588 board and desktops: drag or arrow keys to look; keys g G f i q r are the moves, u undoes, v the rain, m the rays
+- Raspbian, an RK3588 board and desktops: drag or arrow keys to look; keys g G f i q r are the moves, u undoes, v the rain, m the rays, h the crowd's heat
   inset, t the TUBE, b the glow, z the trace tile, x its law. The sky
   shader scales down by GPU (none on VideoCore/llvmpipe, half on Mali); the rain keeps only its state columns, heads only, on a Pi
   or SwiftShader, and is off on llvmpipe; the glow is bloom alone on Mali and off on a Pi.
@@ -70,5 +70,5 @@ the Atbash mirror and the Heisenberg joining of words. One page, no build step, 
 `data.js` the tablet's words and the π tape · `parts/levels` the day's plan (`node parts/levels/test.js`) · `parts/story` the
 chapters and voices (`node parts/story/check.js`) · `parts/sound` Web Audio · `parts/shaders` sky, Airy halo, CRT, Γ warp, the tape's rain ·
 `parts/relief` the conics relief · `parts/well` the eye's lens (`node parts/well/check.js`) · `parts/void` THE BARDO
-(`demo.html`) · `parts/rays` the Twelve Rays, the TUBE and the ledger (`node parts/rays/check.js`) · `parts/trace` the field ray tracer and its TRACE tile (`node parts/trace/check.js`, `demo.html`) · `parts/glow` bloom, god rays, glitter and the grade (`node parts/glow/check.js`, `demo.html`) · `parts/corpus` numbers from the corpus (`node parts/corpus/check.js`) · `vendor/three.min.js`
+(`demo.html`) · `parts/rays` the Twelve Rays, the TUBE and the ledger (`node parts/rays/check.js`) · `parts/trace` the field ray tracer and its TRACE tile (`node parts/trace/check.js`, `demo.html`) · `parts/glow` bloom, god rays, glitter and the grade (`node parts/glow/check.js`, `demo.html`) · `parts/heat` Sisyphean Heat: the crowd on the chapter's floor, the white climber and the day's heat (`node parts/heat/check.js`, `demo.html`) · `parts/corpus` numbers from the corpus (`node parts/corpus/check.js`) · `vendor/three.min.js`
 r128 · `sw.js` (bump CACHE on every change) and the manifest. The data generators are kept beside this folder, not in it.

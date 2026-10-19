@@ -27,7 +27,11 @@ window.GAME = (function () {
   const today = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
   const key = () => 'fold.run.' + F.dayNumber(new Date()) + '.' + (S.mode || 'daily');
   function load() { try { return JSON.parse(localStorage.getItem(key()) || 'null'); } catch (e) { return null; } }
-  function save() { try { localStorage.setItem(key(), JSON.stringify({ name: S.name, level: (S.done && !S.lost) ? S.level + 1 : S.level, stars: S.stars, line: S.line, closed: S.closed, targets: S.targets, quests: S.quests, borrowed: S.borrowed, decoded: S.decoded, crossed: S.crossed, reborn: S.reborn && !S.done ? S.reborn : 0, rebirths: S.rebirths, ghost: S.reborn && !S.done ? S.ghost : null, rays: S.rays, bits: S.bits, roads: S.roads })); localStorage.setItem('fold.name', S.name); } catch (e) {} }
+  function save() { try { localStorage.setItem(key(), JSON.stringify({ name: S.name, level: (S.done && !S.lost) ? S.level + 1 : S.level, stars: S.stars, line: S.line, closed: S.closed, targets: S.targets, quests: S.quests, borrowed: S.borrowed, decoded: S.decoded, crossed: S.crossed, reborn: S.reborn && !S.done ? S.reborn : 0, rebirths: S.rebirths, ghost: S.reborn && !S.done ? S.ghost : null, rays: S.rays, bits: S.bits, roads: S.roads, climbs: S.climbs })); localStorage.setItem('fold.name', S.name); } catch (e) {} }
+  // the day's climbs (H3): at each outcome one record for the day's heat picture: the level, where it started, the cell it closed on
+  // (a SHIFT level's is wherever it was caught), par and slack, the road as one character a move, the solver's distance before the first
+  // move and after each (S.climb), the outcome (the stars, 'lost', or 'reborn' for a second life), the counted moves and the undos
+  function record() { S.climbs.push({ L: S.level, s: S.start, t: S.target, par: S.par, slack: S.slack, ops: S.ops.map(id => OPCH[id]).join(''), free: S.countFree ? '' : [...S.free].map(id => OPCH[id]).join(''), d: [S.climb.length ? S.climb[0][1] : S.dist].concat(S.climb.map(c => c[2])), out: S.lost ? 'lost' : S.reborn ? 'reborn' : S.stars[S.level - 1], moves: S.moves, undos: S.undos || 0 }); }
   // the ray ledger (T4): at each close the road's arrivals by ray (dlog mod 12; SEED and ∞ have none) and the best work bits by ray, each
   // arrival's own zeros(hash32(day, cell, offset)); read from S.road, so UNDO cannot inflate them. S.roads[L − 1] keeps the closed road as
   // [start, one character a move, offset] for the chapter's replay; roadsOf(a, b) gives levels a … b back as {level, start, ops, salt}
@@ -73,7 +77,7 @@ window.GAME = (function () {
     S.goldDay = S.day % 128 === 0; S.tabletDay = S.day % 258 === 0; S.dayCell = S.day % 257;   // the day table: cell = day mod 66048, gold every 128th, a tablet cell every 258th
     const kept = S.mode === 'daily' ? load() : null; const mine = kept && kept.name === S.name;
     S.level = mine ? kept.level : 1; S.stars = mine ? kept.stars : []; S.line = mine ? kept.line : []; S.closed = mine ? kept.closed : 0; S.targets = mine ? (kept.targets || []) : []; S.quests = mine ? (kept.quests || []) : []; S.borrowed = mine ? (kept.borrowed || 0) : 0; S.decoded = mine ? (kept.decoded || []) : []; S.crossed = !!(mine && kept.crossed); S.rebirths = mine ? (kept.rebirths || []) : [];
-    S.rays = mine && kept.rays ? kept.rays : new Array(12).fill(0); S.bits = mine && kept.bits ? kept.bits : new Array(12).fill(0); S.roads = mine && kept.roads ? kept.roads : [];
+    S.rays = mine && kept.rays ? kept.rays : new Array(12).fill(0); S.bits = mine && kept.bits ? kept.bits : new Array(12).fill(0); S.roads = mine && kept.roads ? kept.roads : []; S.climbs = mine && kept.climbs ? kept.climbs : [];
     // a save from before chapter marks holds quest cells only. Chapters are answered in order, so match them one cell each, as a multiset, and
     // credit a cell left over (a quest the data moved since it was answered) to the earliest chapter reached whose quest is still open
     if (S.plan && S.mode === 'daily' && S.quests.length && !S.quests.some(x => typeof x === 'string')) {
@@ -94,7 +98,7 @@ window.GAME = (function () {
     S.start = spec.start; S.target0 = spec.target; S.target = spec.target; S.current = S.start; S.road = [S.start]; S.moves = 0; S.ops = []; S.visited = new Set([S.start]);
     // a level that counts its free moves keeps its own par: on a gold day THE EYE's Γ Γ stays par 2, not the 0 of a recount (S4)
     S.par = spec.target == null ? null : S.shift ? solveShift(S.start, S.target).length : (spec.par != null && (S.countFree || (!S.flip && !(S.goldDay && S.mode === 'daily' && !S.shift)))) ? spec.par : F.cost(F.solve(S.start, S.target, S.free, S.opsList), S.free);
-    S.toEye = toEye(S.opsList); S.dist = dist(); S.climb = []; S.tau = 0; S.real = 0; S.rate = 1;
+    S.toEye = toEye(S.opsList); S.dist = dist(); S.climb = []; S.undos = 0; S.tau = 0; S.real = 0; S.rate = 1;
     S.t0 = performance.now(); S.armed = false; S.done = false; S.lost = false; S.seen = false; S.seenInf = false; S._lostShown = false; S.ended = false;
     S.hints = 0; S.hinted = null;   // HINT: the presses on this level, and the last road it gave ({at: the moves made then, from, road})
     S.reborn = 0; S.ghost = null;   // V3: the level in its second life, and the road of the life before it
@@ -115,15 +119,15 @@ window.GAME = (function () {
       if (S.clock) S.borrowed += S.real - S.tau;
       S.done = true; S.stars[S.level - 1] = S.reborn ? 1 : Math.min(S.hints > 1 ? 2 : 3, S.moves <= S.par + S.slack ? 3 : S.moves <= S.par + 1 + S.slack ? 2 : 1);   // STORE's slack: par + 1 still closes; a second HINT caps at ★★; a second life closes at ★
       if (S.strict && S.moves > S.par) { S.stars[S.level - 1] = 0; S.lost = true; } else { S.closed++; S.line.push(D.cells[S.target].w); S.targets.push(S.target); decoded(); ledger(); if (S.reborn) S.rebirths.push(S.level); if (S.kind === 'eye' && S.road.includes(F.INF)) S.crossed = true; }   // S4: closed through ∞
-      save();
-    } else if (S.strict && S.moves > S.par) { S.lost = true; S.stars[S.level - 1] = 0; save(); }
+      record(); save();
+    } else if (S.strict && S.moves > S.par) { S.lost = true; S.stars[S.level - 1] = 0; record(); save(); }
     return v;
   }
   // the tape decoded (M2): a closed level that reads digits keeps its window number (a tape level's own window, before the par sort; a
   // mirror's slot), and the seal counts the tape windows among them and the longest run of consecutive window numbers
   function decoded() { const sp = S.spec, w = sp && sp.digits ? sp.window || sp.n : null; if (w != null && S.mode === 'daily' && !S.decoded.includes(w)) S.decoded.push(w); }
   function tapeRead() { if (!S.plan) return null; const all = S.plan.filter(sp => sp && sp.kind === 'tape').map(sp => sp.window), got = all.filter(w => S.decoded.includes(w)).sort((a, b) => a - b); let run = 0, r = 0; got.forEach((w, i) => { r = i && w === got[i - 1] + 1 ? r + 1 : 1; run = Math.max(run, r); }); return { k: got.length, of: all.length, run }; }
-  function undo() { if (!S.ops || S.done || S.lost || !S.ops.length) return null; advance(); const id = S.ops.pop(); S.road.pop(); S.current = S.road[S.road.length - 1]; if (!S.free.has(id) || S.countFree) S.moves--; if (S.shift) S.target = F.mul(S.target0, F.POW[S.moves % 256]); S.climb.pop(); S.dist = dist(); S.rate = rateAt(S.current); return id; }
+  function undo() { if (!S.ops || S.done || S.lost || !S.ops.length) return null; advance(); const id = S.ops.pop(); S.road.pop(); S.current = S.road[S.road.length - 1]; if (!S.free.has(id) || S.countFree) S.moves--; if (S.shift) S.target = F.mul(S.target0, F.POW[S.moves % 256]); S.climb.pop(); S.undos = (S.undos || 0) + 1; S.dist = dist(); S.rate = rateAt(S.current); return id; }
   function reset() { level(S.level); }
   // REBIRTH (V3): a lost SYNC or HALT level played again from 80 REBIRTH with its target, rule, free moves and slack, par from 80; the
   // second life cannot be lost (no strictness, no clock) and closes at ★. Never offered where the target is 80 or par from 80 is 0
@@ -134,7 +138,7 @@ window.GAME = (function () {
   function rebirth() { if (!canRebirth()) return null; const r = born(S.road.slice()); save(); return r; }
   function next() { level(S.level + 1); save(); }
   // the clock: the proper seconds left, and the level lost when τ reaches the thirty
-  function tick() { if (S.clock && S.armed && !S.done && !S.lost && S.target != null) { advance(); const left = S.clock - S.tau; if (left <= 0) { S.lost = true; S.stars[S.level - 1] = 0; S.borrowed += S.real - S.tau; save(); } return Math.max(0, left); } return null; }
+  function tick() { if (S.clock && S.armed && !S.done && !S.lost && S.target != null) { advance(); const left = S.clock - S.tau; if (left <= 0) { S.lost = true; S.stars[S.level - 1] = 0; S.borrowed += S.real - S.tau; record(); save(); } return Math.max(0, left); } return null; }
   function lineInfo() { const txt = S.line.join(' '); const s = F.letterSum(txt), k = F.letterCount(txt); const cell = s % 257; return { txt, sum: s, k, cell, word: D.cells[cell].w, mirror: ((27 * k - s) % 257 + 257) % 257 }; }
   function cellInfo(n) {
     if (n === F.INF) return { n, glyphs: '∞', word: 'the open circuit', words: ['Γ(∞) = 1: the base reads its missing point as I AM'], dlog: '—', inv: 0, fold: '∞', gam: 1, ray: '—', ch: 'the point at infinity', k: 1 };

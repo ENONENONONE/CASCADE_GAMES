@@ -1783,3 +1783,7 @@ The owner answered the eight open questions on 2026-10-18. Each entry gives the 
 ### Still open
 
 - Six losable levels in 100 days on the fresh road have target 80, so REBIRTH from 80 would start on the target and is hidden there. Those levels can only be closed again through AGAIN. Should they get another rebirth cell?
+
+## Built since (2026-10-19)
+
+- **H1, H2, H3 · Sisyphean Heat** are built as `cascade_ar/parts/heat` (heat.js, check.js, demo.html, notes.md), with R1's ratio: the floor is refilled with t = dlog m, m = current/target, on every move, through one limiter of 3 re-forms a second shared with the crowd. Where the build differs from the entries above: the heat is a carpet, a mesh over the floor's own vertices reading the target, not the floor's points reading their texel (a point carpet at 129 × 129 reads as confetti); the strokes' alpha is scaled by 0.3, a stroke being a whole texel; the day's picture draws no undo back-strokes (the record keeps the final road and the count of undos); the day's ground is kept for the session, not saved; a flat black floor on SEED is not drawn (the hill flattens and the heat dies, the floor keeps its last form). The effort bar was built in Phase 1. The white climber is drawn with no depth test at y −2.35; the day's picture is 514², a tap saves it, SHARE sends it where files can be shared.
