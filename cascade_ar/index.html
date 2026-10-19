@@ -175,6 +175,7 @@ html.calm *{transition:none!important;animation:none!important}
 <script src="parts/rays/rays.js"></script>
 <script src="parts/trace/trace.js"></script>
 <script src="parts/glow/glow.js"></script>
+<script src="parts/heat/heat.js"></script>
 <script>
 (function () {
   'use strict';
@@ -247,7 +248,7 @@ html.calm *{transition:none!important;animation:none!important}
   // caps the level at ★★ (game.js askHint)
   aux('HINT', () => { const S = G.S, h = G.askHint(); if (!h || !h.length) return toast(S.target == null ? 'no target in a free walk: read the cells' : S.current === S.target ? 'you are there' : 'the level is over'); flash(h[0]); paint(); toast(S.hints > 1 ? 'hint ' + S.hints + ' · this level closes at ★★ at most' : 'free hint · another caps the level at ★★', 2600); }, 'the road from where you stand: the first hint of a level is free, each one after caps the level at ★★');
   $('hintrow').onclick = e => { const b = e.target.closest('[data-chip]'); if (b) flash(b.dataset.chip); };
-  const bRel = aux('RELIEF', () => { MON.mode = (MON.mode + 1) % 3; bRel.setAttribute('aria-pressed', MON.mode > 0); monFloor(); monApply(G.S); toast(['relief off', 'the chapter\'s sheet as the floor, mod 257: ' + SHEET_TELL[MON.sheet || 'norm'], 'and the product a·b as the ceiling'][MON.mode], 2400); }, 'the conics relief in the world: the chapter\'s floor, the sheets, the rings');
+  const bRel = aux('RELIEF', () => { MON.mode = (MON.mode + 1) % 3; bRel.setAttribute('aria-pressed', MON.mode > 0); monFloor(); monApply(G.S); toast(['relief off', 'the chapter\'s sheet as the floor, mod 257: ' + SHEET_TELL[MON.sheet || 'norm'] + (HT && HEAT.on ? ' · the crowd climbs it (h)' : ''), 'and the product a·b as the ceiling'][MON.mode], 2400); }, 'the conics relief in the world: the chapter\'s floor, the sheets, the rings');
   bRel.setAttribute('aria-pressed', 'true');
   const bLad = aux('LADDER', () => { A.A.showLadder = !A.A.showLadder; bLad.setAttribute('aria-pressed', !!A.A.showLadder); toast(A.A.showLadder ? 'the halving ladder of your cell: sixteen rungs, ×129 each' : 'ladder off'); }, 'the sixteen rungs of halving from your cell');
   bLad.setAttribute('aria-pressed', 'false');
@@ -370,6 +371,60 @@ html.calm *{transition:none!important;animation:none!important}
     if (e.key === 'z') { traceToggle(); return true; } if (e.key === 'x' || ((e.key === 'Enter' || e.key === ' ') && document.activeElement === $('tracec'))) { e.preventDefault(); traceCycle(); return true; } return false;
   }
   $('tracec').addEventListener('click', traceCycle);
+  // ── Sisyphean Heat (H1–H3, parts/heat): the crowd climbs the chapter's floor multiplied by m = current/target (R1's ratio) and only
+  // its heat is drawn, a carpet on the relief's own vertices; every move re-forms the floor and the hill under the crowd, at most 3
+  // re-forms a second from any source (moves and UNDO), the rest waiting a frame; the white climber walks your own climb on the floor;
+  // at THE SEAL the day's heat. The crowd runs while the floor stands (RELIEF on) and the level is in play, never under CALM (its trails
+  // are motion) and never with the TUBE up; h turns it off, kept in fold.prefs {heat: 'off'}. Tiers: 3584 climbers at 256², 1792 at
+  // 128² on lowEnd, 512 on tiny. On SEED the heat dies on a flat hill; at ∞ the crowd freezes mid-stride until Γ(∞) = 1 ──
+  const HT = window.FOLD_HEAT || null, HEAT = { on: PREFS.heat !== 'off', crowd: null, layer: null, floor: null, form: null, m: 1, want: undefined, last: 0, tPrev: 0, ground: null, tier: HT && HT.TIERS[PREFS.heatTier] ? PREFS.heatTier : tiny ? 'tiny' : lowEnd ? 'lowEnd' : 'full', climber: null, key: '', n: 0, fell: false };   // fold.prefs {heatTier: 'full' | 'lowEnd' | 'tiny'} overrides the device's
+  function heatMount() { if (!HT || HEAT.crowd || !RL) return; try { HEAT.crowd = HT.crowd(THREE, A.A.renderer, { tier: HEAT.tier, form: 'norm', m: 1, seed: (G.S && G.S.day) || 1 }); HEAT.climber = HT.climber(THREE, A.A.scene); } catch (e) { console.warn('heat', e); HEAT.crowd = null; } }
+  // the carpet follows the floor: built on each new floor (never the zone plate, whose samples have no grid order), the crowd's form the
+  // floor's sheet, the new floor brought to the hill's m
+  function heatFloor() {
+    const fresh = !HEAT.crowd; if (fresh) heatMount(); const c = HEAT.crowd; if (!c) return;
+    if (fresh && G.S && G.S.road) { heatStep(G.S); climbPaint(G.S); }   // the first floor comes after the first paint: the hill and the climber set now
+    if (HEAT.layer && (HEAT.floor !== MON.floor || !HEAT.on)) { HEAT.layer.dispose(); HEAT.layer = null; HEAT.floor = null; }
+    if (MON.floor && !HEAT.layer && HEAT.on) { try { HEAT.layer = HT.layer(THREE, MON.floor, c.texture, { gain: 1.0 }); HEAT.floor = MON.floor; } catch (e) { console.warn('heat layer', e); HEAT.layer = null; } }
+    const form = MON.sheet || 'norm'; if (form !== HEAT.form && HT.FORMS[form]) { HEAT.form = form; c.setForm(form); }
+    const fl = MON.floor; if (fl && fl.setT && !fl.setRadius && HEAT.m && fl.userData.t !== HT.DLOG[HEAT.m]) { try { fl.setT(HT.DLOG[HEAT.m]); } catch (e) {} }
+  }
+  // m from the state: ∞ freezes at once; a change of m goes through the limiter to the crowd and the floor (setT by dlog m)
+  function heatStep(S) {
+    const c = HEAT.crowd; if (!c || !S || !S.road) return; const m = HT.mulOf(S.current, S.target, F);
+    if (m === null) { c.setMul(null); HEAT.m = null; HEAT.want = undefined; return; }
+    if (m === HEAT.m) { HEAT.want = undefined; if (c.sim.frozen) c.freeze(false); return; } HEAT.want = m; heatApply(performance.now());
+  }
+  function heatApply(now) {
+    if (HEAT.want === undefined || now - HEAT.last < 334) return; const m = HEAT.want; HEAT.want = undefined; HEAT.last = now; HEAT.m = m; HEAT.crowd.setMul(m);
+    const fl = MON.floor; if (fl && fl.setT && !fl.setRadius && m !== 0) { try { fl.setT(HT.DLOG[m]); } catch (e) {} }   // on SEED the floor keeps its last form while the heat dies
+  }
+  // the white climber (H2) on each paint: a new level or life sets it at the start; a move draws its stroke from where it stood, in the
+  // move's colour by what it did to the distance, whitened by the move's heat; UNDO an orange stroke back; a loss, or a run past par +
+  // slack + 1 on a level that is not strict, lets it slide orange to the centre
+  function climbPaint(S) {
+    const k = HEAT.climber; if (!k) return; const climb = S.climb || [], key = S.level + ':' + (S.reborn || 0) + ':' + S.mode;
+    if (S.target == null || S.par == null) { k.reset(); HEAT.key = ''; return; }
+    const pl = HT.placeOf(S.current, S.dist, S.par, F);
+    if (key !== HEAT.key || (!climb.length && HEAT.n)) { k.reset(); k.set(pl); HEAT.key = key; HEAT.n = 0; HEAT.fell = false; }
+    else if (climb.length > HEAT.n) { const c = climb[climb.length - 1], free = S.free.has(c[0]) && !S.countFree, kind = free ? 'free' : c[2] < c[1] ? 'up' : c[2] === c[1] ? 'keep' : 'down'; k.move(pl, kind, heatOf(S.road[S.road.length - 2], S.road[S.road.length - 1])); }
+    else if (climb.length < HEAT.n) k.move(pl, 'undo', 1);
+    HEAT.n = climb.length;
+    if (!HEAT.fell && (S.lost || (!S.done && !S.strict && S.moves > S.par + S.slack + 1))) { HEAT.fell = true; k.fall(performance.now()); }
+  }
+  // a close (H2's Gets, H3): n/64 of the crowd will be reborn near the floor's edge under the target, so through the day the heat gathers
+  // under the day's targets; and one snapshot of the heat into the day's ground, blended, for the seal's picture
+  function heatClose(S) {
+    const c = HEAT.crowd; if (!c || S.target == null) return;
+    try { c.home(HT.placeOf(S.target, 0, 1, F).az, 1 / 64); if (!HEAT.ground) { HEAT.ground = document.createElement('canvas'); HEAT.ground.width = HEAT.ground.height = 128; } if (HEAT.on && !calm) c.snapshot(HEAT.ground.getContext('2d'), 0.7); } catch (e) { console.warn('heat close', e); }
+  }
+  function heatToggle() { if (!HEAT.crowd) return toast('no heat on this device'); HEAT.on = !HEAT.on; PREFS.heat = HEAT.on ? 'on' : 'off'; LS.set('fold.prefs', JSON.stringify(PREFS)); heatFloor(); toast(HEAT.on ? 'the heat: the crowd climbs the chapter\'s floor, multiplied by your cell over the target, and falls at the wrap' : 'heat off', 2600); }
+  function heatFrame(now, xr) {
+    const c = HEAT.crowd, dt = HEAT.tPrev ? Math.min(0.1, (now - HEAT.tPrev) / 1000) : 1 / 60; HEAT.tPrev = now; if (!c) return;
+    if (HEAT.climber) HEAT.climber.frame(now); heatApply(now);
+    if (!HEAT.on || !HEAT.layer || calm || (RAYS.tube && !xr) || $('hud').hidden || !$('chap').hidden) return;
+    c.frame(dt);
+  }
   // the ray ledger (T4): at a chapter's close the won card replays its eight roads as chords over 4 s, then the bars from your own
   // arrivals, home's ray outlined and the line's cell's ray ticked; under CALM the last frame only. The seal draws the day's bars
   function ledger(ch) {
@@ -400,6 +455,7 @@ html.calm *{transition:none!important;animation:none!important}
     if (!RL) return; const S = G.S, k = sheetOf(S), want = MON.mode < 1 ? null : S && (S.clock || (S.reborn && S.spec && S.spec.clock)) && S.target != null && RL.plate ? 'plate' : k;
     if (MON.floor && MON.floorKind !== want) { RL.dispose(MON.floor); MON.floor = null; MON.sheet = null; MON.floorKind = null; }
     if (want && !MON.floor) { try { MON.floor = want === 'plate' ? RL.plate({ size: 0.03, opacity: 0.8 }) : RL.floor(k, { size: 0.03, opacity: 0.8 }); MON.sheet = want === 'plate' ? 'circle' : k; MON.floorKind = want; A.A.scene.add(MON.floor); } catch (e) { console.warn('floor', e); MON.floor = null; } }
+    if (HT) heatFloor();
   }
   // the plate's clock in proper time (S3): a terrace each tenth of it; a close flares the surviving edges, a loss dims the floor, and a
   // second life (V3) has no clock, so its plate stays dark
@@ -437,7 +493,7 @@ html.calm *{transition:none!important;animation:none!important}
     if (hl && hl.length) $('hintrow').innerHTML = '<span>road · ' + (S.hints > 1 ? '★★ at most' : 'free hint') + '</span>' + rle(hl).map(([id, k], j) => '<button data-chip="' + id + '" style="--c:hsl(' + F.OP[id].hue + ' 70% 65%)" title="' + F.OP[id].name + (k > 1 ? ', ' + k + ' times' : '') + '"' + (j ? '' : ' aria-current="step"') + '>' + F.OP[id].label + (k > 1 ? '×' + k : '') + '</button>').join('');
     for (const b of opsEl.querySelectorAll('[data-op]')) { b.classList.toggle('free', S.free.has(b.dataset.op)); if (b.dataset.op === 'flip') { b.hidden = !S.flip; b.disabled = S.flip && F.flip69(S.current) === S.current; } }
     opsEl.style.gridTemplateColumns = S.flip ? 'repeat(7,1fr)' : 'repeat(6,1fr)';
-    effort(S);
+    effort(S); if (HT) { heatStep(S); climbPaint(S); }
     const q = S.quest; $('quest').hidden = !q; if (q) { const done = G.answered(q); $('quest').className = done ? 'done' : ''; $('quest').textContent = (done ? '✓ ' : '? ') + q.ask; }
     A.paint({ current: S.current, target: S.target, home: S.home, visited: S.visited, reach: G.reach(), road: S.road, ops: S.opsList, rule: S.digit, moves: S.moves, chapter: S.mode === 'daily' ? chapterOf(S.level) + 1 : 8, strip: S.head, spec: S.spec, eye: S.kind === 'eye', ghost: S.ghost }); A.tape(D.pi, S.offset, S.spec);
     raysSet(S); raysShow(); traceSet(S); traceShow();
@@ -474,7 +530,7 @@ html.calm *{transition:none!important;animation:none!important}
     if (S.done && !S.lost && A.decode) A.decode(S.spec);   // M2: the start digits become the start cell's glyphs
     const k = S.done && !S.lost ? bullet(S.stars[S.level - 1]) : 1; if (S.done && !S.lost) S.doneAt = performance.now();
     busy = true; A.flow(o); if (k > 1) { A.A.flowDur *= k; A.A.slow = k; A.A.zoom = $('video').style.display !== 'block'; }   // flow() wrote flowDur; both timers below read it
-    raysMove(id, u);
+    raysMove(id, u); if (HT && S.done && !S.lost) heatClose(S);
     snd.op(id); roomFx(id, k); say(STORY && STORY.ops && STORY.ops[id] || o.tell); monStep(S);
     const lv = S.level, epoch = S.epoch = (S.epoch || 0) + 1, mine = () => G.S.level === lv && G.S.epoch === epoch;   // a timer of this move only
     setTimeout(() => { busy = false; if (mine()) snd.cell(v); }, A.A.flowDur * 1000 * 0.9);
@@ -591,11 +647,16 @@ html.calm *{transition:none!important;animation:none!important}
     const stars = S.stars.reduce((a, b) => a + (b || 0), 0);
     const fill = (t, k, v) => t.split('{' + k + '}').join(String(v));   // every occurrence, and old Safari has no replaceAll
     const txt = fill(fill(fill(fill(tpl, 'word', L.word), 'cell', L.cell), 'mirror', D.cells[L.mirror].w + ' ' + L.mirror), 'stars', stars);
-    $('wonbody').innerHTML = '<h2 class="ch">THE SEAL · ' + G.today() + '</h2><p class="epi">' + txt + '</p><p>' + S.closed + ' levels closed' + (S.rebirths && S.rebirths.length ? ' · reborn ' + S.rebirths.length : '') + ' · ' + stars + ' stars · the line: <b>' + (L.txt || '—') + '</b> ≡ ' + L.cell + ' ' + L.word + '</p>' + (seal ? '<p>product of the targets ≡ <b>' + seal.cell + ' ' + seal.word + '</b></p>' : '') + (dec && S.mode === 'daily' ? '<p>the tape decoded ' + dec.k + ' of ' + dec.of + ' windows · longest run ' + dec.run + '</p>' : '') + (Math.abs(S.borrowed || 0) >= 0.05 ? '<p>' + S.borrowed.toFixed(1) + ' s borrowed from the eye today</p>' : '') + (S.crossed ? '<p>∞ · crossed: through the eye to I AM</p>' : '')
+    const parDay = S.plan ? S.plan.reduce((a, sp) => a + (sp && sp.par != null ? sp.par + (sp.slack || 0) : 0), 0) : 0, heatHtml = HT && S.climbs && S.climbs.length ? '<canvas class="ledger" id="dayheat" role="img" title="the day\'s heat · tap to save the picture"></canvas>' : '';
+    $('wonbody').innerHTML = '<h2 class="ch">THE SEAL · ' + G.today() + '</h2>' + heatHtml + '<p class="epi">' + txt + '</p><p>' + S.closed + ' levels closed' + (S.rebirths && S.rebirths.length ? ' · reborn ' + S.rebirths.length : '') + ' · ' + stars + ' stars · the line: <b>' + (L.txt || '—') + '</b> ≡ ' + L.cell + ' ' + L.word + '</p>' + (seal ? '<p>product of the targets ≡ <b>' + seal.cell + ' ' + seal.word + '</b></p>' : '') + (dec && S.mode === 'daily' ? '<p>the tape decoded ' + dec.k + ' of ' + dec.of + ' windows · longest run ' + dec.run + '</p>' : '') + (Math.abs(S.borrowed || 0) >= 0.05 ? '<p>' + S.borrowed.toFixed(1) + ' s borrowed from the eye today</p>' : '') + (S.crossed ? '<p>∞ · crossed: through the eye to I AM</p>' : '')
       + (RY && S.rays ? '<canvas class="ledger" id="daybars" role="img"></canvas><p>the day\'s rays <b>' + RY.spark(S.rays) + '</b> · arrivals by ray on the roads closed, the best work bits beneath</p>' : '') + '<div class="btns"><button class="big" id="again">WALK ON</button><button id="share2">SHARE</button></div>';
     const db = $('daybars'); if (db) { RY.drawBars(db, { size: Math.min(394, Math.floor(db.getBoundingClientRect().width) || 304), dpr: dpr2, rays: S.rays, bits: S.bits, home: F.ray(S.home), tick: F.ray(L.cell) }); db.setAttribute('aria-label', 'the day\'s ledger: by ray ' + S.rays.map((v, i) => 'R' + i + ' ' + v).join(', ') + '; best work bits ' + S.bits.join(' ')); }
+    // the day's heat (H3): the crowd's ground from the closes, the day's climbs in the climber's layout, the crown on the rim, the counters
+    const dh = $('dayheat'), dayRec = dh ? { climbs: S.climbs, reborn: S.rebirths, parDay, F } : null;
+    if (dh) { try { HT.dayPicture(dayRec, HEAT.ground, { canvas: dh, size: 514 }); dh.setAttribute('aria-label', HT.dayText(dayRec)); dh.onclick = () => { const a = document.createElement('a'); a.href = dh.toDataURL('image/png'); a.download = 'fold-' + G.today() + '.png'; a.click(); }; } catch (e) { console.warn('day heat', e); dh.remove(); } }
     $('won').hidden = false; $('again').onclick = () => { $('won').hidden = true; const nm = $('name').value; G.start(nm, 'free', [LV && LV.free ? LV.free(nm) : { n: 1, kind: 'free', start: F.letterSum(nm) % 257, target: null, rule: 0, free: [] }]); openLevel(); };
-    $('share2').onclick = () => { const t = 'THE FOLD · ' + G.today() + ' · ' + S.closed + ' closed · ' + stars + ' stars · ' + txt + (RY && S.rays ? ' · rays ' + RY.spark(S.rays) : ''); if (navigator.share) navigator.share({ text: t }).catch(() => {}); else { navigator.clipboard && navigator.clipboard.writeText(t); toast('copied'); } };
+    // SHARE: the text, and the picture with it where the device shares files (Web Share Level 2); a tap on the picture saves it anywhere
+    $('share2').onclick = () => { const t = 'THE FOLD · ' + G.today() + ' · ' + S.closed + ' closed · ' + stars + ' stars · ' + txt + (RY && S.rays ? ' · rays ' + RY.spark(S.rays) : ''); const go = files => { if (navigator.share && files && navigator.canShare && navigator.canShare({ files })) navigator.share({ text: t, files }).catch(() => {}); else if (navigator.share) navigator.share({ text: t }).catch(() => {}); else { navigator.clipboard && navigator.clipboard.writeText(t); toast('copied'); } }; if (dh && dh.isConnected && dh.toBlob && navigator.canShare) dh.toBlob(b => go(b ? [new File([b], 'fold-' + G.today() + '.png', { type: 'image/png' })] : null)); else go(null); };
   }
   // ── the cell panel: tap a cell to read it ──
   function showCell(n) {
@@ -629,7 +690,7 @@ html.calm *{transition:none!important;animation:none!important}
   canvas.addEventListener('pointerdown', e => { if (!e.isPrimary) return; XS.look = null; drag = { x: e.clientX, y: e.clientY, yaw: A.A.yaw, pitch: A.A.pitch, ty: A.A.touchYaw }; moved = false; canvas.setPointerCapture(e.pointerId); });
   canvas.addEventListener('pointermove', e => { if (!drag) return; const dx = e.clientX - drag.x, dy = e.clientY - drag.y; if (Math.abs(dx) + Math.abs(dy) > 4) moved = true; const k = 0.0035; if (A.A.deviceQ) A.A.touchYaw = drag.ty + dx * k; else { A.A.yaw = drag.yaw + dx * k; A.A.pitch = Math.max(-1.4, Math.min(1.4, drag.pitch + dy * k)); } });
   canvas.addEventListener('pointerup', e => { const d = drag; drag = null; if (!d || moved || $('start').hidden === false) return; if (slow && skip()) return; if (bard && bard.skip()) return; if (A.readEnd && A.readEnd()) return; const r = canvas.getBoundingClientRect(); const nx = (e.clientX - r.left) / r.width * 2 - 1, ny = -((e.clientY - r.top) / r.height * 2 - 1); if (A.pickTape && A.pickTape(nx, ny)) return type(G.S.spec && G.S.spec.text || G.S.rule.tell); const n = A.pick(nx, ny); if (n != null) showCell(n); });
-  window.addEventListener('keydown', e => { if (slow && (e.key === ' ' || e.key === 'Escape') && skip()) return; if (bard && (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') && bard.skip()) { e.preventDefault(); return; } if ((e.key === ' ' || e.key === 'Escape') && A.readEnd && A.readEnd()) return; if (raysKey(e) || traceKey(e)) return; if (e.key === 'v' && !$('hud').hidden && document.activeElement !== $('name')) view(); if (e.key === 'b' && !$('hud').hidden && document.activeElement !== $('name')) glowToggle(); const k = 0.08; if (e.key === 'ArrowLeft') A.A.yaw += k; if (e.key === 'ArrowRight') A.A.yaw -= k; if (e.key === 'ArrowUp') A.A.pitch = Math.min(1.4, A.A.pitch + k); if (e.key === 'ArrowDown') A.A.pitch = Math.max(-1.4, A.A.pitch - k); const m = { g: 'g', G: 'ig', f: 'fold', i: 'inv', q: 'i', r: 'gam' }[e.key]; if (m && !$('hud').hidden && $('chap').hidden && $('won').hidden && document.activeElement !== $('name')) move(m); if (e.key === 'u' && !busy && !$('hud').hidden && $('chap').hidden) { const was = G.S.current, id = G.undo(); if (id) { paint(); monStep(G.S); if (G.S.kind === 'eye') cross('undo', G.S.current, was, 600); } } });
+  window.addEventListener('keydown', e => { if (slow && (e.key === ' ' || e.key === 'Escape') && skip()) return; if (bard && (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') && bard.skip()) { e.preventDefault(); return; } if ((e.key === ' ' || e.key === 'Escape') && A.readEnd && A.readEnd()) return; if (raysKey(e) || traceKey(e)) return; if (e.key === 'v' && !$('hud').hidden && document.activeElement !== $('name')) view(); if (e.key === 'b' && !$('hud').hidden && document.activeElement !== $('name')) glowToggle(); if (e.key === 'h' && HT && !$('hud').hidden && document.activeElement !== $('name')) heatToggle(); const k = 0.08; if (e.key === 'ArrowLeft') A.A.yaw += k; if (e.key === 'ArrowRight') A.A.yaw -= k; if (e.key === 'ArrowUp') A.A.pitch = Math.min(1.4, A.A.pitch + k); if (e.key === 'ArrowDown') A.A.pitch = Math.max(-1.4, A.A.pitch - k); const m = { g: 'g', G: 'ig', f: 'fold', i: 'inv', q: 'i', r: 'gam' }[e.key]; if (m && !$('hud').hidden && $('chap').hidden && $('won').hidden && document.activeElement !== $('name')) move(m); if (e.key === 'u' && !busy && !$('hud').hidden && $('chap').hidden) { const was = G.S.current, id = G.undo(); if (id) { paint(); monStep(G.S); if (G.S.kind === 'eye') cross('undo', G.S.current, was, 600); } } });
   async function sensors() { try { if (window.DeviceOrientationEvent && typeof DeviceOrientationEvent.requestPermission === 'function') { const r = await DeviceOrientationEvent.requestPermission(); if (r !== 'granted') return false; } } catch (e) { return false; } window.addEventListener('deviceorientation', A.onOrientation, true); return true; }
   async function cameraOn() { if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return false; try { const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 } }, audio: false }); const v = $('video'); v.srcObject = s; v.style.display = 'block'; await v.play().catch(() => {}); A.A.stars.visible = false; A.A.rainAlpha = 0.35; if (A.A.sky) A.A.sky.visible = false; return true; } catch (e) { return false; } }
   // ── the compass arrows and the clock ──
@@ -654,7 +715,7 @@ html.calm *{transition:none!important;animation:none!important}
     $('clock').textContent = left == null ? '' : left.toFixed(0) + ' s' + (slowClock ? ' · ×' + rate.toFixed(2) + ' · τ ' + S.tau.toFixed(1) + ' of ' + S.real.toFixed(1) + ' s real' : ''); if (left != null) snd.clock(left, rate); snd.dilate(rate);
     const dr = $('drain'); if (dr) { dr.hidden = left == null; if (left != null) dr.style.width = (100 * left / S.clock).toFixed(1) + '%'; }   // H2: on HALT the bar drains
     zoneStep(S, left);
-    if (S.lost && $('won').hidden && !S._lostShown) { S._lostShown = true; effort(S); snd.lose(); bardo(); }
+    if (S.lost && $('won').hidden && !S._lostShown) { S._lostShown = true; effort(S); if (HT) climbPaint(S); snd.lose(); bardo(); }
   }
   // ── enter ──
   $('enter').onclick = async () => {
@@ -699,8 +760,8 @@ html.calm *{transition:none!important;animation:none!important}
     if (!xr && crtQ && crtQ.visible) { const r = A.A.renderer; r.autoClear = false; r.render(over, A.A.camera); r.autoClear = true; }
   }
   // ── the loop ──
-  A.A.renderer.setAnimationLoop(() => { const t = (performance.now() - A.A.t0) / 1000; if (A.A.sky && A.A.sky.material.uniforms.time) A.A.sky.material.uniforms.time.value = t; if (crtU) crtU.time.value = t; if (warpU) { warpU.time.value = t; warpQ.visible = warpU.t.value > 0 && !A.A.renderer.xr.isPresenting; } if (WELL) WELL.step(G.S, { cam: $('video').style.display === 'block' }); crossStep(performance.now()); const xr = A.A.renderer.xr.isPresenting; if (!RAYS.tube || xr) frame3d(xr); arrows(); clockStep(); raysFrame(xr); traceFrame(); });   // the TUBE skips the 3D frame, never in the room
-  window.FOLD_DEBUG = { paint, openLevel, move, monFloor, monApply, monStep, MON, showCell, endDay, bardo, reborn, G, A, RAYS, raysTube, frame3d, glowToggle, glowState, get glow() { return glow; }, TRACE, traceCycle };  // for a console or a test, not for play
+  A.A.renderer.setAnimationLoop(() => { const t = (performance.now() - A.A.t0) / 1000; if (A.A.sky && A.A.sky.material.uniforms.time) A.A.sky.material.uniforms.time.value = t; if (crtU) crtU.time.value = t; if (warpU) { warpU.time.value = t; warpQ.visible = warpU.t.value > 0 && !A.A.renderer.xr.isPresenting; } if (WELL) WELL.step(G.S, { cam: $('video').style.display === 'block' }); crossStep(performance.now()); const xr = A.A.renderer.xr.isPresenting; if (HT) heatFrame(performance.now(), xr); if (!RAYS.tube || xr) frame3d(xr); arrows(); clockStep(); raysFrame(xr); traceFrame(); });   // the TUBE skips the 3D frame, never in the room; the heat's pass runs before the frame, its own target
+  window.FOLD_DEBUG = { paint, openLevel, move, monFloor, monApply, monStep, MON, showCell, endDay, bardo, reborn, G, A, RAYS, raysTube, frame3d, glowToggle, glowState, get glow() { return glow; }, TRACE, traceCycle, HEAT, heatToggle };  // for a console or a test, not for play
   document.addEventListener('visibilitychange', () => { if (!document.hidden && ac && ac.state === 'suspended') ac.resume(); });
   if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
 })();
