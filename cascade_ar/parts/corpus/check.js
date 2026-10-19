@@ -78,6 +78,9 @@ ok(M.atbash.mirror_pairs_on_tablet === D.mirrors.length, 'mirror_pairs_on_tablet
 { const shell = JSON.parse(fs.readFileSync(path.join(root, 'sw.js'), 'utf8').match(/const SHELL = (\[[^\]]*\]);/)[1].replace(/'/g, '"')), js = shell.filter(u => u.endsWith('.js')).map(u => u.replace(/^\.\//, ''));
   const srcs = [...fs.readFileSync(path.join(root, 'index.html'), 'utf8').matchAll(/<script src="([^"]+)"/g)].map(m => m[1]);
   ok(srcs.slice().sort().join() === js.slice().sort().join(), 'index.html loads ' + srcs.length + ' scripts, SHELL caches ' + js.length + ' .js files: ' + srcs.filter(u => !js.includes(u)).concat(js.filter(u => !srcs.includes(u))).join(' '));
-  for (const u of shell) ok(fs.existsSync(path.join(root, u)), 'SHELL path ' + u + ' is missing'); ok(!shell.some(u => /(check|test)\.js$/.test(u)), 'a node check in SHELL'); }
+  for (const u of shell) ok(fs.existsSync(path.join(root, u)), 'SHELL path ' + u + ' is missing'); ok(!shell.some(u => /(check|test)\.js$/.test(u)), 'a node check in SHELL');
+  // the changelog: its newest entry names the CACHE of sw.js, so a change that bumped one and not the other fails here
+  const cache = (fs.readFileSync(path.join(root, 'sw.js'), 'utf8').match(/const CACHE = '([^']+)'/) || [])[1], logPath = path.join(root, '..', 'CHANGELOG.md');
+  if (fs.existsSync(logPath)) { const first = (fs.readFileSync(logPath, 'utf8').match(/^## (\S+)/m) || [])[1]; ok(first === cache, 'CHANGELOG.md\'s newest entry is ' + first + ', sw.js CACHE is ' + cache); } }
 console.log(fails ? 'FAILED ' + fails + ' of ' + checks : 'OK · ' + checks + ' checks, none failed · material.js ' + fs.statSync(path.join(here, 'material.js')).size + ' bytes · tablet ' + M.tablet_entries + ' entries');
 process.exit(fails ? 1 : 0);
