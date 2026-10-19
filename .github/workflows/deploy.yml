@@ -1,0 +1,59 @@
+# THE FOLD — on every push to main: run the game's check suites, then put main on Vita (https://start.cascade.training) over ssh
+# by piping deploy/deploy.sh to the server. Repository secrets (Settings → Secrets and variables → Actions):
+#   VITA_HOST         the server (start.cascade.training, or its address)
+#   VITA_USER         the deploy user on Vita (the FOLD_USER of deploy/install.sh)
+#   VITA_SSH_KEY      a private key whose public half is in that user's ~/.ssh/authorized_keys
+#   VITA_KNOWN_HOSTS  the output of `ssh-keyscan start.cascade.training`
+#   VITA_PORT         optional, the ssh port (22)
+# Without VITA_HOST the deploy job only says so; the checks still run.
+name: deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-vita
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: The parts' check suites
+        run: |
+          set -e
+          for f in cascade_ar/parts/*/check.js cascade_ar/parts/levels/test.js; do
+            echo "== $f"; node "$f" | tail -n 1
+          done
+
+  deploy:
+    needs: check
+    runs-on: ubuntu-latest
+    env:
+      VITA_HOST: ${{ secrets.VITA_HOST }}
+      VITA_USER: ${{ secrets.VITA_USER }}
+      VITA_PORT: ${{ secrets.VITA_PORT }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: ssh key and host
+        if: env.VITA_HOST != ''
+        env:
+          KEY: ${{ secrets.VITA_SSH_KEY }}
+          KNOWN: ${{ secrets.VITA_KNOWN_HOSTS }}
+        run: |
+          set -e
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/vita && chmod 600 ~/.ssh/vita
+          printf '%s\n' "$KNOWN" > ~/.ssh/known_hosts
+      - name: Deploy to Vita
+        if: env.VITA_HOST != ''
+        run: ssh -i ~/.ssh/vita -p "${VITA_PORT:-22}" -o BatchMode=yes "$VITA_USER@$VITA_HOST" 'bash -s' < deploy/deploy.sh
+      - name: Not configured
+        if: env.VITA_HOST == ''
+        run: echo "::notice::VITA_HOST not set, nothing deployed. Add the secrets named in .github/workflows/deploy.yml."
