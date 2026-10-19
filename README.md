@@ -22,6 +22,7 @@ camera; desktops and Raspbian drag it.
 | `scope.md` | The enhancement scope: the four looks (conic relief, Enter the Void, Matrix, singularity), Twelve Rays and Sisyphean Heat in the game, challenges, HUD, the fixes found on the way, data, phases and budgets. |
 | `games_designer_api.py` | Sends a design or review task, with the files you name, to the games-designer agent through the Claude API. |
 | `deploy/` | The site at https://start.cascade.training: Caddyfile (or nginx), one-time install, the deploy script, and the GitHub Action that deploys on push to main (see `deploy/README.md`). |
+| `CHANGELOG.md` | Every release, newest first, by the service worker's `CACHE` version. |
 
 ## Play
 
@@ -83,6 +84,20 @@ The TUBE during play: the field flat on twelve rays, the moves' arrows from your
 ![The chapter ledger](docs/screenshots/ledger.png)
 
 The won card at the end of chapter 1: its eight roads replayed as chords over the R0–R11 bars.
+
+## Making a change
+
+Every change under `cascade_ar/` is a release: bump `CACHE` in `cascade_ar/sw.js` (a phone that has the game fetches the new
+files only then), add the version's entry at the top of `CHANGELOG.md`, and keep the two READMEs true (this one's description and
+screenshots, `cascade_ar/README.md`'s Play, keys and Files). A new part gets `check.js`, `notes.md` and `demo.html` beside it, a
+script tag in `index.html` and a line in `sw.js`'s SHELL. Then run every suite:
+
+```
+for f in cascade_ar/parts/*/check.js cascade_ar/parts/levels/test.js; do node "$f" | tail -n 1; done
+```
+
+The corpus check holds `index.html`'s scripts to SHELL and the changelog's newest entry to `CACHE`, so a forgotten bump or entry
+fails it, and the deploy workflow runs the same suites before anything reaches the server.
 
 ## Rebuilding the game's data
 

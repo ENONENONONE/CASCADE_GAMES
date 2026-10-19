@@ -53,13 +53,21 @@ the Atbash mirror and the Heisenberg joining of words. One page, no build step, 
   gradient (or Snell, by another law), the light laid on the 16 × 16 picture through the Airy beam and kept by the P22 persistence: the
   tile beside the rays inset, rendered anew on each move. TRACE (or z) toggles it; a tap on it, or x, cycles its law. Its light feeds
   GLOW's third shaft whether the tile shows or not (fold.prefs {traceGlow: 'off'} leaves it out).
+- HEAT: Sisyphean Heat on the chapter's floor. Thousands of climbers run up the sheet the floor draws, multiplied by your cell over
+  the target, and go over the crest where 256 wraps to 0; only their heat is drawn, blue climbs whitening with effort, orange-white
+  flares at the wrap, on a carpet over the relief. Every move re-forms the floor and the hill under them; SEED flattens it, ∞ freezes
+  them. The white climber is your own climb: at your cell's azimuth, the centre at the start and the rim at the target, a stroke a
+  move (blue closer, grey kept, orange further, whitened by the move's heat), orange back on UNDO, a slide to the centre on a loss;
+  the effort bar under the target is the same climb as segments. The seal carries the day's heat: the crowd's ground from each
+  close, your climbs, the crown of closed cells on the rim and the counters (climbs, steps, summits, falls); a tap saves the PNG and
+  SHARE sends it with the text. h toggles the crowd (fold.prefs {heat, heatTier}); it rests under reduced motion and in the TUBE.
 
 ## Where it runs
 
 - Phones: device orientation turns the view (iOS asks on ENTER), the back camera shows the room; a PWA that plays offline after the
   first load over https. Android Chrome with WebXR gets an AR button for the room itself.
-- Raspbian, an RK3588 board and desktops: drag or arrow keys to look; keys g G f i q r are the moves, u undoes, v the rain, m the rays, h the crowd's heat
-  inset, t the TUBE, b the glow, z the trace tile, x its law. The sky
+- Raspbian, an RK3588 board and desktops: drag or arrow keys to look; keys g G f i q r are the moves, u undoes, v the rain, m the rays
+  inset, t the TUBE, b the glow, z the trace tile, x its law, h the heat. The sky
   shader scales down by GPU (none on VideoCore/llvmpipe, half on Mali); the rain keeps only its state columns, heads only, on a Pi
   or SwiftShader, and is off on llvmpipe; the glow is bloom alone on Mali and off on a Pi.
 - Nothing is sent anywhere; the day's progress stays in the browser.
