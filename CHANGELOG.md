@@ -7,6 +7,18 @@ Changes outside the game (the tools, the deploy kit, the docs) go under the vers
 
 Scope keys (H1, R1, M2 …) refer to the entries in `scope.md`.
 
+## fold-v20 · 2026-10-19
+
+- **VR**, `parts/vr`: the field in a headset through WebXR immersive-vr (SteamVR through Chrome or Edge on Windows, Quest's browser).
+  The console at the belt with the HUD, the effort bar and every button; the page's cards and a tapped cell's panel at arm's length;
+  the rays and trace insets beside the console; controller rays with the trigger to point (a card button, a console button, a cell of
+  the sky), the squeeze for UNDO and the thumbstick as a radial menu of the six moves. The rig stands 2.4 m down so the relief and
+  the heat lie on the real floor. A VR button joins AR after ENTER where the browser supports it. A flat preview of the same objects
+  for a look and the headless test.
+- **The camera asks only on a handheld.** A desk with a webcam no longer gets a camera prompt on ENTER: the room behind the field is
+  asked for on a coarse pointer, touch or an answered gyro, or with `fold.prefs {camera: 'on'}`; `{camera: 'off'}` never asks.
+- The effort bar's segments are built as data (`effortSegs`) and drawn by the HUD and the VR console alike.
+
 ## fold-v19 · 2026-10-19
 
 - **Sisyphean Heat (H1–H3)**, `parts/heat`: the crowd on the chapter's floor, thousands of climbers in typed arrays running up the

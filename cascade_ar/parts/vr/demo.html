@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>parts/vr · the console and the card, previewed</title>
+<style>
+  body { margin: 0; background: #0a0d10; color: #8fa796; font: 13px ui-monospace, Menlo, Consolas, monospace; }
+  #c { display: block; width: 100vw; height: 80vh; }
+  #bar { padding: 8px 12px; display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+  button { background: #0f1418; color: #8fa796; border: 1px solid #2a3a30; border-radius: 6px; padding: 5px 10px; font: inherit; cursor: pointer; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="bar"><span>drag to look · the console follows the head's yaw ·</span><button id="card">toggle a card</button><button id="vr">enter VR</button><span id="log"></span></div>
+<script src="../../vendor/three.min.js"></script>
+<script src="vr.js"></script>
+<script>
+  // a fake host: strings and buttons of a level in play, a card on demand; every press is logged. No field.js: cells are placed by
+  // the same rule as ar.js from a dlog table built here
+  const VR = window.FOLD_VR, P = 257, DLOG = new Array(P).fill(-1); { let a = 1; for (let k = 0; k < 256; k++) { DLOG[a] = k; a = a * 3 % P; } }
+  const cv = document.getElementById('c'), renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true }); renderer.setPixelRatio(Math.min(2, devicePixelRatio || 1));
+  const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera(70, 1, 0.05, 80), rig = new THREE.Object3D(); rig.add(camera); scene.add(rig);
+  const place = n => { if (n === 0) return new THREE.Vector3(0, -2.4, 0); if (n === P) return new THREE.Vector3(0, 6, 0); const d = DLOG[n], az = d / 256 * Math.PI * 2, el = (-34 + (d % 12) * (92 / 11)) * Math.PI / 180; return new THREE.Vector3(Math.sin(az) * Math.cos(el) * 6, Math.sin(el) * 6, -Math.cos(az) * Math.cos(el) * 6); };
+  const pts = []; for (let n = 1; n <= 256; n++) pts.push(place(n)); scene.add(new THREE.Points(new THREE.BufferGeometry().setFromPoints(pts), new THREE.PointsMaterial({ color: 0x7fe39a, size: 0.12 })));
+  const ring = []; for (let k = 0; k <= 210; k++) { const a = k / 210 * Math.PI * 2; ring.push(new THREE.Vector3(Math.sin(a) * 3, -2.4, -Math.cos(a) * 3)); } scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(ring), new THREE.LineBasicMaterial({ color: 0x3f8a52 })));
+  let cardOn = false, moves = 0; const log = t => { document.getElementById('log').textContent = t; };
+  const OPS = [['g', '×g', 'the generator', 140], ['ig', '÷g', 'the generator back', 170], ['fold', 'FOLD', 'the fold', 40], ['inv', 'INV', 'the inverse', 200], ['i', '×i', 'the quarter turn', 280], ['gam', 'Γ', 'the reflection', 0]];
+  const host = {
+    read: () => ({ day: '2026-10-19 · day 9423 · π[9440] = 7', chapter: 'SUNRISE', level: 'level 3 · 2 closed', cur: 'Φψ 14', curWord: 'N', tgt: 'δ𝟙 159', tgtWord: 'SEMICONDUCTOR', moves: moves + ' / par 3', rule: 'JUMP · Γ is free: the reflection costs nothing', clock: '', voice: 'One step round the cycle: the logarithm rises by one.', quest: '? Find the cell that holds PETER: the door 4176 opens on it', segments: [{ k: 'up', fill: '#4f8fd8' }, { k: 'keep', fill: '#8fa796' }, { k: 'free' }, { k: 'empty' }, { k: 'two' }] }),
+    buttons: () => OPS.map(o => ({ id: o[0], label: o[1], sub: o[2], hue: o[3], free: o[0] === 'gam' })).concat([{ id: 'undo', label: 'UNDO' }, { id: 'hint', label: 'HINT' }, { id: 'relief', label: 'RELIEF', on: true }, { id: 'view', label: 'VIEW', on: true }, { id: 'heat', label: 'HEAT', on: true }, { id: 'exit', label: 'EXIT VR' }]),
+    press: id => { if (OPS.some(o => o[0] === id)) moves++; log('pressed ' + id); },
+    card: () => cardOn ? { text: '1 · SUNRISE\nSUNRISE · 105\nThe scribe comes to the field at first light. Two hundred and fifty-six cells stand round the horizon, each a power of three; the seed lies at the centre, the open point overhead.', buttons: [{ id: 'chapgo', label: 'GO', big: true }] } : null,
+    pressCard: id => { log('card ' + id); cardOn = false; }, tapCell: n => log('cell ' + n), undo: () => log('undo'), place,
+    insets: null,
+  };
+  const vr = VR.mount(THREE, { renderer, rig, camera, place }, host, { F: { INF: P } }); vr.preview(true);
+  document.getElementById('card').onclick = () => { cardOn = !cardOn; };
+  document.getElementById('vr').onclick = () => vr.enter().catch(e => log('no VR: ' + (e.message || e)));
+  VR.supported().then(ok => { document.getElementById('vr').disabled = !ok; });
+  let drag = null, yaw = 0, pitch = -0.3;
+  cv.addEventListener('pointerdown', e => { drag = { x: e.clientX, y: e.clientY, yaw, pitch }; });
+  cv.addEventListener('pointermove', e => { if (!drag) return; yaw = drag.yaw + (e.clientX - drag.x) * 0.004; pitch = Math.max(-1.4, Math.min(1.4, drag.pitch + (e.clientY - drag.y) * 0.004)); });
+  cv.addEventListener('pointerup', () => { drag = null; });
+  const resize = () => { const w = cv.clientWidth, h = cv.clientHeight; renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); }; resize(); addEventListener('resize', resize);
+  renderer.setAnimationLoop(() => { if (!renderer.xr.isPresenting) camera.rotation.set(pitch, yaw, 0, 'YXZ'); vr.frame(performance.now()); renderer.render(scene, camera); });
+</script>
+</body>
+</html>

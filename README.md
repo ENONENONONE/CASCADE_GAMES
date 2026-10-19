@@ -11,7 +11,8 @@ cyberpunk grade over the same palette. TRACE: the field's own ray tracer in GF(2
 chapter's sheets onto a 16 × 16 tile, its light the third of GLOW's shafts. HEAT: Sisyphean Heat on the chapter's floor, a crowd of
 climbers running up the sheet multiplied by your cell over the target and falling where 256 wraps to 0, only their heat drawn; your
 own climb as the white climber, a stroke a move; and the day's heat as the picture on the seal. Phones turn it with the gyro over the
-camera; desktops and Raspbian drag it.
+camera; desktops and Raspbian drag it; a headset (SteamVR through a browser, or Quest) plays it in VR, the relief at your feet, the
+console at your belt and the six moves on the thumbstick.
 
 | Path | What it is |
 | --- | --- |
@@ -72,6 +73,12 @@ your cell's azimuth, its strokes the moves.
 
 THE SEAL with the day's heat: the crowd's ground from each close, the day's climbs from the centre toward the rim in the moves'
 colours, an orange streak to the centre for a loss, the crown of closed cells on the rim, and the sketch's counters as the day's.
+
+![The VR console, previewed on the screen](docs/screenshots/vr.png)
+
+The headset's console as the flat preview draws it: the HUD, the effort bar's segments, the stick's six sectors, the voice and the
+quest, and the six moves with UNDO, HINT, RELIEF, VIEW, HEAT and EXIT VR as buttons; the rays and trace insets beside it. In VR it
+hangs at the belt and follows a glance down; the controllers' rays press it.
 
 ![The bardo card](docs/screenshots/bardo.png)
 

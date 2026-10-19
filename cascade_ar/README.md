@@ -61,11 +61,18 @@ the Atbash mirror and the Heisenberg joining of words. One page, no build step, 
   the effort bar under the target is the same climb as segments. The seal carries the day's heat: the crowd's ground from each
   close, your climbs, the crown of closed cells on the rim and the counters (climbs, steps, summits, falls); a tap saves the PNG and
   SHARE sends it with the text. h toggles the crowd (fold.prefs {heat, heatTier}); it rests under reduced motion and in the TUBE.
+- VR: after ENTER, a browser with WebXR immersive-vr (SteamVR through Chrome or Edge on Windows, Quest's browser) shows a VR
+  button. In the headset the relief and the heat lie on the real floor; the console at your belt carries the HUD, the effort bar and
+  every button, and follows a glance down; the page's cards stand at arm's length; the rays and trace insets hang beside the console.
+  The trigger points (a card or console button, or a cell of the sky), the squeeze is UNDO, the thumbstick is the six moves: ×g
+  right, ÷g left, FOLD upper right, Γ lower right, INV lower left, ×i upper left. EXIT VR on the console comes back to the screen.
 
 ## Where it runs
 
 - Phones: device orientation turns the view (iOS asks on ENTER), the back camera shows the room; a PWA that plays offline after the
-  first load over https. Android Chrome with WebXR gets an AR button for the room itself.
+  first load over https. Android Chrome with WebXR gets an AR button for the room itself. A desk with a webcam is not asked for it
+  (fold.prefs {camera: 'on'} asks, 'off' never does).
+- Headsets: a VR button after ENTER where the browser has WebXR immersive-vr (SteamVR on a PC through Chrome or Edge, Quest).
 - Raspbian, an RK3588 board and desktops: drag or arrow keys to look; keys g G f i q r are the moves, u undoes, v the rain, m the rays
   inset, t the TUBE, b the glow, z the trace tile, x its law, h the heat. The sky
   shader scales down by GPU (none on VideoCore/llvmpipe, half on Mali); the rain keeps only its state columns, heads only, on a Pi
@@ -78,5 +85,5 @@ the Atbash mirror and the Heisenberg joining of words. One page, no build step, 
 `data.js` the tablet's words and the π tape · `parts/levels` the day's plan (`node parts/levels/test.js`) · `parts/story` the
 chapters and voices (`node parts/story/check.js`) · `parts/sound` Web Audio · `parts/shaders` sky, Airy halo, CRT, Γ warp, the tape's rain ·
 `parts/relief` the conics relief · `parts/well` the eye's lens (`node parts/well/check.js`) · `parts/void` THE BARDO
-(`demo.html`) · `parts/rays` the Twelve Rays, the TUBE and the ledger (`node parts/rays/check.js`) · `parts/trace` the field ray tracer and its TRACE tile (`node parts/trace/check.js`, `demo.html`) · `parts/glow` bloom, god rays, glitter and the grade (`node parts/glow/check.js`, `demo.html`) · `parts/heat` Sisyphean Heat: the crowd on the chapter's floor, the white climber and the day's heat (`node parts/heat/check.js`, `demo.html`) · `parts/corpus` numbers from the corpus (`node parts/corpus/check.js`) · `vendor/three.min.js`
+(`demo.html`) · `parts/rays` the Twelve Rays, the TUBE and the ledger (`node parts/rays/check.js`) · `parts/trace` the field ray tracer and its TRACE tile (`node parts/trace/check.js`, `demo.html`) · `parts/glow` bloom, god rays, glitter and the grade (`node parts/glow/check.js`, `demo.html`) · `parts/heat` Sisyphean Heat: the crowd on the chapter's floor, the white climber and the day's heat (`node parts/heat/check.js`, `demo.html`) · `parts/vr` the field in a headset, the console, the cards and the controllers (`node parts/vr/check.js`, `demo.html`) · `parts/corpus` numbers from the corpus (`node parts/corpus/check.js`) · `vendor/three.min.js`
 r128 · `sw.js` (bump CACHE on every change) and the manifest. The data generators are kept beside this folder, not in it.
