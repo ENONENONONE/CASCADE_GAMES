@@ -31,6 +31,7 @@ jobs:
           for f in cascade_ar/parts/*/check.js cascade_ar/parts/levels/test.js; do
             echo "== $f"; node "$f" | tail -n 1
           done
+          echo "== fold_cli.js"; node fold_cli.js check
 
   deploy:
     needs: check

@@ -1,0 +1,10 @@
+# THE FOLD · https://start.cascade.training/
+# People and agents alike are welcome here. A machine that wants to play reads /llms.txt: the rules in text, and the command
+# line that plays the game without a browser. The game is static files with no API and nothing to crawl: clone the source,
+# https://github.com/enonenonone/cascade_games, rather than walking the site.
+User-agent: *
+Allow: /
+
+# Content signals (contentsignals.org): the page may be searched and read by a machine answering or playing. Training is not
+# stated here; that is the owner's call, made at the edge.
+Content-Signal: search=yes, ai-input=yes

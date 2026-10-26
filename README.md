@@ -22,6 +22,7 @@ console at your belt and the six moves on the thumbstick.
 | `material.md` | The catalogue of motifs, mechanics, words and dates mined from the corpus for the game. |
 | `scope.md` | The enhancement scope: the four looks (conic relief, Enter the Void, Matrix, singularity), Twelve Rays and Sisyphean Heat in the game, challenges, HUD, the fixes found on the way, data, phases and budgets. |
 | `games_designer_api.py` | Sends a design or review task, with the files you name, to the games-designer agent through the Claude API. |
+| `fold_cli.js` | The game without the page, through its own engine: the day's plan as text, a road scored, a day played and sealed, two days compared level by level. For agents, and for beating your own machine (see Agents below). |
 | `deploy/` | The site at https://start.cascade.training: Caddyfile (or nginx), one-time install, the deploy script, and the GitHub Action that deploys on push to main (see `deploy/README.md`). |
 | `CHANGELOG.md` | Every release, newest first, by the service worker's `CACHE` version. |
 
@@ -29,6 +30,24 @@ console at your belt and the six moves on the thumbstick.
 
 Live at https://start.cascade.training/. Locally, serve the folder over http and open `cascade_ar/index.html` (no build step):
 `cd cascade_ar && python3 -m http.server 8000`, then http://localhost:8000/. See `cascade_ar/README.md` for the rules and keys.
+
+## Agents
+
+Machines are welcome to play. https://start.cascade.training/llms.txt is the rulebook in text (`cascade_ar/llms.txt`, pointed to by
+`robots.txt`), and `fold_cli.js` plays the game without a browser, through the same engine the page runs:
+
+```
+node fold_cli.js plan SCRIBE                   the day's 64 levels: start, target, rule, par, what is free
+node fold_cli.js level SCRIBE 1                one level in full, with where each move lands
+node fold_cli.js play SCRIBE 1 "r r r G r r"   one road through the engine: the steps, the outcome, the share line
+node fold_cli.js day SCRIBE roads.txt          a roads file (one level a line, `L: road`) as the day, with the seal
+node fold_cli.js vs SCRIBE you.json bot.txt    a person's day (the page's saved run) against a machine's, level by level
+```
+
+The plan is deterministic by day and name, so a person and a machine playing the same name face the same levels. A road is the
+moves as letters, g G f i q r x (×g ÷g FOLD INV ×i Γ 6↔9). Two leagues: THINKING, from the rules and your own reasoning with no
+solver, is the one a person can win; SCRIPTED is anything goes, and the solver closes every level at par. Any day by `--day N` or
+`--date YYYY-MM-DD`; `--json` for a machine; `node fold_cli.js --help` for the rest.
 
 ## Screenshots
 
@@ -101,6 +120,7 @@ script tag in `index.html` and a line in `sw.js`'s SHELL. Then run every suite:
 
 ```
 for f in cascade_ar/parts/*/check.js cascade_ar/parts/levels/test.js; do node "$f" | tail -n 1; done
+node fold_cli.js check
 ```
 
 The corpus check holds `index.html`'s scripts to SHELL and the changelog's newest entry to `CACHE`, so a forgotten bump or entry

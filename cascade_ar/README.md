@@ -77,6 +77,8 @@ the Atbash mirror and the Heisenberg joining of words. One page, no build step, 
   inset, t the TUBE, b the glow, z the trace tile, x its law, h the heat. The sky
   shader scales down by GPU (none on VideoCore/llvmpipe, half on Mali); the rain keeps only its state columns, heads only, on a Pi
   or SwiftShader, and is off on llvmpipe; the glow is bloom alone on Mali and off on a Pi.
+- Agents: `/llms.txt` is the rulebook in text (`robots.txt` points at it), and `../fold_cli.js` plays the day without a browser through
+  this engine: `node fold_cli.js plan NAME`, `play NAME L ROAD`, `day NAME roads.txt`, `vs NAME you.json bot.txt`.
 - Nothing is sent anywhere; the day's progress stays in the browser.
 
 ## Files
@@ -86,4 +88,5 @@ the Atbash mirror and the Heisenberg joining of words. One page, no build step, 
 chapters and voices (`node parts/story/check.js`) · `parts/sound` Web Audio · `parts/shaders` sky, Airy halo, CRT, Γ warp, the tape's rain ·
 `parts/relief` the conics relief · `parts/well` the eye's lens (`node parts/well/check.js`) · `parts/void` THE BARDO
 (`demo.html`) · `parts/rays` the Twelve Rays, the TUBE and the ledger (`node parts/rays/check.js`) · `parts/trace` the field ray tracer and its TRACE tile (`node parts/trace/check.js`, `demo.html`) · `parts/glow` bloom, god rays, glitter and the grade (`node parts/glow/check.js`, `demo.html`) · `parts/heat` Sisyphean Heat: the crowd on the chapter's floor, the white climber and the day's heat (`node parts/heat/check.js`, `demo.html`) · `parts/vr` the field in a headset, the console, the cards and the controllers (`node parts/vr/check.js`, `demo.html`) · `parts/corpus` numbers from the corpus (`node parts/corpus/check.js`) · `vendor/three.min.js`
-r128 · `sw.js` (bump CACHE on every change) and the manifest. The data generators are kept beside this folder, not in it.
+r128 · `sw.js` (bump CACHE on every change) and the manifest · `robots.txt` and `llms.txt`, for agents (the rulebook in text, held to the rules by
+the corpus check; `../fold_cli.js` plays it). The data generators are kept beside this folder, not in it.

@@ -8,10 +8,11 @@ start.cascade.training {
 	encode zstd gzip
 	file_server
 
-	# The page, the service worker and the data must never be served stale: the worker's own cache (sw.js CACHE) does the offline
-	# copy, and its install reads past the HTTP cache, so http caching here buys nothing and a stale sw.js would pin an old game.
+	# The page, the service worker, the data and the agents' rulebook must never be served stale: the worker's own cache (sw.js
+	# CACHE) does the offline copy, and its install reads past the HTTP cache, so http caching here buys nothing and a stale sw.js
+	# would pin an old game.
 	@fresh {
-		path / /index.html /sw.js /manifest.webmanifest *.js
+		path / /index.html /sw.js /manifest.webmanifest /robots.txt /llms.txt *.js
 		not path /vendor/*
 	}
 	header @fresh Cache-Control "no-cache"

@@ -7,6 +7,18 @@ Changes outside the game (the tools, the deploy kit, the docs) go under the vers
 
 Scope keys (H1, R1, M2 …) refer to the entries in `scope.md`.
 
+## fold-v21 · 2026-10-26
+
+- **For agents**: `robots.txt` and `llms.txt` at the site's root, the rulebook in text: the field, the seven letters of a road, the
+  ten rules, the scoring, how a machine plays and the two leagues, THINKING (the rules and your own reasoning, no solver) and
+  SCRIPTED. The corpus check holds `llms.txt` to the rules' names and tells and to a pinned level (day 9384, TORAH, level 1), so it
+  cannot drift; the Caddyfile serves both files fresh.
+- `fold_cli.js` at the repository's root: the game without the page, through the real engine. `plan` the day's 64 levels as text,
+  `level` one in full with where each move lands, `play` a road (the steps, the outcome, the page's own share line), `day` a roads
+  file as the day with its seal and share line, `vs` two days level by level (roads files, `day --json` files or the page's saved
+  run), `solve`, `cell`, `table`, `rules`, `check`. Any day by `--day` or `--date`; `--json` for a machine. `node fold_cli.js check`
+  joins the check suites and the deploy workflow.
+
 ## fold-v20 · 2026-10-19
 
 - **VR**, `parts/vr`: the field in a headset through WebXR immersive-vr (SteamVR through Chrome or Edge on Windows, Quest's browser).

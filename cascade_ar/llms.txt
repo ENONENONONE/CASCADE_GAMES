@@ -1,0 +1,124 @@
+# THE FOLD
+
+> A daily puzzle over the finite field GF(257): you do not move, the field does, and six moves permute the whole sky until the
+> target cell arrives where you stand. The day's 64 levels are the same for the same name on every device, so a person and a
+> machine playing the same name face the same puzzle. Machines are welcome. This file is the rulebook in text; fold_cli.js in the
+> repository plays the game without a browser, through the same engine the page runs.
+
+- The game: https://start.cascade.training/ (one page, WebGL, nothing sent anywhere)
+- The rules for people, with the keys: https://start.cascade.training/README.md
+- The source: https://github.com/enonenonone/cascade_games (clone it: the game is static files, there is no API to call and
+  nothing to crawl)
+- The CLI: fold_cli.js at the repository's root, node 20 or later, no install. `node fold_cli.js --help`
+
+## The field
+
+The cells are the numbers 0 to 256 and one more, ∞, the point at infinity (cell 257 to the code). Arithmetic is mod 257.
+g = 3 generates the 256 nonzero cells: every nonzero n is 3^k for exactly one k in 0 … 255, its dlog. 0 and ∞ have no dlog.
+Every cell carries words from the emerald tablet, 2301 entries over the 257 cells; a cell's first word names it. A name's letters
+add to a cell (A = 1 … Z = 26, summed, mod 257): SCRIBE is 56, TORAH 62, LOVE 54. An empty name plays as SCRIBE.
+
+## The moves
+
+A move is a bijection of the 258 points; the sky flows along it and your cell arrives from where it came. A road is written as
+one letter a move:
+
+    letter  label  name                 the cell n you stand on becomes
+    g       ×g     the generator        n · 3                 dlog + 1
+    G       ÷g     the generator back   n · 86                dlog − 1
+    f       FOLD   the fold             257 − n               dlog + 128, the far side; 0 and ∞ stay
+    i       INV    the inverse          n⁻¹                   dlog negated; 0 ↔ ∞
+    q       ×i     the quarter turn     n · 16                dlog + 192, a quarter of the way round
+    r       Γ      the reflection       (n − 120) / (n + 120) Γ(137) = ∞, Γ(∞) = 1, Γ(120) = 0, Γ(0) = 256
+    x       6↔9    the flip             the 6s and 9s of the number n swapped, when that stays ≤ 256, else n stays;
+                                        only in chapter 6, THE MIRROR, levels 41–48
+
+The seven letters, g G f i q r x, are how the game writes a road; the CLI reads the labels ×g ÷g FOLD INV ×i Γ 6↔9 and the ASCII
+names *g /g fold inv *i gamma flip as well. ×g, ÷g, FOLD and ×i are steps on the dlog line and fix 0 and ∞; Γ is the Möbius turn
+and is not.
+
+## A day
+
+A day has 64 levels in eight chapters of eight: SUNRISE, THE FOLD, THE QUARTER TURN, THE DOORS, THE LADDER, THE MIRROR, THE EYE,
+THE SEAL. A level is a start cell, a target cell and a rule; it closes when the target arrives at you. Days are numbered from
+2000-12-31 by the local date: 2026-09-10 is day 9384. Most levels read the π tape at their own window, four figures mod 257 for
+the start, the next four for the target, and the digit under the head for the rule:
+
+    0 NOP    no rule: the field as it is
+    1 IDENT  INV is free: the identity costs nothing
+    2 EXIST  ×i is free: the quarter turn costs nothing
+    3 SEED   the level starts from SEED, cell 0
+    4 SHIFT  the target steps ×g after every move: catch it where it will be
+    5 STORE  one move of slack: par + 1 still closes
+    6 FOLD   FOLD is free: the far side costs nothing
+    7 JUMP   Γ is free: the reflection costs nothing
+    8 SYNC   no slack: only par closes, one over and the level is lost
+    9 HALT   the clock runs: thirty seconds
+
+Eight levels are the day's own and carry no rule: the three doors (30, 31, 32) walk 4176, 8352 and 8532 to 6174 by Kaprekar's
+step; the ladders (36, 40) climb your cell's halvings; the mirrors (44, 48) go to a word's Atbash cell; the eye (56) runs
+137 → ∞ → 1 by two reflections, both free and both counted. Within a chapter the tape's levels are ordered so that par rises. A
+gold day (day ≡ 0 mod 128) frees ×i on every level but SHIFT's. Do not read the tape yourself: the plan is `plan`'s, and it is
+deterministic.
+
+## Scoring
+
+Par is the fewest paid moves from the start to the target; the rule's free move costs nothing (under SHIFT every move is paid;
+the eye counts its two free Γ). Reaching the target in par, or within STORE's slack, closes the level at ★★★; one move more is
+★★; any more is ★. Under SYNC one move over par loses the level. Under HALT the page's clock gives thirty seconds. On the page,
+HINT shows the road: the first HINT of a level is free, each one after caps it at ★★. A lost level is offered AGAIN (from its
+start, nothing lost) or REBIRTH: the same target and rule from cell 80, a life that cannot be lost and closes at ★.
+
+Each closed target's first word joins your line. At the day's end the line's letters add to a cell, the seal is the product of the
+closed targets, and the day's share line carries it all: the levels closed, the stars, the seal's words and the twelve rays.
+
+## How a machine plays
+
+    node fold_cli.js plan NAME                 the day's 64 levels: start, target, rule, par, what is free
+    node fold_cli.js level NAME L              one level in full: the cells' words and dlogs, and where each of the six moves lands
+    node fold_cli.js play NAME L ROAD          a road through the real engine: the steps, the outcome, the page's share line
+    node fold_cli.js day NAME roads.txt        a roads file, one level a line as `L: road`, played as the day: the table, the seal, the share line
+    node fold_cli.js vs NAME you.json bot.txt  two days level by level: a person's saved run against a machine's roads
+    node fold_cli.js cell N                    a cell: glyphs, words, dlog, and where the moves land
+    node fold_cli.js table                     dlog by cell
+    --day N or --date YYYY-MM-DD for any day; --json for a machine; `rules` prints this file; `solve` is the solver's road
+
+What a person sees on the page, the CLI tells: every cell's glyphs and words, its dlog and its ray, and where a move would land.
+A roads file may give a second road after | for the life from 80 if the first is lost. HALT's thirty seconds are the page's: in
+the CLI a move takes no time, so play HALT levels as if the clock ran. The chapters' quests (find a cell by its words, by tapping
+it) are the page's and are not scored. `require('./fold_cli.js')` gives the same commands as functions, for a harness that would
+rather not spawn a process.
+
+A worked example, day 9384 (2026-09-10) for TORAH:
+
+    node fold_cli.js level TORAH 1 --day 9384
+    node fold_cli.js play TORAH 1 "r r r G r r" --day 9384
+
+Level 1 is HOLY SPIRIT → CAIN: 151 → 27 under JUMP (Γ free), par 1. The road r r r G r r is five free reflections and one paid ÷g,
+so it closes at ★★★ in one paid move, and the share line reads
+
+    THE FOLD · 2026-09-10 · level 1 ★★★ · Γ Γ Γ ÷g Γ Γ · ∂Γ 27 CAIN
+
+## Two leagues
+
+THINKING: you play from the rules, the field and your own reasoning. No code that searches the field for you, no `solve`, no
+`--roads`; one road a level, the first you commit to. `level`, `cell` and `table` are yours as the page is a person's. This is
+the league in which a person can beat you, and the one worth reporting.
+
+SCRIPTED: anything goes. The game ships its solver (`solve` is what HINT gives on the page), and a search closes every level at
+par, so there is nothing to beat by stars. Build one for the pleasure of it, or to set the ceiling your person measures against.
+
+Say which league you played in when you share a line.
+
+## Beating a person, or being beaten
+
+Play the same name on the same day. The person plays on the page, whose SHARE gives the share line; their day is kept in the
+browser under localStorage's fold.run.<day>.daily until the page learns to export it. `vs` takes a saved run, a roads file or a
+`day --json` file on either side and scores the day level by level: more stars, then fewer moves.
+
+## Courtesy
+
+Everything is static files and nothing is sent anywhere: no accounts, no API, no rate to respect beyond fetching the page once.
+Clone the repository instead of crawling the site. The page needs WebGL and a gyro or a mouse; the CLI needs none of them. Nothing
+here is a secret: the tape, the tablet's words and the solver are all in the source. If you write about the game, link
+https://start.cascade.training/.

@@ -82,5 +82,14 @@ ok(M.atbash.mirror_pairs_on_tablet === D.mirrors.length, 'mirror_pairs_on_tablet
   // the changelog: its newest entry names the CACHE of sw.js, so a change that bumped one and not the other fails here
   const cache = (fs.readFileSync(path.join(root, 'sw.js'), 'utf8').match(/const CACHE = '([^']+)'/) || [])[1], logPath = path.join(root, '..', 'CHANGELOG.md');
   if (fs.existsSync(logPath)) { const first = (fs.readFileSync(logPath, 'utf8').match(/^## (\S+)/m) || [])[1]; ok(first === cache, 'CHANGELOG.md\'s newest entry is ' + first + ', sw.js CACHE is ' + cache); } }
+// the agents' rulebook (fold-v21): llms.txt beside index.html carries every rule's name and tell as levels.js and game.js have them, the
+// seven letters of a road, every move's label, and the pinned example, day 9384's level 1 for TORAH with its share line as plan() builds
+// it; robots.txt allows the site to everyone and points at llms.txt. The name-word walk above reads both files too.
+{ vm.runInContext(fs.readFileSync(path.join(root, 'parts', 'levels', 'levels.js'), 'utf8'), ctx, { filename: 'levels.js' }); const LV = ctx.window.FOLD_LEVELS, txt = fs.readFileSync(path.join(root, 'llms.txt'), 'utf8');
+  for (const d of Object.keys(LV.RULES)) { ok(txt.includes(LV.RULES[d].name), 'llms.txt names ' + LV.RULES[d].name); ok(txt.includes(LV.RULES[d].tell), 'llms.txt carries the tell of ' + LV.RULES[d].name + ': ' + LV.RULES[d].tell); }
+  ok(txt.includes('g G f i q r x'), 'llms.txt gives the seven letters'); for (const o of FD.OPS.concat([FD.FLIP])) ok(txt.includes(o.label), 'llms.txt names ' + o.label);
+  const sp = LV.plan(9384, 'TORAH')[0], share = 'THE FOLD · 2026-09-10 · level 1 ★★★ · ' + sp.road.map(id => FD.OP[id].label).join(' ') + ' · ' + FD.glyphs(sp.target) + ' ' + sp.target + ' ' + D.cells[sp.target].w;
+  ok(txt.includes(sp.title) && txt.includes(sp.start + ' → ' + sp.target) && txt.includes(sp.ruleName) && txt.includes('par ' + sp.par) && txt.includes(share), 'the pinned example is day 9384\'s level 1 for TORAH as plan() builds it: ' + sp.title + ', ' + sp.start + ' → ' + sp.target + ', ' + sp.ruleName + ', par ' + sp.par + ', ' + share);
+  const robots = fs.readFileSync(path.join(root, 'robots.txt'), 'utf8'); ok(/^User-agent: \*$/m.test(robots) && /^Allow: \/$/m.test(robots) && robots.includes('/llms.txt'), 'robots.txt allows the site to everyone and points at llms.txt'); }
 console.log(fails ? 'FAILED ' + fails + ' of ' + checks : 'OK · ' + checks + ' checks, none failed · material.js ' + fs.statSync(path.join(here, 'material.js')).size + ' bytes · tablet ' + M.tablet_entries + ' entries');
 process.exit(fails ? 1 : 0);
