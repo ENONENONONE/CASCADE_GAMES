@@ -67,6 +67,12 @@ the Atbash mirror and the Heisenberg joining of words. One page, no build step, 
   The trigger points (a card or console button, or a cell of the sky), the squeeze is UNDO, the thumbstick is the six moves: ×g
   right, ÷g left, FOLD upper right, Γ lower right, INV lower left, ×i upper left. EXIT VR on the console comes back to the screen.
 
+- THE LEDGER: the public board of the day's seals and the wall of notes, a sidebar by LEDGER on the start screen, in the row (key l)
+  or on the seal card. Each seal is ranked by stars then levels closed and carries its glyph sequence, the 64 targets closed in the
+  field's alphabet as an 8 × 8 block a chapter a row, `··` where a level was not closed, with its seal and its line. POST THE DAY
+  sends your roads, and the service replays them through the engine and keeps what it finds (your stars can only lower a level);
+  a later post as good or better replaces your day. POST A NOTE puts words on the wall. Names are not claimed.
+
 ## Where it runs
 
 - Phones: device orientation turns the view (iOS asks on ENTER), the back camera shows the room; a PWA that plays offline after the
@@ -74,12 +80,12 @@ the Atbash mirror and the Heisenberg joining of words. One page, no build step, 
   (fold.prefs {camera: 'on'} asks, 'off' never does).
 - Headsets: a VR button after ENTER where the browser has WebXR immersive-vr (SteamVR on a PC through Chrome or Edge, Quest).
 - Raspbian, an RK3588 board and desktops: drag or arrow keys to look; keys g G f i q r are the moves, u undoes, v the rain, m the rays
-  inset, t the TUBE, b the glow, z the trace tile, x its law, h the heat. The sky
+  inset, t the TUBE, b the glow, z the trace tile, x its law, h the heat, l the ledger. The sky
   shader scales down by GPU (none on VideoCore/llvmpipe, half on Mali); the rain keeps only its state columns, heads only, on a Pi
   or SwiftShader, and is off on llvmpipe; the glow is bloom alone on Mali and off on a Pi.
 - Agents: `/llms.txt` is the rulebook in text (`robots.txt` points at it), and `../fold_cli.js` plays the day without a browser through
   this engine: `node fold_cli.js plan NAME`, `play NAME L ROAD`, `day NAME roads.txt`, `vs NAME you.json bot.txt`.
-- Nothing is sent anywhere; the day's progress stays in the browser.
+- Nothing is sent anywhere unless you post to the ledger; the day's progress stays in the browser.
 
 ## Files
 
@@ -87,6 +93,6 @@ the Atbash mirror and the Heisenberg joining of words. One page, no build step, 
 `data.js` the tablet's words and the π tape · `parts/levels` the day's plan (`node parts/levels/test.js`) · `parts/story` the
 chapters and voices (`node parts/story/check.js`) · `parts/sound` Web Audio · `parts/shaders` sky, Airy halo, CRT, Γ warp, the tape's rain ·
 `parts/relief` the conics relief · `parts/well` the eye's lens (`node parts/well/check.js`) · `parts/void` THE BARDO
-(`demo.html`) · `parts/rays` the Twelve Rays, the TUBE and the ledger (`node parts/rays/check.js`) · `parts/trace` the field ray tracer and its TRACE tile (`node parts/trace/check.js`, `demo.html`) · `parts/glow` bloom, god rays, glitter and the grade (`node parts/glow/check.js`, `demo.html`) · `parts/heat` Sisyphean Heat: the crowd on the chapter's floor, the white climber and the day's heat (`node parts/heat/check.js`, `demo.html`) · `parts/vr` the field in a headset, the console, the cards and the controllers (`node parts/vr/check.js`, `demo.html`) · `parts/corpus` numbers from the corpus (`node parts/corpus/check.js`) · `vendor/three.min.js`
+(`demo.html`) · `parts/rays` the Twelve Rays, the TUBE and the ledger (`node parts/rays/check.js`) · `parts/trace` the field ray tracer and its TRACE tile (`node parts/trace/check.js`, `demo.html`) · `parts/glow` bloom, god rays, glitter and the grade (`node parts/glow/check.js`, `demo.html`) · `parts/heat` Sisyphean Heat: the crowd on the chapter's floor, the white climber and the day's heat (`node parts/heat/check.js`, `demo.html`) · `parts/vr` the field in a headset, the console, the cards and the controllers (`node parts/vr/check.js`, `demo.html`) · `parts/ledger` THE LEDGER: the sidebar, and the pure half the service and the CLI share (`node parts/ledger/check.js`, `demo.html`; the service is `../deploy/ledger/server.js`) · `parts/corpus` numbers from the corpus (`node parts/corpus/check.js`) · `vendor/three.min.js`
 r128 · `sw.js` (bump CACHE on every change) and the manifest · `robots.txt` and `llms.txt`, for agents (the rulebook in text, held to the rules by
 the corpus check; `../fold_cli.js` plays it). The data generators are kept beside this folder, not in it.

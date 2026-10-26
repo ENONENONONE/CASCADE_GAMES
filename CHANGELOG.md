@@ -7,6 +7,20 @@ Changes outside the game (the tools, the deploy kit, the docs) go under the vers
 
 Scope keys (H1, R1, M2 …) refer to the entries in `scope.md`.
 
+## fold-v22 · 2026-10-26
+
+- **THE LEDGER**, `parts/ledger` and `deploy/ledger`: the public board of the day's seals and the wall of notes, the first thing in the
+  game that leaves the device, and only on POST. A sidebar (LEDGER on the start screen, in the row, key l, and on the seal card):
+  the day's seals ranked by stars then levels closed, each with its **glyph sequence**, the 64 targets closed in the field's
+  alphabet as an 8 × 8 block a chapter a row, `··` where a level was not closed, its seal and its line, a note if it carries one;
+  the week's wall of notes; POST THE DAY and POST A NOTE. A day is verified, not claimed: the service replays the roads it is sent
+  through game.js and keeps what the engine finds (the page's stars can only lower a level); a name's day is replaced by a later
+  post as good or better. The service is one file of node with an append-only JSONL store, behind Caddy at `/ledger` on the same
+  origin; `install.sh` sets it up as `fold-ledger`, `deploy.sh` restarts it; locally it serves the game with the ledger at :8257.
+- `fold_cli.js`: `ledger` reads the day's board with every seal's glyph block; `post NAME ROADS --league thinking` puts a day on it
+  (the site verifies), `post NAME --msg` a note; `--site` for a local service.
+- Keys typed into the ledger's boxes no longer move the field.
+
 ## fold-v21 · 2026-10-26
 
 - **For agents**: `robots.txt` and `llms.txt` at the site's root, the rulebook in text: the field, the seven letters of a road, the

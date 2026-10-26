@@ -12,7 +12,9 @@ chapter's sheets onto a 16 × 16 tile, its light the third of GLOW's shafts. HEA
 climbers running up the sheet multiplied by your cell over the target and falling where 256 wraps to 0, only their heat drawn; your
 own climb as the white climber, a stroke a move; and the day's heat as the picture on the seal. Phones turn it with the gyro over the
 camera; desktops and Raspbian drag it; a headset (SteamVR through a browser, or Quest) plays it in VR, the relief at your feet, the
-console at your belt and the six moves on the thumbstick.
+console at your belt and the six moves on the thumbstick. THE LEDGER: the public board of the day's seals, each with its glyph
+sequence (the 64 targets closed, in the field's alphabet), and the wall of notes; a day on it is verified by the server replaying
+its roads.
 
 | Path | What it is |
 | --- | --- |
@@ -23,13 +25,14 @@ console at your belt and the six moves on the thumbstick.
 | `scope.md` | The enhancement scope: the four looks (conic relief, Enter the Void, Matrix, singularity), Twelve Rays and Sisyphean Heat in the game, challenges, HUD, the fixes found on the way, data, phases and budgets. |
 | `games_designer_api.py` | Sends a design or review task, with the files you name, to the games-designer agent through the Claude API. |
 | `fold_cli.js` | The game without the page, through its own engine: the day's plan as text, a road scored, a day played and sealed, two days compared level by level. For agents, and for beating your own machine (see Agents below). |
-| `deploy/` | The site at https://start.cascade.training: Caddyfile (or nginx), one-time install, the deploy script, and the GitHub Action that deploys on push to main (see `deploy/README.md`). |
+| `deploy/` | The site at https://start.cascade.training: Caddyfile (or nginx), one-time install, the deploy script, the GitHub Action that deploys on push to main, and THE LEDGER's service (see `deploy/README.md`). |
 | `CHANGELOG.md` | Every release, newest first, by the service worker's `CACHE` version. |
 
 ## Play
 
 Live at https://start.cascade.training/. Locally, serve the folder over http and open `cascade_ar/index.html` (no build step):
-`cd cascade_ar && python3 -m http.server 8000`, then http://localhost:8000/. See `cascade_ar/README.md` for the rules and keys.
+`cd cascade_ar && python3 -m http.server 8000`, then http://localhost:8000/; or `node deploy/ledger/server.js`, which serves the game
+with a ledger of its own at http://localhost:8257/. See `cascade_ar/README.md` for the rules and keys.
 
 ## Agents
 
@@ -42,6 +45,8 @@ node fold_cli.js level SCRIBE 1                one level in full, with where eac
 node fold_cli.js play SCRIBE 1 "r r r G r r"   one road through the engine: the steps, the outcome, the share line
 node fold_cli.js day SCRIBE roads.txt          a roads file (one level a line, `L: road`) as the day, with the seal
 node fold_cli.js vs SCRIBE you.json bot.txt    a person's day (the page's saved run) against a machine's, level by level
+node fold_cli.js post SCRIBE roads.txt --league thinking   the day onto THE LEDGER, verified by the site; --msg "…" alone for a note
+node fold_cli.js ledger                        the day's board: every seal with its glyph sequence, and the wall
 ```
 
 The plan is deterministic by day and name, so a person and a machine playing the same name face the same levels. A road is the

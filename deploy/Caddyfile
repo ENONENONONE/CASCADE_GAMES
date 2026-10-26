@@ -33,6 +33,13 @@ start.cascade.training {
 		-Server
 	}
 
+	# THE LEDGER (deploy/ledger): the public board of the day's seals and the wall of notes, a small node service on localhost that
+	# verifies each day by replaying it; the same origin, so the page's CSP (connect-src 'self') holds and Cloudflare proxies it with the
+	# rest. Nothing else is proxied.
+	handle /ledger* {
+		reverse_proxy 127.0.0.1:8257
+	}
+
 	# Keep the generators' notes and demos out of the public site; the game's own README is fine to leave.
 	@private path /parts/*/notes.md /parts/*/demo.html /parts/*/check.js /parts/*/test.js
 	respond @private 404

@@ -4,7 +4,9 @@
 # It installs Caddy from its apt repository if missing, checks the game out at /srv/fold owned by FOLD_USER, points the Caddy
 # service at /srv/fold/deploy/Caddyfile (so a pull that changes the Caddyfile can reload it without root) and starts it. Caddy
 # fetches the certificate from Let's Encrypt on the first request, so the DNS A/AAAA record must already point at this box and
-# ports 80 and 443 must be open. After this, every later deploy is deploy/deploy.sh (or the GitHub Action).
+# ports 80 and 443 must be open. Then THE LEDGER's service (deploy/ledger/server.js, node 18 or later) as the systemd unit
+# fold-ledger on 127.0.0.1:8257, its store at /srv/fold-ledger outside the checkout, and a sudoers line so deploy.sh can restart
+# it; without node 18 the game runs without the ledger. After this, every later deploy is deploy/deploy.sh (or the GitHub Action).
 set -euo pipefail
 
 FOLD_DIR=${FOLD_DIR:-/srv/fold}
@@ -46,6 +48,44 @@ systemctl enable --quiet caddy
 systemctl restart caddy
 sleep 1
 systemctl is-active --quiet caddy || { journalctl -u caddy -n 30 --no-pager; exit 1; }
+
+# THE LEDGER (deploy/ledger/server.js): a node service Caddy proxies at /ledger; its store outside the checkout (a deploy resets the
+# checkout); deploy.sh restarts it through the sudoers line written here
+LEDGER_DIR=${LEDGER_DIR:-/srv/fold-ledger}
+node18() { node -e 'process.exit(+process.versions.node.split(".")[0] >= 18 ? 0 : 1)' 2>/dev/null; }
+node18 || { say "node 18 or later is not here: trying apt"; apt-get install -y -qq nodejs || true; }
+if node18; then
+  say "the ledger service as $FOLD_USER, the store at $LEDGER_DIR/ledger.jsonl"
+  install -d -o "$FOLD_USER" -g "$(id -gn "$FOLD_USER")" "$LEDGER_DIR"
+  [ -f "$LEDGER_DIR/env" ] || { printf '%s\n' '# FOLD_LEDGER_ADMIN=a-long-secret   # uncomment to allow DELETE /ledger/<id> with Authorization: Bearer <it>, then: sudo systemctl restart fold-ledger' > "$LEDGER_DIR/env"; chown "$FOLD_USER" "$LEDGER_DIR/env"; chmod 600 "$LEDGER_DIR/env"; }
+  cat > /etc/systemd/system/fold-ledger.service <<EOF
+[Unit]
+Description=THE FOLD ledger (deploy/ledger/server.js)
+After=network.target
+
+[Service]
+User=$FOLD_USER
+Environment=FOLD_LEDGER_PORT=8257
+Environment=FOLD_LEDGER_HOST=127.0.0.1
+Environment=FOLD_LEDGER_DATA=$LEDGER_DIR/ledger.jsonl
+EnvironmentFile=-$LEDGER_DIR/env
+ExecStart=$(command -v node) $FOLD_DIR/deploy/ledger/server.js --no-static
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target
+EOF
+  printf '%s\n' "$FOLD_USER ALL=(root) NOPASSWD: $(command -v systemctl) restart fold-ledger" > /etc/sudoers.d/fold-ledger
+  chmod 440 /etc/sudoers.d/fold-ledger
+  systemctl daemon-reload
+  systemctl enable --quiet fold-ledger
+  systemctl restart fold-ledger
+  sleep 1
+  systemctl is-active --quiet fold-ledger || { journalctl -u fold-ledger -n 30 --no-pager; exit 1; }
+else
+  say "no node 18 or later: the ledger service is not set up (install node from nodesource.com and run this again); the game runs without it"
+fi
 
 say "up. https://start.cascade.training/ (the first request fetches the certificate; give it a few seconds)"
 say "later deploys: bash $FOLD_DIR/deploy/deploy.sh, or a push to main with the GitHub Action secrets set (deploy/README.md)"

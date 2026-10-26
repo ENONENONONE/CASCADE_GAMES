@@ -3,7 +3,8 @@
 # fast-forwards it to origin/main, keeps the files readable by Caddy, and reloads Caddy only when deploy/Caddyfile changed.
 # The GitHub Action deploy/.. /.github/workflows/deploy.yml pipes this script over ssh on every push to main; it also runs by hand:
 #   bash deploy/deploy.sh
-# Settings (environment): FOLD_DIR (default /srv/fold), FOLD_BRANCH (main), FOLD_REPO (the GitHub url).
+# THE LEDGER's service (deploy/ledger) loads the engine at start, so a checkout that changed restarts it (the sudoers line from
+# install.sh). Settings (environment): FOLD_DIR (default /srv/fold), FOLD_BRANCH (main), FOLD_REPO (the GitHub url).
 set -euo pipefail
 
 FOLD_DIR=${FOLD_DIR:-/srv/fold}
@@ -37,6 +38,12 @@ if command -v caddy >/dev/null 2>&1 && systemctl is-active --quiet caddy 2>/dev/
     caddy validate --config "$CADDYFILE" --adapter caddyfile >/dev/null
     caddy reload --config "$CADDYFILE" --adapter caddyfile
   fi
+fi
+
+# THE LEDGER's service holds the engine it loaded at start: a new checkout restarts it
+if [ "$before" != "$after" ] && systemctl is-enabled --quiet fold-ledger 2>/dev/null; then
+  say "restarting the ledger service"
+  sudo -n systemctl restart fold-ledger || say "could not restart fold-ledger (no sudoers line? see deploy/install.sh): it keeps the engine it loaded until it is restarted"
 fi
 
 if [ "$before" = "$after" ]; then

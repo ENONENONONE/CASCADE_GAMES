@@ -13,12 +13,15 @@
 //   node fold_cli.js cell  N [--json]                                                a cell: glyphs, words, dlog, and where the moves land
 //   node fold_cli.js table [--json]                                                  dlog by cell, 16 × 16
 //   node fold_cli.js rules                                                           cascade_ar/llms.txt
+//   node fold_cli.js ledger [--day …] [--site URL] [--json]                          THE LEDGER: the day's seals, each with its glyph sequence, and the wall
+//   node fold_cli.js post  NAME [ROADS] [--league thinking|scripted] [--msg …] [--day …] [--site URL]   a day (the site verifies it) or a note onto the ledger
 //   node fold_cli.js check                                                           the self-test
 //
 // A road is the moves as letters, g G f i q r x (×g ÷g FOLD INV ×i Γ 6↔9), with or without spaces; the labels ×g ÷g FOLD INV ×i Γ 6↔9
 // and the ASCII *g /g fold inv *i gamma flip are read too. A roads file is one level a line, `L: road` (or bare roads counting up from
 // level 1), a second road after | for the life from 80 REBIRTH if the first is lost, # for a comment. HALT's thirty seconds are the
-// page's: here a move takes no time. Only DAILY is played here; FREE WALK and THE DOORS are the page's.
+// page's: here a move takes no time. Only DAILY is played here; FREE WALK and THE DOORS are the page's. --site is the game's address
+// (https://start.cascade.training, or http://localhost:8257 for node deploy/ledger/server.js; FOLD_SITE sets it).
 'use strict';
 const fs = require('fs'), path = require('path'), os = require('os');
 const USAGE = fs.readFileSync(__filename, 'utf8').split('\n').filter(l => l.startsWith('//')).map(l => l.slice(3)).join('\n');
@@ -29,8 +32,8 @@ const RealDate = Date;
 // the page's globals as parts/levels/test.js gives them to node: a window to hang the modules on, a localStorage the engine can save to
 global.window = {};
 const store = new Map(); global.localStorage = { getItem: k => store.has(k) ? store.get(k) : null, setItem: (k, v) => store.set(k, String(v)), removeItem: k => store.delete(k) };
-for (const f of ['data.js', 'field.js', 'parts/levels/levels.js', 'parts/story/story.js', 'parts/rays/rays.js', 'game.js']) require(path.join(AR, f));
-const F = window.FIELD, D = window.CASCADE_DATA, LV = window.FOLD_LEVELS, ST = window.FOLD_STORY || null, RY = window.FOLD_RAYS || null, G = window.GAME, S = G.S;
+for (const f of ['data.js', 'field.js', 'parts/levels/levels.js', 'parts/story/story.js', 'parts/rays/rays.js', 'parts/ledger/ledger.js', 'game.js']) require(path.join(AR, f));
+const F = window.FIELD, D = window.CASCADE_DATA, LV = window.FOLD_LEVELS, ST = window.FOLD_STORY || null, RY = window.FOLD_RAYS || null, LG = window.FOLD_LEDGER || null, G = window.GAME, S = G.S;
 
 // ── roads: the moves as letters, as game.js writes them (its OPCH), the labels, or the ASCII names ──
 const OPCH = { g: 'g', ig: 'G', fold: 'f', inv: 'i', i: 'q', gam: 'r', flip: 'x' }, CHOP = Object.fromEntries(Object.entries(OPCH).map(([k, v]) => [v, k]));
@@ -52,6 +55,7 @@ const labels = ids => ids.map(id => F.OP[id].label).join(' ') || '—';
 // ── the day: the engine reads it from new Date(), so a chosen day is pinned as that day's local noon; the plan is built from the same number ──
 const dayOfDate = s => { const m = /^(\d{4})-(\d\d)-(\d\d)$/.exec(s || ''); if (!m) throw new Error('--date wants YYYY-MM-DD'); return F.dayNumber(new RealDate(+m[1], +m[2] - 1, +m[3], 12)); };
 function pinDay(day) { const ms = new RealDate(2000, 11, 31 + day, 12).getTime(); global.Date = class extends RealDate { constructor(...a) { super(...(a.length ? a : [ms])); } static now() { return ms; } }; }
+function unpinDay() { global.Date = RealDate; }   // a long-lived host (the ledger's service) gives the clock back after a replay
 const cleanName = n => (n || '').trim().toUpperCase() || 'SCRIBE';
 // the engine started on the day's plan for the name, as the page starts it, with nothing kept from a run before
 function session(name, day) { store.clear(); pinDay(day); const plan = LV.plan(day, cleanName(name)); G.start(name, 'daily', plan); return plan; }
@@ -222,8 +226,30 @@ function tableTxt(t) {
   out.push('', '×g adds 1 to the dlog, ÷g takes 1, FOLD adds 128, INV negates it, ×i adds 192, all mod 256; Γ is not a step on the dlog line'); return out.join('\n');
 }
 
+// ── THE LEDGER (parts/ledger, deploy/ledger): the day's board read, a day or a note posted; the site verifies a day by replaying its roads ──
+async function cmdLedger(o) {
+  const r = await fetch(o.site + '/ledger/' + o.day, { headers: { accept: 'application/json' } }), j = await r.json().catch(() => null);
+  if (!r.ok) throw new Error((j && j.error) || ('the ledger answers ' + r.status)); j.site = o.site; return j;
+}
+function ledgerTxt(r) {
+  const out = ['THE LEDGER · ' + r.date + ' · day ' + r.day + ' · ' + r.site, 'the day\'s seals · ' + r.seals.length + (r.seals.length ? ' · the glyph sequence: the targets closed, a chapter a row, ·· where a level was not closed' : '')];
+  for (const e of r.seals) { out.push(' #' + e.rank + ' ' + e.name + ' · ★ ' + e.stars + ' · ' + e.closed + ' closed' + (e.reborn && e.reborn.length ? ' · reborn ' + e.reborn.length : '') + ' · ' + e.league + ' · sealed under ' + e.seal.word + ' ' + e.seal.cell + ' · the line ' + e.line.word + ' ' + e.line.cell); for (const row of LG.glyphRows(e.targets, F)) out.push('    ' + row); if (e.msg) out.push('    ' + e.msg.replace(/\n/g, '\n    ')); }
+  out.push('the wall · ' + r.notes.length); for (const n of r.notes) out.push(' ' + n.name + ' · ' + n.date + (n.league && n.league !== 'person' ? ' · ' + n.league : '') + ': ' + n.msg.replace(/\n/g, '\n   '));
+  return out.join('\n');
+}
+async function cmdPost(o) {
+  const body = { day: o.day, name: cleanName(o.name), league: o.league || 'person', msg: o.msg || '' };
+  if (o.roadsSrc) { body.roads = readSrc(o.roadsSrc); readRoads(body.roads); }   // read here first: a stray letter is told before anything is sent
+  else if (!body.msg) throw new Error('post NAME ROADS for a day, or post NAME --msg "…" for a note');
+  const r = await fetch(o.site + '/ledger', { method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json' }, body: JSON.stringify(body) }), j = await r.json().catch(() => null);
+  if (!r.ok) throw new Error((j && j.error) || ('the ledger answers ' + r.status)); j.site = o.site; return j;
+}
+const postTxt = j => j.entry.kind === 'seal'
+  ? ['on the ledger at ' + j.site + (j.replaced ? ', replacing the day before' : '') + ': #' + j.entry.rank + ' ' + j.entry.name + ' · ★ ' + j.entry.stars + ' · ' + j.entry.closed + ' closed · ' + j.entry.league].concat(LG.glyphRows(j.entry.targets, F).map(r => '    ' + r), ['share: ' + LG.shareOf(j.entry)]).join('\n')
+  : 'on the wall at ' + j.site + ': ' + j.entry.name + ' · ' + j.entry.msg;
+
 // ── the self-test: day 9384 (2026-09-10) for TORAH, the day parts/levels/test.js pins too ──
-function check() {
+async function check() {
   let checks = 0, fails = 0; const ok = (c, m) => { checks++; if (!c) { fails++; console.log('  FAIL ' + m); } };
   const DAY = 9384, NAME = 'TORAH', tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'fold-cli-')), file = (n, t) => { const p = path.join(tmp, n); fs.writeFileSync(p, t); return p; };
   ok(letters(parseRoad('rrrGrr')) === 'rrrGrr' && letters(parseRoad('Γ Γ Γ ÷g Γ Γ')) === 'rrrGrr' && letters(parseRoad('r, r · r G r r')) === 'rrrGrr', 'a road reads as letters, as labels, with separators');
@@ -265,24 +291,29 @@ function check() {
   const cinf = cmdCell({ n: parseCell('∞') }); ok(cinf.glyphs === '∞' && cinf.moves.find(m => m.letter === 'r').lands === 1 && parseCell('inf') === F.INF, '∞: Γ lands on 1');
   const t = cmdTable(); ok(t.rows.length === 17 && t.rows[0][1] === 0 && t.rows[0][3] === 1 && t.rows.flat().filter(v => v >= 0).length === 256, 'the dlog table: 256 cells with a dlog');
   ok(fs.existsSync(path.join(AR, 'llms.txt')) && fs.readFileSync(path.join(AR, 'llms.txt'), 'utf8').includes(LETTERS), 'llms.txt is there and gives the letters');
+  ok(await cmdPost({ site: 'http://x', name: 'X', day: DAY }).then(() => false, e => /post NAME ROADS/.test(e.message)), 'a post without roads or words is refused before anything is sent');
+  unpinDay(); ok(Date === RealDate, 'the clock is given back');
   fs.rmSync(tmp, { recursive: true, force: true });
   console.log(checks + ' checks, ' + fails + ' failed — the cli plays'); return fails ? 1 : 0;
 }
 
 // ── the command line ──
 function args(argv) {
-  const o = { _: [], json: false, roads: false, day: null };
+  const o = { _: [], json: false, roads: false, day: null, site: (process.env.FOLD_SITE || 'https://start.cascade.training').replace(/\/+$/, ''), league: null, msg: '' };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--json') o.json = true; else if (a === '--roads') o.roads = true; else if (a === '--help' || a === '-h') o.help = true;
     else if (a === '--day') o.day = +argv[++i]; else if (a.startsWith('--day=')) o.day = +a.slice(6);
     else if (a === '--date') o.day = dayOfDate(argv[++i]); else if (a.startsWith('--date=')) o.day = dayOfDate(a.slice(7));
+    else if (a === '--site') o.site = String(argv[++i] || '').replace(/\/+$/, ''); else if (a.startsWith('--site=')) o.site = a.slice(7).replace(/\/+$/, '');
+    else if (a === '--league') o.league = argv[++i]; else if (a.startsWith('--league=')) o.league = a.slice(9);
+    else if (a === '--msg') o.msg = argv[++i] || ''; else if (a.startsWith('--msg=')) o.msg = a.slice(6);
     else if (a.startsWith('--')) throw new Error('no such flag: ' + a); else o._.push(a);
   }
   if (o.day == null) o.day = F.dayNumber(new RealDate()); if (!Number.isInteger(o.day) || o.day < 0) throw new Error('--day wants the day number (days since 2000-12-31), or --date YYYY-MM-DD');
   return o;
 }
-function main(argv) {
+async function main(argv) {
   const o = args(argv), cmd = o._[0], pos = o._.slice(1); if (!cmd || o.help || cmd === 'help') { console.log(USAGE); return 0; }
   let r, txt;
   switch (cmd) {
@@ -295,10 +326,12 @@ function main(argv) {
     case 'cell': o.n = parseCell(pos[0]); r = cmdCell(o); txt = cellFullTxt; break;
     case 'table': r = cmdTable(); txt = tableTxt; break;
     case 'rules': process.stdout.write(fs.readFileSync(path.join(AR, 'llms.txt'), 'utf8')); return 0;
+    case 'ledger': r = await cmdLedger(o); txt = ledgerTxt; break;
+    case 'post': o.name = pos[0]; o.roadsSrc = pos[1] || null; if (!o.name) throw new Error('post NAME [ROADS] [--league …] [--msg …]'); r = await cmdPost(o); txt = postTxt; break;
     case 'check': return check();
     default: throw new Error('no such command: ' + cmd + '\n\n' + USAGE);
   }
   console.log(o.json ? JSON.stringify(r, null, 1) : txt(r)); return 0;
 }
-module.exports = { parseRoad, letters, labels, session, readRoads, cmdPlan, cmdLevel, cmdPlay, playDay, cmdVs, cmdSolve, cmdCell, cmdTable, check };
-if (require.main === module) { try { process.exitCode = main(process.argv.slice(2)); } catch (e) { console.error('fold_cli: ' + e.message); process.exitCode = 2; } }
+module.exports = { parseRoad, letters, labels, cleanName, pinDay, unpinDay, session, readSrc, readRoads, cmdPlan, cmdLevel, cmdPlay, playDay, cmdVs, cmdSolve, cmdCell, cmdTable, cmdLedger, cmdPost, check };
+if (require.main === module) Promise.resolve().then(() => main(process.argv.slice(2))).then(code => { process.exitCode = code; }, e => { console.error('fold_cli: ' + e.message); process.exitCode = 2; });

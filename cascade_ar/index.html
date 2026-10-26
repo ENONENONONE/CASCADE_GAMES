@@ -83,6 +83,22 @@ button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 #panel .k{color:var(--dim)} #panel p{margin:4px 0} #panel .v{font:italic 12px var(--sans);color:var(--gold)}
 #panel .x{position:absolute;top:6px;right:8px;padding:4px 8px;font-size:12px}
 #panel .more{padding:2px 8px;min-height:24px;font-size:11px;letter-spacing:.04em;color:var(--blue);border-color:rgba(127,184,255,.35)}
+#ledgerpanel{position:absolute;top:0;right:0;bottom:0;width:min(94vw,380px);z-index:5;background:rgba(12,16,20,.95);border-left:1px solid var(--line);backdrop-filter:blur(10px);font-family:var(--mono);font-size:12px;color:var(--text);display:flex;flex-direction:column}
+#ledgerpanel[hidden]{display:none}
+#ledgerpanel .lhead{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:max(10px,env(safe-area-inset-top)) 12px 8px;border-bottom:1px solid var(--line)}
+#ledgerpanel h3{margin:0;font-size:15px;color:var(--gold);letter-spacing:.08em} #ledgerpanel h3 span{color:var(--dim);font-weight:400;letter-spacing:0;font-size:11px}
+#ledgerpanel .lbody{flex:1;overflow:auto;padding:4px 12px 8px}
+#ledgerpanel h4{margin:10px 0 6px;font-size:10px;letter-spacing:.14em;color:var(--dim);text-transform:uppercase}
+#ledgerpanel ol,#ledgerpanel ul{list-style:none;margin:0;padding:0} #ledgerpanel li{border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin:0 0 8px;background:rgba(0,0,0,.25)}
+#ledgerpanel ol li:first-child .who b{color:var(--gold)}
+#ledgerpanel .who{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap} #ledgerpanel .who b{color:var(--text)} #ledgerpanel .st{color:var(--gold)} #ledgerpanel .k{color:var(--dim)} #ledgerpanel .k.bad{color:var(--red)}
+#ledgerpanel .gl{margin:6px 0 4px;font:13px/1.55 var(--mono);color:var(--gold);letter-spacing:.08em;white-space:pre;overflow-x:auto} #ledgerpanel .gl i{font-style:normal;color:var(--line)}
+#ledgerpanel .m{margin:4px 0 0;color:var(--text);font:13px/1.4 var(--sans);white-space:pre-wrap;overflow-wrap:anywhere}
+#ledgerpanel .lpost{border-top:1px solid var(--line);padding:8px 12px max(10px,env(safe-area-inset-bottom));display:grid;gap:6px}
+#ledgerpanel .lpost input,#ledgerpanel .lpost textarea{font:13px var(--mono);background:rgba(0,0,0,.4);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:8px;width:100%;resize:vertical;outline:none} #ledgerpanel .lpost input{text-transform:uppercase;letter-spacing:.1em}
+#ledgerpanel .lpost :focus{border-color:var(--green)}
+#ledgerpanel .lbtns{display:flex;gap:6px;flex-wrap:wrap} #ledgerpanel .lbtns button{padding:8px 12px;font-size:12px} #ledgerpanel .status{min-height:1.3em;font-size:11px}
+#ledgerpanel .x{padding:4px 10px;font-size:12px}
 #won,#chap{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(10,13,16,.74)}
 #won[hidden],#chap[hidden]{display:none}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px 22px;max-width:440px;width:100%;font-family:var(--mono);backdrop-filter:blur(10px);max-height:86vh;overflow:auto}
@@ -134,7 +150,7 @@ html.calm *{transition:none!important;animation:none!important}
     <div class="note" id="startnote">Turn with the device to look round the field; the camera shows the room behind it when you allow it. Without a camera or gyro, drag to look.</div>
     <div class="note" id="xrnote" hidden>This browser can open the field in the room itself.</div>
     <div class="row" style="justify-content:center"><span id="daynote"></span></div>
-    <div class="row" style="justify-content:center"><button id="mute" aria-pressed="false" style="font-size:11px;padding:6px 10px">SOUND ON</button></div>
+    <div class="row" style="justify-content:center"><button id="mute" aria-pressed="false" style="font-size:11px;padding:6px 10px">SOUND ON</button><button id="ledgerstart" style="font-size:11px;padding:6px 10px" title="the public ledger: the day's seals with their glyph sequences, and the wall of notes (key l)">LEDGER</button></div>
   </section>
 
   <div id="tube" hidden><canvas id="tubec" role="img" tabindex="0" aria-label="the twelve rays"></canvas><div class="tubebtns" id="tubebtns"><button id="tubeface" aria-pressed="false" title="A8's 16 × 16 dlog picture: ×i turns it a quarter, FOLD a half">TABLE</button><button id="tubex" title="back to the field (t or Esc)">× FIELD</button></div><div class="sr" id="tubefocus" role="status" aria-live="polite"></div></div>
@@ -154,6 +170,7 @@ html.calm *{transition:none!important;animation:none!important}
   <div class="arrow eye" id="arr-eye" hidden><i></i></div>
   <div id="slam" role="status" aria-live="polite"></div>
   <div id="panel" hidden><button class="x" id="panel-x">×</button><div id="panel-body"></div></div>
+  <aside id="ledgerpanel" hidden aria-label="THE LEDGER"></aside>
   <div id="ops" hidden></div>
   <div id="chap" hidden><div class="card" id="chapbody"></div></div>
   <div id="won" hidden><div class="card" id="wonbody"></div></div>
@@ -177,11 +194,12 @@ html.calm *{transition:none!important;animation:none!important}
 <script src="parts/glow/glow.js"></script>
 <script src="parts/heat/heat.js"></script>
 <script src="parts/vr/vr.js"></script>
+<script src="parts/ledger/ledger.js"></script>
 <script>
 (function () {
   'use strict';
   const F = window.FIELD, G = window.GAME, A = window.AR, D = window.CASCADE_DATA, $ = id => document.getElementById(id);
-  const STORY = window.FOLD_STORY || null, SND = window.FOLD_SOUND || null, LV = window.FOLD_LEVELS || null, FX = window.FOLD_FX || null, RL = window.FOLD_RELIEF || null, WELL = window.FOLD_WELL || null, VOID = window.FOLD_VOID || null, GLW = window.FOLD_GLOW || null, VRM = window.FOLD_VR || null;
+  const STORY = window.FOLD_STORY || null, SND = window.FOLD_SOUND || null, LV = window.FOLD_LEVELS || null, FX = window.FOLD_FX || null, RL = window.FOLD_RELIEF || null, WELL = window.FOLD_WELL || null, VOID = window.FOLD_VOID || null, GLW = window.FOLD_GLOW || null, VRM = window.FOLD_VR || null, LG = window.FOLD_LEDGER || null;
   const toast = (t, ms) => { const e = $('toast'); e.textContent = t; e.classList.add('on'); clearTimeout(e._t); e._t = setTimeout(() => e.classList.remove('on'), ms || 1800); };
   // ── sound: the designed set when it is loaded, else a sine a cell ──
   const LS = { get: k => { try { return localStorage.getItem(k); } catch (e) { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} } };
@@ -255,6 +273,12 @@ html.calm *{transition:none!important;animation:none!important}
   bLad.setAttribute('aria-pressed', 'false');
   // VIEW: the rain on or off (M3's CODE will join it on this one button); kept on the device
   const bView = aux('VIEW', () => view(), 'the π tape as the rain behind the field, on or off (key v)');
+  // ── THE LEDGER (parts/ledger): the public board of the day's seals, each with its glyph sequence, and the wall of notes; the first
+  // thing that leaves the device, and only on POST. The sidebar, by LEDGER on the start screen, in this row (key l) and on the seal card;
+  // LEDGER the panel, since ledger(ch) below is the chapter's ledger of roads ──
+  const LEDGER = LG && LG.panel ? LG.panel({ el: $('ledgerpanel'), F, fetch: (u, o) => fetch(u, o), base: 'ledger', name: () => $('name').value, day: () => F.dayNumber(new Date()), climbs: () => G.S.climbs || [], stars: () => G.S.stars || [], toast }) : null;
+  const bLedger = LEDGER ? aux('LEDGER', () => LEDGER.toggle(), 'the public ledger: the day\'s seals with their glyph sequences, and the wall of notes (key l)') : null;
+  $('ledgerstart').onclick = () => LEDGER ? LEDGER.toggle() : toast('no ledger on this page');
   function view() { const B = A.A.rainB; if (!B) return toast('the rain is off on this device'); B.mesh.visible = !B.mesh.visible; LS.set('fold.view', B.mesh.visible ? 'rain' : 'none'); bView.setAttribute('aria-pressed', B.mesh.visible); if (!B.mesh.visible) A.readEnd(); toast(B.mesh.visible ? 'the rain: the π tape, 78 digits a column, a column a dlog tick' : 'rain off', 2400); }
   bView.setAttribute('aria-pressed', !!(A.A.rainB && A.A.rainB.mesh.visible));
   // GLOW: the post pass on or off (key b), kept in fold.prefs; off ↔ the device's own tier, or the full pass where that tier is off. The
@@ -655,7 +679,7 @@ html.calm *{transition:none!important;animation:none!important}
     const txt = fill(fill(fill(fill(tpl, 'word', L.word), 'cell', L.cell), 'mirror', D.cells[L.mirror].w + ' ' + L.mirror), 'stars', stars);
     const parDay = S.plan ? S.plan.reduce((a, sp) => a + (sp && sp.par != null ? sp.par + (sp.slack || 0) : 0), 0) : 0, heatHtml = HT && S.climbs && S.climbs.length ? '<canvas class="ledger" id="dayheat" role="img" title="the day\'s heat · tap to save the picture"></canvas>' : '';
     $('wonbody').innerHTML = '<h2 class="ch">THE SEAL · ' + G.today() + '</h2>' + heatHtml + '<p class="epi">' + txt + '</p><p>' + S.closed + ' levels closed' + (S.rebirths && S.rebirths.length ? ' · reborn ' + S.rebirths.length : '') + ' · ' + stars + ' stars · the line: <b>' + (L.txt || '—') + '</b> ≡ ' + L.cell + ' ' + L.word + '</p>' + (seal ? '<p>product of the targets ≡ <b>' + seal.cell + ' ' + seal.word + '</b></p>' : '') + (dec && S.mode === 'daily' ? '<p>the tape decoded ' + dec.k + ' of ' + dec.of + ' windows · longest run ' + dec.run + '</p>' : '') + (Math.abs(S.borrowed || 0) >= 0.05 ? '<p>' + S.borrowed.toFixed(1) + ' s borrowed from the eye today</p>' : '') + (S.crossed ? '<p>∞ · crossed: through the eye to I AM</p>' : '')
-      + (RY && S.rays ? '<canvas class="ledger" id="daybars" role="img"></canvas><p>the day\'s rays <b>' + RY.spark(S.rays) + '</b> · arrivals by ray on the roads closed, the best work bits beneath</p>' : '') + '<div class="btns"><button class="big" id="again">WALK ON</button><button id="share2">SHARE</button></div>';
+      + (RY && S.rays ? '<canvas class="ledger" id="daybars" role="img"></canvas><p>the day\'s rays <b>' + RY.spark(S.rays) + '</b> · arrivals by ray on the roads closed, the best work bits beneath</p>' : '') + '<div class="btns"><button class="big" id="again">WALK ON</button><button id="share2">SHARE</button><button id="ledger2" title="the public ledger: post the day with its glyph sequence, or a note">LEDGER</button></div>';
     const db = $('daybars'); if (db) { RY.drawBars(db, { size: Math.min(394, Math.floor(db.getBoundingClientRect().width) || 304), dpr: dpr2, rays: S.rays, bits: S.bits, home: F.ray(S.home), tick: F.ray(L.cell) }); db.setAttribute('aria-label', 'the day\'s ledger: by ray ' + S.rays.map((v, i) => 'R' + i + ' ' + v).join(', ') + '; best work bits ' + S.bits.join(' ')); }
     // the day's heat (H3): the crowd's ground from the closes, the day's climbs in the climber's layout, the crown on the rim, the counters
     const dh = $('dayheat'), dayRec = dh ? { climbs: S.climbs, reborn: S.rebirths, parDay, F } : null;
@@ -663,6 +687,7 @@ html.calm *{transition:none!important;animation:none!important}
     $('won').hidden = false; $('again').onclick = () => { $('won').hidden = true; const nm = $('name').value; G.start(nm, 'free', [LV && LV.free ? LV.free(nm) : { n: 1, kind: 'free', start: F.letterSum(nm) % 257, target: null, rule: 0, free: [] }]); openLevel(); };
     // SHARE: the text, and the picture with it where the device shares files (Web Share Level 2); a tap on the picture saves it anywhere
     $('share2').onclick = () => { const t = 'THE FOLD · ' + G.today() + ' · ' + S.closed + ' closed · ' + stars + ' stars · ' + txt + (RY && S.rays ? ' · rays ' + RY.spark(S.rays) : ''); const go = files => { if (navigator.share && files && navigator.canShare && navigator.canShare({ files })) navigator.share({ text: t, files }).catch(() => {}); else if (navigator.share) navigator.share({ text: t }).catch(() => {}); else { navigator.clipboard && navigator.clipboard.writeText(t); toast('copied'); } }; if (dh && dh.isConnected && dh.toBlob && navigator.canShare) dh.toBlob(b => go(b ? [new File([b], 'fold-' + G.today() + '.png', { type: 'image/png' })] : null)); else go(null); };
+    if ($('ledger2')) $('ledger2').onclick = () => LEDGER ? LEDGER.open('post') : toast('no ledger on this page');
   }
   // ── the cell panel: tap a cell to read it ──
   function showCell(n) {
@@ -696,7 +721,7 @@ html.calm *{transition:none!important;animation:none!important}
   canvas.addEventListener('pointerdown', e => { if (!e.isPrimary) return; XS.look = null; drag = { x: e.clientX, y: e.clientY, yaw: A.A.yaw, pitch: A.A.pitch, ty: A.A.touchYaw }; moved = false; canvas.setPointerCapture(e.pointerId); });
   canvas.addEventListener('pointermove', e => { if (!drag) return; const dx = e.clientX - drag.x, dy = e.clientY - drag.y; if (Math.abs(dx) + Math.abs(dy) > 4) moved = true; const k = 0.0035; if (A.A.deviceQ) A.A.touchYaw = drag.ty + dx * k; else { A.A.yaw = drag.yaw + dx * k; A.A.pitch = Math.max(-1.4, Math.min(1.4, drag.pitch + dy * k)); } });
   canvas.addEventListener('pointerup', e => { const d = drag; drag = null; if (!d || moved || $('start').hidden === false) return; if (slow && skip()) return; if (bard && bard.skip()) return; if (A.readEnd && A.readEnd()) return; const r = canvas.getBoundingClientRect(); const nx = (e.clientX - r.left) / r.width * 2 - 1, ny = -((e.clientY - r.top) / r.height * 2 - 1); if (A.pickTape && A.pickTape(nx, ny)) return type(G.S.spec && G.S.spec.text || G.S.rule.tell); const n = A.pick(nx, ny); if (n != null) showCell(n); });
-  window.addEventListener('keydown', e => { if (slow && (e.key === ' ' || e.key === 'Escape') && skip()) return; if (bard && (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') && bard.skip()) { e.preventDefault(); return; } if ((e.key === ' ' || e.key === 'Escape') && A.readEnd && A.readEnd()) return; if (raysKey(e) || traceKey(e)) return; if (e.key === 'v' && !$('hud').hidden && document.activeElement !== $('name')) view(); if (e.key === 'b' && !$('hud').hidden && document.activeElement !== $('name')) glowToggle(); if (e.key === 'h' && HT && !$('hud').hidden && document.activeElement !== $('name')) heatToggle(); const k = 0.08; if (e.key === 'ArrowLeft') A.A.yaw += k; if (e.key === 'ArrowRight') A.A.yaw -= k; if (e.key === 'ArrowUp') A.A.pitch = Math.min(1.4, A.A.pitch + k); if (e.key === 'ArrowDown') A.A.pitch = Math.max(-1.4, A.A.pitch - k); const m = { g: 'g', G: 'ig', f: 'fold', i: 'inv', q: 'i', r: 'gam' }[e.key]; if (m && !$('hud').hidden && $('chap').hidden && $('won').hidden && document.activeElement !== $('name')) move(m); if (e.key === 'u' && !busy && !$('hud').hidden && $('chap').hidden) { const was = G.S.current, id = G.undo(); if (id) { paint(); monStep(G.S); if (G.S.kind === 'eye') cross('undo', G.S.current, was, 600); } } });
+  window.addEventListener('keydown', e => { const typing = !!document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName); if (LEDGER && LEDGER.isOpen() && e.key === 'Escape') { LEDGER.close(); return; } if (e.key === 'l' && LEDGER && !typing) { LEDGER.toggle(); return; } if (slow && (e.key === ' ' || e.key === 'Escape') && skip()) return; if (bard && (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') && bard.skip()) { e.preventDefault(); return; } if ((e.key === ' ' || e.key === 'Escape') && A.readEnd && A.readEnd()) return; if (!typing && (raysKey(e) || traceKey(e))) return; if (e.key === 'v' && !$('hud').hidden && !typing) view(); if (e.key === 'b' && !$('hud').hidden && !typing) glowToggle(); if (e.key === 'h' && HT && !$('hud').hidden && !typing) heatToggle(); const k = 0.08; if (e.key === 'ArrowLeft') A.A.yaw += k; if (e.key === 'ArrowRight') A.A.yaw -= k; if (e.key === 'ArrowUp') A.A.pitch = Math.min(1.4, A.A.pitch + k); if (e.key === 'ArrowDown') A.A.pitch = Math.max(-1.4, A.A.pitch - k); const m = { g: 'g', G: 'ig', f: 'fold', i: 'inv', q: 'i', r: 'gam' }[e.key]; if (m && !$('hud').hidden && $('chap').hidden && $('won').hidden && !typing) move(m); if (e.key === 'u' && !busy && !typing && !$('hud').hidden && $('chap').hidden) { const was = G.S.current, id = G.undo(); if (id) { paint(); monStep(G.S); if (G.S.kind === 'eye') cross('undo', G.S.current, was, 600); } } });
   async function sensors() { try { if (window.DeviceOrientationEvent && typeof DeviceOrientationEvent.requestPermission === 'function') { const r = await DeviceOrientationEvent.requestPermission(); if (r !== 'granted') return false; } } catch (e) { return false; } window.addEventListener('deviceorientation', A.onOrientation, true); return true; }
   async function cameraOn() { if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return false; try { const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 } }, audio: false }); const v = $('video'); v.srcObject = s; v.style.display = 'block'; await v.play().catch(() => {}); A.A.stars.visible = false; A.A.rainAlpha = 0.35; if (A.A.sky) A.A.sky.visible = false; return true; } catch (e) { return false; } }
   // ── the compass arrows and the clock ──
@@ -788,7 +813,7 @@ html.calm *{transition:none!important;animation:none!important}
   }
   // ── the loop ──
   A.A.renderer.setAnimationLoop(() => { const t = (performance.now() - A.A.t0) / 1000; if (A.A.sky && A.A.sky.material.uniforms.time) A.A.sky.material.uniforms.time.value = t; if (crtU) crtU.time.value = t; if (warpU) { warpU.time.value = t; warpQ.visible = warpU.t.value > 0 && !A.A.renderer.xr.isPresenting; } if (WELL) WELL.step(G.S, { cam: $('video').style.display === 'block' }); crossStep(performance.now()); const xr = A.A.renderer.xr.isPresenting; if (HT) heatFrame(performance.now(), xr); if (vr) vr.frame(performance.now()); if (!RAYS.tube || xr) frame3d(xr); arrows(); clockStep(); raysFrame(xr); traceFrame(); });   // the TUBE skips the 3D frame, never in the room; the heat's pass runs before the frame, its own target
-  window.FOLD_DEBUG = { paint, openLevel, move, monFloor, monApply, monStep, MON, showCell, endDay, bardo, reborn, G, A, RAYS, raysTube, frame3d, glowToggle, glowState, get glow() { return glow; }, TRACE, traceCycle, HEAT, heatToggle, get vr() { return vr; }, vrHost, enterVR };  // for a console or a test, not for play
+  window.FOLD_DEBUG = { paint, openLevel, move, ledger: LEDGER, monFloor, monApply, monStep, MON, showCell, endDay, bardo, reborn, G, A, RAYS, raysTube, frame3d, glowToggle, glowState, get glow() { return glow; }, TRACE, traceCycle, HEAT, heatToggle, get vr() { return vr; }, vrHost, enterVR };  // for a console or a test, not for play
   document.addEventListener('visibilitychange', () => { if (!document.hidden && ac && ac.state === 'suspended') ac.resume(); });
   if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
 })();

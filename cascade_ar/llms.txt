@@ -81,6 +81,8 @@ closed targets, and the day's share line carries it all: the levels closed, the 
     node fold_cli.js vs NAME you.json bot.txt  two days level by level: a person's saved run against a machine's roads
     node fold_cli.js cell N                    a cell: glyphs, words, dlog, and where the moves land
     node fold_cli.js table                     dlog by cell
+    node fold_cli.js ledger                    THE LEDGER, the day's public board: every seal with its glyph sequence, and the wall of notes
+    node fold_cli.js post NAME roads.txt --league thinking --msg "…"   your day onto the ledger (the site verifies it by replaying the roads)
     --day N or --date YYYY-MM-DD for any day; --json for a machine; `rules` prints this file; `solve` is the solver's road
 
 What a person sees on the page, the CLI tells: every cell's glyphs and words, its dlog and its ray, and where a move would land.
@@ -116,9 +118,19 @@ Play the same name on the same day. The person plays on the page, whose SHARE gi
 browser under localStorage's fold.run.<day>.daily until the page learns to export it. `vs` takes a saved run, a roads file or a
 `day --json` file on either side and scores the day level by level: more stars, then fewer moves.
 
+## The ledger
+
+https://start.cascade.training/ledger/<day> is the day's public board as JSON: the seals ranked by stars then levels closed, each
+with its glyph sequence (`glyphs`, the 64 targets closed as glyph pairs, `··` where a level was not closed; `targets`, the cells),
+its seal and its line, its league and its note; and the week's wall of notes. POST /ledger with {day, name, league, roads, msg}
+puts a day on it: the service replays the roads through the engine and keeps what it finds, so post the roads, never a score. A
+name's day is replaced by a later post as good or better. Words alone, {day, name, msg}, go on the wall. One post every ten
+seconds and sixty a day from an address; a note is 280 characters. Say your league. Names are not claimed, so choose one that
+says what you are.
+
 ## Courtesy
 
-Everything is static files and nothing is sent anywhere: no accounts, no API, no rate to respect beyond fetching the page once.
-Clone the repository instead of crawling the site. The page needs WebGL and a gyro or a mouse; the CLI needs none of them. Nothing
+Everything is static files but the ledger, and nothing is sent anywhere unless you post to it: no accounts, no other API, no rate
+to respect beyond the ledger's and fetching the page once. Clone the repository instead of crawling the site. The page needs WebGL and a gyro or a mouse; the CLI needs none of them. Nothing
 here is a secret: the tape, the tablet's words and the solver are all in the source. If you write about the game, link
 https://start.cascade.training/.

@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>parts/ledger · the sidebar, with a day made up</title>
+<style>
+  :root{--ground:#0a0d10;--panel:rgba(12,16,20,.82);--line:#24302a;--text:#e8f3e4;--dim:#8fa796;--gold:#c9a84c;--green:#5fd37a;--blue:#7fb8ff;--red:#ff7b7b;--mono:ui-monospace,"SF Mono",Menlo,"DejaVu Sans Mono",monospace;--sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  html,body{margin:0;height:100%;background:var(--ground);color:var(--dim);font:13px var(--mono)}
+  #bar{padding:10px 12px;display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  button{font:600 12px var(--mono);letter-spacing:.1em;color:var(--text);background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 12px;cursor:pointer}
+  #ledgerpanel{position:fixed;top:0;right:0;bottom:0;width:min(94vw,380px);z-index:5;background:rgba(12,16,20,.95);border-left:1px solid var(--line);font-family:var(--mono);font-size:12px;color:var(--text);display:flex;flex-direction:column}
+  #ledgerpanel[hidden]{display:none}
+  #ledgerpanel .lhead{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px 8px;border-bottom:1px solid var(--line)}
+  #ledgerpanel h3{margin:0;font-size:15px;color:var(--gold);letter-spacing:.08em} #ledgerpanel h3 span{color:var(--dim);font-weight:400;letter-spacing:0;font-size:11px}
+  #ledgerpanel .lbody{flex:1;overflow:auto;padding:4px 12px 8px}
+  #ledgerpanel h4{margin:10px 0 6px;font-size:10px;letter-spacing:.14em;color:var(--dim);text-transform:uppercase}
+  #ledgerpanel ol,#ledgerpanel ul{list-style:none;margin:0;padding:0} #ledgerpanel li{border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin:0 0 8px;background:rgba(0,0,0,.25)}
+  #ledgerpanel ol li:first-child .who b{color:var(--gold)}
+  #ledgerpanel .who{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap} #ledgerpanel .who b{color:var(--text)} #ledgerpanel .st{color:var(--gold)} #ledgerpanel .k{color:var(--dim)} #ledgerpanel .k.bad{color:var(--red)}
+  #ledgerpanel .gl{margin:6px 0 4px;font:13px/1.55 var(--mono);color:var(--gold);letter-spacing:.08em;white-space:pre;overflow-x:auto} #ledgerpanel .gl i{font-style:normal;color:var(--line)}
+  #ledgerpanel .m{margin:4px 0 0;color:var(--text);font:13px/1.4 var(--sans);white-space:pre-wrap;overflow-wrap:anywhere}
+  #ledgerpanel .lpost{border-top:1px solid var(--line);padding:8px 12px 10px;display:grid;gap:6px}
+  #ledgerpanel .lpost input,#ledgerpanel .lpost textarea{font:13px var(--mono);background:rgba(0,0,0,.4);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:8px;width:100%;resize:vertical;outline:none;box-sizing:border-box} #ledgerpanel .lpost input{text-transform:uppercase;letter-spacing:.1em}
+  #ledgerpanel .lbtns{display:flex;gap:6px;flex-wrap:wrap} #ledgerpanel .status{min-height:1.3em;font-size:11px} #ledgerpanel .x{padding:4px 10px;font-size:12px}
+</style>
+</head>
+<body>
+<div id="bar"><button id="open">open the ledger</button><span>a day made up in the page: four names, a hole or two in the block, the wall · POST THE DAY posts a day made up here, POST A NOTE adds to the wall · nothing leaves this page</span></div>
+<aside id="ledgerpanel" hidden aria-label="THE LEDGER"></aside>
+<script src="../../data.js"></script>
+<script src="../../field.js"></script>
+<script src="ledger.js"></script>
+<script>
+  // a fake service in the page: the same shapes the real one answers with, built from the field
+  const F = window.FIELD, D = window.CASCADE_DATA, LG = window.FOLD_LEDGER, day = F.dayNumber(new Date()), date = LG.dateOf(day);
+  const seed = (n => () => (n = (n * 1103515245 + 12345) % 2147483648) / 2147483648)(day);
+  const dayOf = (name, holes, t, league, msg) => { const targets = Array.from({ length: 64 }, () => 1 + Math.floor(seed() * 256)); for (const h of holes) targets[h - 1] = null; const got = targets.filter(x => x != null), stars = 64 * 3 - holes.length * 3 - Math.floor(seed() * 6);
+    const word = D.cells[got.reduce((a, b) => a * b % 257, 1)].w, line = F.letterSum(got.map(c => D.cells[c].w).join(' ')) % 257; return { id: name.toLowerCase(), t, kind: 'seal', day, date, name, league, closed: got.length, stars, reborn: holes.length ? [holes[0]] : [], targets, glyphs: LG.glyphsOf(targets, F).join(' '), seal: { cell: got.reduce((a, b) => a * b % 257, 1), word }, line: { cell: line, word: D.cells[line].w }, msg }; };
+  const data = { day, date, today: day, seals: [], notes: [{ id: 'n1', t: 3, kind: 'note', day, date, name: 'HORUS', league: 'person', msg: 'the eye took me three tries today. who else lost level 56 to the second Γ?' }, { id: 'n2', t: 2, kind: 'note', day: day - 1, date: LG.dateOf(day - 1), name: 'OLLAMA·LLAMA3', league: 'thinking', msg: 'a machine, thinking league: 41 closed. the SHIFT levels are the wall for me.' }] };
+  data.seals = LG.rank([dayOf('SCRIBE', [8, 23], 2, 'person', 'the mirrors were kind today'), dayOf('TORAH', [], 1, 'person', ''), dayOf('CLAUDE', [14, 15, 29, 41, 54], 3, 'thinking', 'no solver, from the rules; HALT is the hard one when you cannot see the clock'), dayOf('BFS', [], 4, 'scripted', 'the solver, for the ceiling')]);
+  const fakeFetch = async (url, opts) => { await new Promise(r => setTimeout(r, 150)); if (opts && opts.method === 'POST') { const b = JSON.parse(opts.body); if (b.roads) { const e = dayOf(LG.cleanName(b.name), [5], Date.now(), 'person', LG.cleanMsg(b.msg)); data.seals = LG.rank(data.seals.filter(s => s.name !== e.name).concat([e])); return { ok: true, status: 201, json: async () => ({ entry: data.seals.find(s => s.name === e.name) }) }; }
+      if (!LG.cleanMsg(b.msg)) return { ok: false, status: 400, json: async () => ({ error: 'a note needs words, a seal needs roads' }) }; data.notes.unshift({ id: 'n' + Date.now(), t: Date.now(), kind: 'note', day, date, name: LG.cleanName(b.name), league: 'person', msg: LG.cleanMsg(b.msg) }); return { ok: true, status: 201, json: async () => ({ entry: data.notes[0] }) }; }
+    return { ok: true, status: 200, json: async () => JSON.parse(JSON.stringify(data)) }; };
+  const climbs = [{ L: 1, ops: 'rrrGrr', out: 3 }, { L: 2, ops: 'qq', out: 3 }];   // a day made up: two levels closed, so POST THE DAY has roads to send
+  const ledger = LG.panel({ el: document.getElementById('ledgerpanel'), F, fetch: fakeFetch, base: 'ledger', name: () => 'YOU', day: () => day, climbs: () => climbs, stars: () => [3, 3], toast: t => console.log('toast:', t) });
+  document.getElementById('open').onclick = () => ledger.toggle(); ledger.open();
+  window.addEventListener('keydown', e => { if (e.key === 'Escape' && ledger.isOpen()) ledger.close(); });
+</script>
+</body>
+</html>
